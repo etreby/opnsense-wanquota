@@ -27,6 +27,18 @@ class ConsumerHelpersTests(unittest.TestCase):
         self.assertFalse(CONSUMERS.is_local("198.51.100.10", network))
         self.assertFalse(CONSUMERS.is_local("not-an-address", network))
 
+    def test_classifies_lan_upload_without_provider(self):
+        settings = {"network": CONSUMERS.ipaddress.ip_network("192.0.2.0/24"), "router": "192.0.2.1", "lan_interface": "lan0", "providers": {"wan0": {}}}
+        row = {"if": "lan0", "direction": "out", "src_addr": "192.0.2.20", "dst_addr": "198.51.100.10", "octets": 500}
+        result = CONSUMERS.classify_flow(row, settings)
+        self.assertEqual((result["scope"], result["provider"], result["host"]), ("lan", None, "192.0.2.20"))
+
+    def test_classifies_wan_download_to_internal_device(self):
+        settings = {"network": CONSUMERS.ipaddress.ip_network("192.0.2.0/24"), "router": "192.0.2.1", "lan_interface": "lan0", "providers": {"wan0": {}}}
+        row = {"if": "wan0", "direction": "in", "src_addr": "198.51.100.10", "dst_addr": "192.0.2.20", "octets": 900}
+        result = CONSUMERS.classify_flow(row, settings)
+        self.assertEqual((result["scope"], result["provider"], result["host"]), ("provider", "wan0", "192.0.2.20"))
+
 
 if __name__ == "__main__":
     unittest.main()

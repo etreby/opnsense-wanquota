@@ -24,6 +24,13 @@
             <h3>{{ lang._('Top LAN consumers') }}</h3><div id="hostConsumers"></div>
             <h3>{{ lang._('Top attributed domains') }}</h3><div id="domainConsumers"></div>
             <div id="domainCoverage"></div>
+            <h3>{{ lang._('Per-WAN attributed traffic') }}</h3><div id="wanConsumers"></div>
+            <h3>{{ lang._('Device and domain drill-down') }}</h3>
+            <div class="form-inline" style="margin-bottom:10px">
+                <label for="drillDevice">{{ lang._('Device') }}:&nbsp;</label><select id="drillDevice" class="form-control"><option value="">All devices</option></select>
+                <label for="drillDomain" style="margin-left:10px">{{ lang._('Domain') }}:&nbsp;</label><select id="drillDomain" class="form-control"><option value="">All domains</option></select>
+            </div>
+            <div id="deviceDomainMatrix"></div>
         </div>
     </div>
     <div id="daily" class="tab-pane fade"><div id="dailyReport" style="padding:16px"></div></div>
@@ -74,6 +81,29 @@ function consumerTable(rows, key) {
     }
     return html + '</tbody></table>';
 }
+let currentConsumerData = null;
+function wanTable(providers) {
+    if (!providers || !providers.length) return '<div class="alert alert-info">No per-WAN download data is available.</div>';
+    let html = '<table class="table table-striped"><thead><tr><th>Provider</th><th>Attributed flow total</th><th>Top devices</th><th>Top domains</th><th>Direction split</th></tr></thead><tbody>';
+    for (const provider of providers) {
+        const devices = (provider.devices || []).slice(0, 5).map(item => `${esc(item.name)} (${gb(item.total)})`).join('<br>') || '—';
+        const domains = (provider.domains || []).slice(0, 5).map(item => `${esc(item.domain)} (${gb(item.total)})`).join('<br>') || '—';
+        html += `<tr><td><b>${esc(provider.name)}</b><br><small>${esc(provider.logical_interface)} → ${esc(provider.interface)}</small></td><td><b>${gb(provider.total)}</b></td><td>${devices}</td><td>${domains}</td><td><span class="text-muted">Not attributable</span><br><small>${esc(provider.direction_attribution)}</small></td></tr>`;
+    }
+    return html + '</tbody></table>';
+}
+function matrixTable(rows) {
+    if (!rows || !rows.length) return '<div class="alert alert-info">No attributed device/domain flows match this selection.</div>';
+    let html = '<table class="table table-striped"><thead><tr><th>Device</th><th>Domain</th><th>Attributed total</th></tr></thead><tbody>';
+    for (const row of rows.slice(0, 100)) html += `<tr><td><b>${esc(row.name)}</b><br><small>${esc(row.device)}</small></td><td>${esc(row.domain)}</td><td><b>${gb(row.total)}</b></td></tr>`;
+    return html + '</tbody></table>';
+}
+function refreshMatrix() {
+    if (!currentConsumerData) return;
+    const device = $('#drillDevice').val(), domain = $('#drillDomain').val();
+    const rows = (currentConsumerData.device_domains || []).filter(row => (!device || row.device === device) && (!domain || row.domain === domain));
+    $('#deviceDomainMatrix').html(matrixTable(rows));
+}
 function healthTable(data) {
     if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';
     const labels = {ok: 'success', stale: 'warning', failed: 'danger', disabled: 'default'};
@@ -88,10 +118,17 @@ function healthTable(data) {
 function refreshConsumers() {
     const period = $('#consumerPeriod').val();
     ajaxCall('/api/wanquota/report/consumers_' + period, {}, function(data) {
+        currentConsumerData = data;
         $('#hostConsumers').html(consumerTable(data.hosts, 'name'));
         $('#domainConsumers').html(consumerTable(data.domains, 'domain'));
         const coverage = Number(data?.domain_attribution?.coverage_percent || 0).toFixed(1);
         $('#domainCoverage').html(`<div class="alert alert-info"><b>Domain attribution coverage: ${coverage}%</b><br><small>${esc(data?.domain_attribution?.method || '')}. Encrypted DNS, VPNs, ECH, shared CDN IPs, and uncached answers can remain unattributed.</small></div>`);
+        $('#wanConsumers').html(wanTable(data.providers));
+        const devices = [...new Map((data.device_domains || []).map(row => [row.device, row.name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+        const domains = [...new Set((data.device_domains || []).map(row => row.domain))].sort();
+        $('#drillDevice').html('<option value="">All devices</option>' + devices.map(item => `<option value="${esc(item[0])}">${esc(item[1])}</option>`).join(''));
+        $('#drillDomain').html('<option value="">All domains</option>' + domains.map(item => `<option value="${esc(item)}">${esc(item)}</option>`).join(''));
+        refreshMatrix();
     });
 }
 function refreshReports() {
@@ -112,6 +149,7 @@ $(document).ready(function() {
         history.replaceState(null, '', event.target.hash);
     });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
+    $('#drillDevice,#drillDomain').on('change', refreshMatrix);
     $('#saveAct').click(function() {
         $('#saveAct_progress').addClass('fa fa-spinner fa-pulse');
         saveFormToEndpoint('/api/wanquota/settings/set', 'frm_wanquota_settings', function() {

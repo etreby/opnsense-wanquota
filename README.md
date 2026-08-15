@@ -18,6 +18,8 @@ quota reporting and top-consumer visibility.
 - Color-coded quota progress meters and projected-overage warnings.
 - Deduplicated quota alerts in the system log with configurable repeat timing.
 - Data Health tab covering vnStat, ntopng, Insight, DNS mappings, and alert freshness.
+- Device-to-domain drill-down using a single deduplicated LAN flow source.
+- Exact per-WAN flow-total rankings for devices and domains when Insight retains the post-NAT internal address. Direction splits remain explicitly unavailable because Insight interface direction is not equivalent to download versus upload bytes.
 
 ## Screenshots
 

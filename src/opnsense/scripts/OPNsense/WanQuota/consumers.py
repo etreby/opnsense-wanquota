@@ -37,6 +37,15 @@ def settings_and_names():
     lan_ip = node_text(root, "./interfaces/lan/ipaddr", "192.168.1.1")
     prefix = int(node_text(root, "./interfaces/lan/subnet", "24"))
     lan_interface = node_text(root, "./interfaces/lan/if", "lan")
+    providers = {}
+    for index in (1, 2):
+        logical = node_text(settings, f"provider{index}_interface", "wan" if index == 1 else "opt1")
+        physical = node_text(root, f"./interfaces/{logical}/if", logical)
+        providers[physical] = {
+            "name": node_text(settings, f"provider{index}_name", f"ISP {index}"),
+            "logical_interface": logical,
+            "interface": physical,
+        }
     return {
         "enabled": node_text(settings, "consumers_enabled", "1") == "1",
         "domain_enabled": node_text(settings, "domain_enabled", "1") == "1",
@@ -46,6 +55,7 @@ def settings_and_names():
         "network": ipaddress.ip_network(f"{lan_ip}/{prefix}", strict=False),
         "router": lan_ip,
         "lan_interface": lan_interface,
+        "providers": providers,
     }, names
 
 
@@ -199,13 +209,27 @@ def rrd_totals(path, start):
     return sent, received
 
 
+def classify_flow(row, settings):
+    amount = float(row["octets"] or 0)
+    if row["if"] == settings["lan_interface"] and row["direction"] == "out":
+        if is_local(row["src_addr"], settings["network"]) and not is_local(row["dst_addr"], settings["network"]):
+            if row["src_addr"] != settings["router"]:
+                return {"host": row["src_addr"], "remote": row["dst_addr"], "amount": amount, "scope": "lan", "provider": None}
+    elif row["if"] in settings["providers"] and row["direction"] == "in":
+        if not is_local(row["src_addr"], settings["network"]) and is_local(row["dst_addr"], settings["network"]):
+            if row["dst_addr"] != settings["router"]:
+                return {"host": row["dst_addr"], "remote": row["src_addr"], "amount": amount, "scope": "provider", "provider": row["if"]}
+    return None
+
+
 def report(period):
     settings, names = settings_and_names()
     if not settings["enabled"]:
         return {"status": "disabled", "period": period, "hosts": [], "domains": []}
     start = period_start(period)
     hosts = []
-    remote_totals = {}
+    external_flows = []
+    provider_flows = []
     for address, path in host_rrds(settings["network"]):
         if address == settings["router"]:
             continue
@@ -221,20 +245,20 @@ def report(period):
             rows = []
             flow_error = str(error)
         for row in rows:
-            if row["if"] != settings["lan_interface"] or row["direction"] != "out":
-                continue
-            if not is_local(row["src_addr"], settings["network"]) or is_local(row["dst_addr"], settings["network"]):
-                continue
-            if row["src_addr"] == settings["router"]:
-                continue
-            remote_totals[row["dst_addr"]] = remote_totals.get(row["dst_addr"], 0) + float(row["octets"] or 0)
+            classified = classify_flow(row, settings)
+            if classified:
+                (provider_flows if classified["scope"] == "provider" else external_flows).append(classified)
     host_rows = sorted(hosts, key=lambda item: item["total"], reverse=True)[: settings["top_limit"]]
 
     mappings = domain_map() if settings["domain_enabled"] else {}
     domains = {}
+    device_domains = {}
+    wan_devices = {interface: {} for interface in settings["providers"]}
+    wan_domains = {interface: {} for interface in settings["providers"]}
     attributed = 0
     total_external = 0
-    for remote, amount in remote_totals.items():
+    for flow in external_flows:
+        remote, amount = flow["remote"], flow["amount"]
         total_external += amount
         domain = mappings.get(remote)
         if not domain:
@@ -243,6 +267,17 @@ def report(period):
         entry = domains.setdefault(domain, {"domain": domain, "total": 0, "ips": set()})
         entry["total"] += amount
         entry["ips"].add(remote)
+        device_key = (flow["host"], domain)
+        matrix = device_domains.setdefault(device_key, {"device": flow["host"], "domain": domain, "total": 0})
+        matrix["total"] += amount
+    for flow in provider_flows:
+        interface, amount = flow["provider"], flow["amount"]
+        devices = wan_devices[interface]
+        devices[flow["host"]] = devices.get(flow["host"], 0) + amount
+        domain = mappings.get(flow["remote"])
+        if domain:
+            provider_domains = wan_domains[interface]
+            provider_domains[domain] = provider_domains.get(domain, 0) + amount
     domain_rows = []
     for entry in domains.values():
         domain_rows.append({
@@ -251,6 +286,28 @@ def report(period):
             "ip_count": len(entry["ips"]),
         })
     domain_rows.sort(key=lambda item: item["total"], reverse=True)
+    matrix_rows = sorted(device_domains.values(), key=lambda item: item["total"], reverse=True)
+    for item in matrix_rows:
+        item["name"] = names.get(item["device"], item["device"])
+    provider_rows = []
+    for interface, provider in settings["providers"].items():
+        device_rows = [
+            {"ip": address, "name": names.get(address, address), "total": amount}
+            for address, amount in wan_devices[interface].items()
+        ]
+        device_rows.sort(key=lambda item: item["total"], reverse=True)
+        provider_domain_rows = [
+            {"domain": domain, "total": amount}
+            for domain, amount in wan_domains[interface].items()
+        ]
+        provider_domain_rows.sort(key=lambda item: item["total"], reverse=True)
+        provider_rows.append({
+            **provider,
+            "devices": device_rows[: settings["top_limit"]],
+            "domains": provider_domain_rows[: settings["top_limit"]],
+            "total": sum(wan_devices[interface].values()),
+            "direction_attribution": "Unavailable: Insight interface direction does not represent download versus upload bytes",
+        })
     return {
         "status": "ok",
         "period": period,
@@ -259,11 +316,13 @@ def report(period):
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "hosts": host_rows,
         "domains": domain_rows[: settings["top_limit"]],
+        "device_domains": matrix_rows[: settings["top_limit"] * 5],
+        "providers": provider_rows,
         "domain_attribution": {
             "attributed_bytes": attributed,
             "total_external_bytes": total_external,
             "coverage_percent": attributed / total_external * 100 if total_external else 0,
-            "method": "Insight flow bytes correlated with recently observed Unbound DNS answers",
+            "method": "Deduplicated LAN flows correlated with recently observed Unbound DNS answers",
             "error": flow_error,
         },
     }
