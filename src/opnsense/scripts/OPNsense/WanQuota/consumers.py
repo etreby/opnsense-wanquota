@@ -38,8 +38,10 @@ def settings_and_names():
     prefix = int(node_text(root, "./interfaces/lan/subnet", "24"))
     lan_interface = node_text(root, "./interfaces/lan/if", "lan")
     providers = {}
-    for index in (1, 2):
-        logical = node_text(settings, f"provider{index}_interface", "wan" if index == 1 else "opt1")
+    for index in range(1, 5):
+        if node_text(settings, f"provider{index}_enabled", "1" if index <= 2 else "0") != "1":
+            continue
+        logical = node_text(settings, f"provider{index}_interface", "opt1" if index == 2 else "wan")
         physical = node_text(root, f"./interfaces/{logical}/if", logical)
         providers[physical] = {
             "name": node_text(settings, f"provider{index}_name", f"ISP {index}"),

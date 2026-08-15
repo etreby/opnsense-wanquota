@@ -14,9 +14,10 @@ import xml.etree.ElementTree as ET
 CONFIG_PATH = "/conf/config.xml"
 STATE_DIR = "/var/db/wanquota"
 ALERT_STATE = os.path.join(STATE_DIR, "alerts.json")
-DEFAULTS = (
-    {"name": "ISP 1", "logical_interface": "wan", "quota_gb": 100, "cycle_day": 1, "warning_percent": 80},
-    {"name": "ISP 2", "logical_interface": "opt1", "quota_gb": 100, "cycle_day": 1, "warning_percent": 80},
+DEFAULTS = tuple(
+    {"name": f"ISP {index}", "logical_interface": "opt1" if index == 2 else "wan",
+     "quota_gb": 100, "cycle_day": 1, "warning_percent": 80}
+    for index in range(1, 5)
 )
 
 
@@ -38,6 +39,9 @@ def configuration():
     enabled = text(settings, "enabled", "1") == "1"
     providers = []
     for index, defaults in enumerate(DEFAULTS, 1):
+        default_enabled = "1" if index <= 2 else "0"
+        if text(settings, f"provider{index}_enabled", default_enabled) != "1":
+            continue
         logical = text(settings, f"provider{index}_interface", defaults["logical_interface"])
         physical = text(root, f"./interfaces/{logical}/if", logical)
         providers.append({

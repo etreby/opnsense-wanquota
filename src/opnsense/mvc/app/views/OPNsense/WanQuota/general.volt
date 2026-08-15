@@ -8,7 +8,7 @@
 </ul>
 
 <div class="tab-content content-box tab-content">
-    <div id="summary" class="tab-pane fade in active"><div id="summaryReport" style="padding:16px"></div></div>
+    <div id="summary" class="tab-pane fade in active"><div style="padding:16px"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div id="summaryReport"></div></div></div>
     <div id="consumers" class="tab-pane fade">
         <div style="padding:16px">
             <div class="form-inline" style="margin-bottom:12px">
@@ -20,6 +20,7 @@
                     <option value="month">{{ lang._('Current month') }}</option>
                 </select>
                 <button id="refreshConsumers" class="btn btn-primary" type="button">{{ lang._('Refresh') }}</button>
+                <div class="btn-group"><button id="exportConsumersCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportConsumersJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div>
             </div>
             <h3>{{ lang._('Top LAN consumers') }}</h3><div id="hostConsumers"></div>
             <h3>{{ lang._('Top attributed domains') }}</h3><div id="domainConsumers"></div>
@@ -47,6 +48,17 @@
 <script>
 function gb(value) { return (Number(value || 0) / 1000000000).toFixed(3) + ' GB'; }
 function esc(value) { return $('<div>').text(value ?? '').html(); }
+function downloadReport(filename, content, type) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([content], {type: type}));
+    link.download = filename;
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+}
+function csvCell(value) { return '"' + String(value ?? '').replace(/"/g, '""') + '"'; }
+function csvDocument(headers, rows) {
+    return '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
 function summaryTable(data) {
     if (!data || !data.providers) return '<div class="alert alert-danger">Report unavailable</div>';
     let html = '<table class="table table-striped"><thead><tr><th>Provider</th><th>Cycle</th><th>Download</th><th>Upload</th><th>Used</th><th>Remaining</th><th>Daily budget</th><th>Projected</th></tr></thead><tbody>';
@@ -81,7 +93,7 @@ function consumerTable(rows, key) {
     }
     return html + '</tbody></table>';
 }
-let currentConsumerData = null;
+let currentSummaryData = null, currentConsumerData = null;
 function wanTable(providers) {
     if (!providers || !providers.length) return '<div class="alert alert-info">No per-WAN download data is available.</div>';
     let html = '<table class="table table-striped"><thead><tr><th>Provider</th><th>Attributed flow total</th><th>Top devices</th><th>Top domains</th><th>Direction split</th></tr></thead><tbody>';
@@ -132,7 +144,7 @@ function refreshConsumers() {
     });
 }
 function refreshReports() {
-    ajaxCall('/api/wanquota/report/summary', {}, function(data) { $('#summaryReport').html(summaryTable(data)); });
+    ajaxCall('/api/wanquota/report/summary', {}, function(data) { currentSummaryData = data; $('#summaryReport').html(summaryTable(data)); });
     ajaxCall('/api/wanquota/report/daily', {}, function(data) { $('#dailyReport').html(historyTable(data)); });
     ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); });
     ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
@@ -150,6 +162,18 @@ $(document).ready(function() {
     });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
     $('#drillDevice,#drillDomain').on('change', refreshMatrix);
+    $('#exportSummaryCsv').on('click', function() {
+        if (!currentSummaryData) return;
+        const rows = (currentSummaryData.providers || []).map(p => [p.name, p.logical_interface, p.interface, p.start, p.end, p.rx, p.tx, p.used, p.quota, p.remaining, p.percent, p.daily_budget, p.projected]);
+        downloadReport('wan-quota-summary.csv', csvDocument(['provider','logical_interface','interface','cycle_start','cycle_end','download_bytes','upload_bytes','used_bytes','quota_bytes','remaining_bytes','percent','daily_budget_bytes','projected_bytes'], rows), 'text/csv;charset=utf-8');
+    });
+    $('#exportSummaryJson').on('click', function() { if (currentSummaryData) downloadReport('wan-quota-summary.json', JSON.stringify(currentSummaryData, null, 2), 'application/json'); });
+    $('#exportConsumersCsv').on('click', function() {
+        if (!currentConsumerData) return;
+        const rows = (currentConsumerData.device_domains || []).map(r => [currentConsumerData.period, r.device, r.name, r.domain, r.total]);
+        downloadReport('wan-consumers-' + currentConsumerData.period + '.csv', csvDocument(['period','device_ip','device_name','domain','attributed_bytes'], rows), 'text/csv;charset=utf-8');
+    });
+    $('#exportConsumersJson').on('click', function() { if (currentConsumerData) downloadReport('wan-consumers-' + currentConsumerData.period + '.json', JSON.stringify(currentConsumerData, null, 2), 'application/json'); });
     $('#saveAct').click(function() {
         $('#saveAct_progress').addClass('fa fa-spinner fa-pulse');
         saveFormToEndpoint('/api/wanquota/settings/set', 'frm_wanquota_settings', function() {

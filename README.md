@@ -1,11 +1,12 @@
 # os-wanquota
 
-Community preview of an OPNsense plugin for configurable dual-WAN billing-cycle
+Community preview of an OPNsense plugin for configurable multi-WAN billing-cycle
 quota reporting and top-consumer visibility.
 
 ## Features
 
-- Two configurable providers, resolved from OPNsense logical interfaces.
+- One to four independently enabled providers, resolved from OPNsense logical interfaces.
+- Downloadable CSV and JSON quota summaries and consumer/domain attribution reports.
 - Decimal-GB quota, billing-cycle day, warning threshold, remaining allowance,
   daily budget, projection, and vnStat-backed history.
 - Dashboard widgets and JSON API.

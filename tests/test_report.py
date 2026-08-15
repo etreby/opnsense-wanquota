@@ -1,6 +1,7 @@
 import datetime as dt
 import importlib.util
 from pathlib import Path
+import tempfile
 import unittest
 from unittest import mock
 
@@ -33,6 +34,16 @@ class BillingCycleTests(unittest.TestCase):
     def test_bounded_integer_rejects_invalid_input(self):
         self.assertEqual(REPORT.bounded_int("invalid", 80, 1, 100), 80)
         self.assertEqual(REPORT.bounded_int("500", 80, 1, 100), 100)
+
+    def test_configuration_supports_four_and_skips_disabled_providers(self):
+        xml = """<opnsense><interfaces><wan><if>wan0</if></wan><opt1><if>wan1</if></opt1><opt2><if>wan2</if></opt2><opt3><if>wan3</if></opt3></interfaces><OPNsense><WanQuota><general><provider1_enabled>1</provider1_enabled><provider2_enabled>0</provider2_enabled><provider3_enabled>1</provider3_enabled><provider3_name>Backup LTE</provider3_name><provider3_interface>opt2</provider3_interface><provider4_enabled>1</provider4_enabled><provider4_interface>opt3</provider4_interface></general></WanQuota></OPNsense></opnsense>"""
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as handle:
+            handle.write(xml); handle.flush()
+            with mock.patch.object(REPORT, "CONFIG_PATH", handle.name):
+                enabled, providers = REPORT.configuration()
+        self.assertTrue(enabled)
+        self.assertEqual([item["interface"] for item in providers], ["wan0", "wan2", "wan3"])
+        self.assertEqual(providers[1]["name"], "Backup LTE")
 
     def test_alerts_are_deduplicated(self):
         document = {"providers": [{

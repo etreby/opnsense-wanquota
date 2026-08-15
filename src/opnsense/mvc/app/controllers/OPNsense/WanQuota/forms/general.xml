@@ -5,6 +5,9 @@
         <type>checkbox</type>
     </field>
     <field>
+        <id>wanquota.general.provider1_enabled</id><label>Enable provider 1</label><type>checkbox</type>
+    </field>
+    <field>
         <id>wanquota.general.provider1_name</id>
         <label>Provider 1 name</label>
         <type>text</type>
@@ -28,6 +31,9 @@
         <id>wanquota.general.provider1_warning_percent</id>
         <label>Provider 1 warning threshold (%)</label>
         <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_enabled</id><label>Enable provider 2</label><type>checkbox</type>
     </field>
     <field>
         <id>wanquota.general.provider2_name</id>
@@ -54,6 +60,18 @@
         <label>Provider 2 warning threshold (%)</label>
         <type>text</type>
     </field>
+    <field><id>wanquota.general.provider3_enabled</id><label>Enable provider 3</label><type>checkbox</type></field>
+    <field><id>wanquota.general.provider3_name</id><label>Provider 3 name</label><type>text</type></field>
+    <field><id>wanquota.general.provider3_interface</id><label>Provider 3 interface</label><type>dropdown</type></field>
+    <field><id>wanquota.general.provider3_quota_gb</id><label>Provider 3 quota (decimal GB)</label><type>text</type></field>
+    <field><id>wanquota.general.provider3_cycle_day</id><label>Provider 3 billing-cycle day</label><type>text</type></field>
+    <field><id>wanquota.general.provider3_warning_percent</id><label>Provider 3 warning threshold (%)</label><type>text</type></field>
+    <field><id>wanquota.general.provider4_enabled</id><label>Enable provider 4</label><type>checkbox</type></field>
+    <field><id>wanquota.general.provider4_name</id><label>Provider 4 name</label><type>text</type></field>
+    <field><id>wanquota.general.provider4_interface</id><label>Provider 4 interface</label><type>dropdown</type></field>
+    <field><id>wanquota.general.provider4_quota_gb</id><label>Provider 4 quota (decimal GB)</label><type>text</type></field>
+    <field><id>wanquota.general.provider4_cycle_day</id><label>Provider 4 billing-cycle day</label><type>text</type></field>
+    <field><id>wanquota.general.provider4_warning_percent</id><label>Provider 4 warning threshold (%)</label><type>text</type></field>
     <field>
         <id>wanquota.general.consumers_enabled</id>
         <label>Enable consumer reporting</label>
