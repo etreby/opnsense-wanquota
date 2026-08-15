@@ -24,6 +24,9 @@ $defaults = [
     'top_limit' => '20',
     'default_period' => 'thirty',
     'domain_retention_days' => '90',
+    'alerts_enabled' => '1',
+    'projection_alert_enabled' => '1',
+    'alert_repeat_hours' => '24',
 ];
 foreach ($defaults as $field => $value) {
     if ((string)$model->general->{$field} === '') {

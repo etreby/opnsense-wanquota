@@ -4,12 +4,16 @@
 import calendar
 import datetime as dt
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
 
 CONFIG_PATH = "/conf/config.xml"
+STATE_DIR = "/var/db/wanquota"
+ALERT_STATE = os.path.join(STATE_DIR, "alerts.json")
 DEFAULTS = (
     {"name": "ISP 1", "logical_interface": "wan", "quota_gb": 100, "cycle_day": 1, "warning_percent": 80},
     {"name": "ISP 2", "logical_interface": "opt1", "quota_gb": 100, "cycle_day": 1, "warning_percent": 80},
@@ -45,6 +49,77 @@ def configuration():
             "warning_percent": bounded_int(text(settings, f"provider{index}_warning_percent", defaults["warning_percent"]), defaults["warning_percent"], 1, 100),
         })
     return enabled, providers
+
+
+def alert_configuration():
+    root = ET.parse(CONFIG_PATH).getroot()
+    settings = root.find("./OPNsense/WanQuota/general")
+    return {
+        "enabled": text(settings, "alerts_enabled", "1") == "1",
+        "projection": text(settings, "projection_alert_enabled", "1") == "1",
+        "repeat_hours": bounded_int(text(settings, "alert_repeat_hours", "24"), 24, 1, 168),
+    }
+
+
+def load_alert_state():
+    try:
+        with open(ALERT_STATE, encoding="utf-8") as handle:
+            document = json.load(handle)
+            return document if isinstance(document, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_alert_state(state):
+    os.makedirs(STATE_DIR, mode=0o750, exist_ok=True)
+    descriptor, temporary = tempfile.mkstemp(prefix="alerts-", suffix=".json", dir=STATE_DIR)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(state, handle, separators=(",", ":"), sort_keys=True)
+        os.chmod(temporary, 0o640)
+        os.replace(temporary, ALERT_STATE)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def evaluate_alerts(document, now=None, emit=True):
+    options = alert_configuration()
+    if not options["enabled"]:
+        return {"status": "disabled", "events": []}
+    now = int(now if now is not None else dt.datetime.now().timestamp())
+    repeat_seconds = options["repeat_hours"] * 3600
+    state = load_alert_state()
+    events = []
+    active_keys = set()
+    for provider in document.get("providers", []):
+        if not provider.get("available"):
+            continue
+        conditions = []
+        if provider["percent"] >= provider["warning_percent"]:
+            conditions.append(("threshold", f"usage reached {provider['percent']:.1f}%"))
+        if options["projection"] and provider["projected"] > provider["quota"]:
+            projected_percent = provider["projected"] / provider["quota"] * 100
+            conditions.append(("projection", f"projected usage is {projected_percent:.1f}% of quota"))
+        for condition, detail in conditions:
+            key = f"{provider['logical_interface']}:{provider['start']}:{condition}"
+            active_keys.add(key)
+            last_sent = int(state.get(key, 0) or 0)
+            if now - last_sent < repeat_seconds:
+                continue
+            message = f"{provider['name']}: {detail}; {provider['remaining'] / 1e9:.2f} GB remaining"
+            if emit:
+                subprocess.run(["/usr/bin/logger", "-t", "wanquota", message], check=False)
+            state[key] = now
+            events.append({"provider": provider["name"], "condition": condition, "message": message})
+    state = {key: value for key, value in state.items() if key in active_keys}
+    save_alert_state(state)
+    return {"status": "ok", "events": events, "repeat_hours": options["repeat_hours"]}
+
+
+def monitor(enabled, providers):
+    document = summary(enabled, providers)
+    return {"status": document["status"], "alerts": evaluate_alerts(document), "summary": document}
 
 
 def add_month(value):
@@ -155,8 +230,13 @@ def human_report(document):
 
 def main():
     enabled, providers = configuration()
-    mode = next((arg for arg in sys.argv[1:] if arg in {"summary", "daily", "monthly"}), "summary")
-    document = summary(enabled, providers) if mode == "summary" else history(enabled, providers, mode)
+    mode = next((arg for arg in sys.argv[1:] if arg in {"summary", "daily", "monthly", "monitor"}), "summary")
+    if mode == "summary":
+        document = summary(enabled, providers)
+    elif mode == "monitor":
+        document = monitor(enabled, providers)
+    else:
+        document = history(enabled, providers, mode)
     if "--json" in sys.argv or mode != "summary":
         print(json.dumps(document, separators=(",", ":")))
     else:

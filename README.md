@@ -14,12 +14,18 @@ quota reporting and top-consumer visibility.
   observed Unbound A/AAAA answers, including a visible coverage percentage.
 - Configurable reporting period, result count, and DNS mapping retention.
 - Clickable dashboard widgets that open the full report or Consumers tab.
+- Dedicated Top WAN Domains widget with visible attribution coverage.
+- Color-coded quota progress meters and projected-overage warnings.
+- Deduplicated quota alerts in the system log with configurable repeat timing.
+- Data Health tab covering vnStat, ntopng, Insight, DNS mappings, and alert freshness.
 
 ## Screenshots
 
 ![WAN quota dashboard widgets](docs/screenshots/dashboard-widgets.png)
 
 ![Consumer and attributed-domain report](docs/screenshots/consumer-report.png)
+
+![Data-source health report](docs/screenshots/data-health.png)
 
 ## Requirements
 

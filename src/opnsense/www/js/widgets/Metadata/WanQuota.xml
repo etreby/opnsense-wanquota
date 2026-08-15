@@ -30,4 +30,17 @@
             <unavailable>No consumer traffic data is available</unavailable>
         </translations>
     </wanconsumers>
+    <wandomains>
+        <filename>WanDomains.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/consumers_*</endpoint>
+        </endpoints>
+        <translations>
+            <title>Top WAN Domains</title>
+            <domain>Attributed domain</domain>
+            <total>Attributed usage</total>
+            <coverage>Coverage</coverage>
+            <unavailable>No attributed domain data is available</unavailable>
+        </translations>
+    </wandomains>
 </metadata>

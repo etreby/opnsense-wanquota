@@ -3,6 +3,7 @@
     <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
     <li><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
     <li><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
+    <li><a data-toggle="tab" href="#health">{{ lang._('Data health') }}</a></li>
     <li><a data-toggle="tab" href="#settings">{{ lang._('Settings') }}</a></li>
 </ul>
 
@@ -27,6 +28,7 @@
     </div>
     <div id="daily" class="tab-pane fade"><div id="dailyReport" style="padding:16px"></div></div>
     <div id="monthly" class="tab-pane fade"><div id="monthlyReport" style="padding:16px"></div></div>
+    <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade">
         <div class="content-box" style="padding-bottom:1.5em">
             {{ partial("layout_partials/base_form", ['fields':generalForm,'id':'frm_wanquota_settings']) }}
@@ -72,6 +74,17 @@ function consumerTable(rows, key) {
     }
     return html + '</tbody></table>';
 }
+function healthTable(data) {
+    if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';
+    const labels = {ok: 'success', stale: 'warning', failed: 'danger', disabled: 'default'};
+    let html = `<div class="alert alert-${data.status === 'ok' ? 'success' : data.status === 'failed' ? 'danger' : 'warning'}"><b>Overall data health: ${esc(data.status)}</b><br><small>Generated: ${esc(data.generated_at)}</small></div>`;
+    html += '<table class="table table-striped"><thead><tr><th>Source</th><th>Status</th><th>Detail</th><th>Freshness</th></tr></thead><tbody>';
+    for (const item of data.checks) {
+        const freshness = item.age_seconds == null ? '—' : item.age_seconds < 120 ? item.age_seconds + ' seconds' : Math.round(item.age_seconds / 60) + ' minutes';
+        html += `<tr><td><b>${esc(item.name)}</b></td><td><span class="label label-${labels[item.status] || 'default'}">${esc(item.status)}</span></td><td>${esc(item.detail)}</td><td>${freshness}</td></tr>`;
+    }
+    return html + '</tbody></table>';
+}
 function refreshConsumers() {
     const period = $('#consumerPeriod').val();
     ajaxCall('/api/wanquota/report/consumers_' + period, {}, function(data) {
@@ -85,6 +98,7 @@ function refreshReports() {
     ajaxCall('/api/wanquota/report/summary', {}, function(data) { $('#summaryReport').html(summaryTable(data)); });
     ajaxCall('/api/wanquota/report/daily', {}, function(data) { $('#dailyReport').html(historyTable(data)); });
     ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); });
+    ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
 }
 $(document).ready(function() {
     mapDataToFormUI({'frm_wanquota_settings':'/api/wanquota/settings/get'}).done(function() { formatTokenizersUI(); $('.selectpicker').selectpicker('refresh'); });

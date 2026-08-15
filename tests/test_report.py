@@ -2,6 +2,7 @@ import datetime as dt
 import importlib.util
 from pathlib import Path
 import unittest
+from unittest import mock
 
 
 SOURCE = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota/report.py"
@@ -32,6 +33,33 @@ class BillingCycleTests(unittest.TestCase):
     def test_bounded_integer_rejects_invalid_input(self):
         self.assertEqual(REPORT.bounded_int("invalid", 80, 1, 100), 80)
         self.assertEqual(REPORT.bounded_int("500", 80, 1, 100), 100)
+
+    def test_alerts_are_deduplicated(self):
+        document = {"providers": [{
+            "name": "ISP 1", "logical_interface": "wan", "start": "2026-08-01",
+            "available": True, "percent": 85, "warning_percent": 80,
+            "projected": 90_000_000_000, "quota": 100_000_000_000,
+            "remaining": 15_000_000_000,
+        }]}
+        with mock.patch.object(REPORT, "alert_configuration", return_value={"enabled": True, "projection": True, "repeat_hours": 24}), \
+             mock.patch.object(REPORT, "load_alert_state", return_value={}), \
+             mock.patch.object(REPORT, "save_alert_state") as save:
+            result = REPORT.evaluate_alerts(document, now=100_000, emit=False)
+        self.assertEqual([event["condition"] for event in result["events"]], ["threshold"])
+        save.assert_called_once()
+
+    def test_projection_alert(self):
+        document = {"providers": [{
+            "name": "ISP 2", "logical_interface": "opt1", "start": "2026-08-15",
+            "available": True, "percent": 40, "warning_percent": 80,
+            "projected": 120_000_000_000, "quota": 100_000_000_000,
+            "remaining": 60_000_000_000,
+        }]}
+        with mock.patch.object(REPORT, "alert_configuration", return_value={"enabled": True, "projection": True, "repeat_hours": 24}), \
+             mock.patch.object(REPORT, "load_alert_state", return_value={}), \
+             mock.patch.object(REPORT, "save_alert_state"):
+            result = REPORT.evaluate_alerts(document, now=100_000, emit=False)
+        self.assertEqual(result["events"][0]["condition"], "projection")
 
 
 if __name__ == "__main__":

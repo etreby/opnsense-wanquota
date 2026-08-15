@@ -81,4 +81,20 @@
         <label>DNS attribution retention (days)</label>
         <type>text</type>
     </field>
+    <field>
+        <id>wanquota.general.alerts_enabled</id>
+        <label>Enable quota alerts</label>
+        <type>checkbox</type>
+        <help>Write deduplicated threshold and projection alerts to the system log.</help>
+    </field>
+    <field>
+        <id>wanquota.general.projection_alert_enabled</id>
+        <label>Alert when projected usage exceeds quota</label>
+        <type>checkbox</type>
+    </field>
+    <field>
+        <id>wanquota.general.alert_repeat_hours</id>
+        <label>Alert repeat interval (hours)</label>
+        <type>text</type>
+    </field>
 </form>

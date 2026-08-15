@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/WanQuota</mount>
     <description>WAN quota reporting configuration</description>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <items>
         <general>
             <enabled type="BooleanField">
@@ -90,6 +90,20 @@
                 <MinimumValue>7</MinimumValue>
                 <MaximumValue>365</MaximumValue>
             </domain_retention_days>
+            <alerts_enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </alerts_enabled>
+            <projection_alert_enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </projection_alert_enabled>
+            <alert_repeat_hours type="NumericField">
+                <Default>24</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>168</MaximumValue>
+            </alert_repeat_hours>
         </general>
     </items>
 </model>

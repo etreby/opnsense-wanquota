@@ -12,6 +12,11 @@ export default class WanQuota extends BaseTableWidget {
         return container;
     }
     _gb(value) { return `${(Number(value || 0) / 1000000000).toFixed(2)} GB`; }
+    _meter(value, warning) {
+        const width = Math.max(0, Math.min(100, Number(value || 0)));
+        const color = warning ? '#d9534f' : width >= 65 ? '#f0ad4e' : '#5cb85c';
+        return `<div style="height:6px;background:#e8edf0;border-radius:4px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${width}%;background:${color}"></div></div>`;
+    }
     _escape(value) {
         const element = document.createElement('div');
         element.textContent = String(value ?? '');
@@ -39,7 +44,7 @@ export default class WanQuota extends BaseTableWidget {
                 `<a href="/ui/wanquota/general/index"><b>${this._escape(item.name)}${warning}</b></a><br><small>${this._escape(item.start)} – ${this._escape(item.end)}${note}<br><i class="fa fa-random"></i> ${this._escape(item.interface)}</small>`,
                 this._gb(item.rx),
                 this._gb(item.tx),
-                `${this._gb(item.used)} (${pct}%)`,
+                `${this._gb(item.used)} (${pct}%)${this._meter(pct, item.warning)}`,
                 `${this._gb(item.remaining)}<br><small>${item.days_left} ${this.translations.days}; ${this._gb(item.daily_budget)}/${this.translations.day}</small>`
             ]);
         }
