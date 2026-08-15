@@ -1,0 +1,10 @@
+<acl>
+    <page-services-wanquota>
+        <name>Services: WAN Quotas</name>
+        <patterns>
+            <pattern>ui/wanquota/*</pattern>
+            <pattern>api/wanquota/*</pattern>
+        </patterns>
+    </page-services-wanquota>
+</acl>
+

@@ -1,0 +1,6 @@
+<menu>
+    <Reporting>
+        <WanQuota cssClass="fa fa-tachometer" url="/ui/wanquota/general/index">WAN Quotas</WanQuota>
+    </Reporting>
+</menu>
+

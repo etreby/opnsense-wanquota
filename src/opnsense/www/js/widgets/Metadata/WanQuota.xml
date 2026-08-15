@@ -1,0 +1,33 @@
+<metadata>
+    <wanquota>
+        <filename>WanQuota.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/*</endpoint>
+        </endpoints>
+        <translations>
+            <title>WAN Quotas</title>
+            <provider>Provider</provider>
+            <download>Download</download>
+            <upload>Upload</upload>
+            <used>Used</used>
+            <remaining>Remaining</remaining>
+            <days>days</days>
+            <day>day</day>
+            <unavailable>WAN quota report unavailable</unavailable>
+        </translations>
+    </wanquota>
+    <wanconsumers>
+        <filename>WanConsumers.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/consumers_*</endpoint>
+        </endpoints>
+        <translations>
+            <title>Top WAN Consumers</title>
+            <device>Device</device>
+            <download>Download</download>
+            <upload>Upload</upload>
+            <total>Total</total>
+            <unavailable>No consumer traffic data is available</unavailable>
+        </translations>
+    </wanconsumers>
+</metadata>

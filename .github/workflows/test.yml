@@ -1,0 +1,26 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  portable-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit and syntax tests
+        run: ./tests/run.sh
+      - name: Validate XML
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          for path in Path("src").rglob("*.xml"):
+              ET.parse(path)
+          PY
+      - name: Check PHP syntax
+        run: find src -name '*.php' -print0 | xargs -0 -n1 php -l

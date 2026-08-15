@@ -1,0 +1,7 @@
+Configurable billing-cycle quota reporting for two OPNsense WAN providers.
+
+The plugin reads persistent vnStat counters, reports download and upload usage,
+remaining quota, daily budget, projected cycle totals, and daily history. It
+includes an OPNsense settings page, report view, API, and dashboard widget.
+Optional consumer reports use ntopng host RRDs and correlate Insight flow bytes
+with recent Unbound answers for explicitly coverage-labelled domain estimates.

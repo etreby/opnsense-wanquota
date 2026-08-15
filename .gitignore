@@ -1,0 +1,12 @@
+*.pkg
+*.pyc
+__pycache__/
+.pytest_cache/
+dist/
+config.xml
+*.sqlite
+*.db
+*.rrd
+identity
+*.key
+*.pem

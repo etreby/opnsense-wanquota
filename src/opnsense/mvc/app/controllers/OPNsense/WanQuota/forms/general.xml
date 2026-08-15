@@ -1,0 +1,84 @@
+<form>
+    <field>
+        <id>wanquota.general.enabled</id>
+        <label>Enable WAN quota reporting</label>
+        <type>checkbox</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_name</id>
+        <label>Provider 1 name</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_interface</id>
+        <label>Provider 1 interface</label>
+        <type>dropdown</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_quota_gb</id>
+        <label>Provider 1 quota (decimal GB)</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_cycle_day</id>
+        <label>Provider 1 billing-cycle day</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_warning_percent</id>
+        <label>Provider 1 warning threshold (%)</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_name</id>
+        <label>Provider 2 name</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_interface</id>
+        <label>Provider 2 interface</label>
+        <type>dropdown</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_quota_gb</id>
+        <label>Provider 2 quota (decimal GB)</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_cycle_day</id>
+        <label>Provider 2 billing-cycle day</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_warning_percent</id>
+        <label>Provider 2 warning threshold (%)</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.consumers_enabled</id>
+        <label>Enable consumer reporting</label>
+        <type>checkbox</type>
+        <help>Rank LAN hosts using the persistent OPNsense Insight daily-flow database.</help>
+    </field>
+    <field>
+        <id>wanquota.general.domain_enabled</id>
+        <label>Enable domain attribution</label>
+        <type>checkbox</type>
+        <help>Correlate Insight flow bytes with recently observed Unbound DNS answers. Results are attributed estimates.</help>
+    </field>
+    <field>
+        <id>wanquota.general.top_limit</id>
+        <label>Top results</label>
+        <type>text</type>
+    </field>
+    <field>
+        <id>wanquota.general.default_period</id>
+        <label>Default consumer period</label>
+        <type>dropdown</type>
+    </field>
+    <field>
+        <id>wanquota.general.domain_retention_days</id>
+        <label>DNS attribution retention (days)</label>
+        <type>text</type>
+    </field>
+</form>

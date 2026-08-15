@@ -1,0 +1,95 @@
+<model>
+    <mount>//OPNsense/WanQuota</mount>
+    <description>WAN quota reporting configuration</description>
+    <version>1.1.0</version>
+    <items>
+        <general>
+            <enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </enabled>
+            <provider1_name type="TextField">
+                <Default>ISP 1</Default>
+                <Required>Y</Required>
+            </provider1_name>
+            <provider1_interface type="InterfaceField">
+                <Default>wan</Default>
+                <Required>Y</Required>
+            </provider1_interface>
+            <provider1_quota_gb type="NumericField">
+                <Default>100</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>100000</MaximumValue>
+            </provider1_quota_gb>
+            <provider1_cycle_day type="NumericField">
+                <Default>1</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>31</MaximumValue>
+            </provider1_cycle_day>
+            <provider1_warning_percent type="NumericField">
+                <Default>80</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>100</MaximumValue>
+            </provider1_warning_percent>
+            <provider2_name type="TextField">
+                <Default>ISP 2</Default>
+                <Required>Y</Required>
+            </provider2_name>
+            <provider2_interface type="InterfaceField">
+                <Default>opt1</Default>
+                <Required>Y</Required>
+            </provider2_interface>
+            <provider2_quota_gb type="NumericField">
+                <Default>100</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>100000</MaximumValue>
+            </provider2_quota_gb>
+            <provider2_cycle_day type="NumericField">
+                <Default>15</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>31</MaximumValue>
+            </provider2_cycle_day>
+            <provider2_warning_percent type="NumericField">
+                <Default>80</Default>
+                <Required>Y</Required>
+                <MinimumValue>1</MinimumValue>
+                <MaximumValue>100</MaximumValue>
+            </provider2_warning_percent>
+            <consumers_enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </consumers_enabled>
+            <domain_enabled type="BooleanField">
+                <Default>1</Default>
+                <Required>Y</Required>
+            </domain_enabled>
+            <top_limit type="NumericField">
+                <Default>20</Default>
+                <Required>Y</Required>
+                <MinimumValue>5</MinimumValue>
+                <MaximumValue>100</MaximumValue>
+            </top_limit>
+            <default_period type="OptionField">
+                <Default>thirty</Default>
+                <Required>Y</Required>
+                <OptionValues>
+                    <today>Today</today>
+                    <week>Last 7 days</week>
+                    <thirty>Last 30 days</thirty>
+                    <month>Current month</month>
+                </OptionValues>
+            </default_period>
+            <domain_retention_days type="NumericField">
+                <Default>90</Default>
+                <Required>Y</Required>
+                <MinimumValue>7</MinimumValue>
+                <MaximumValue>365</MaximumValue>
+            </domain_retention_days>
+        </general>
+    </items>
+</model>
