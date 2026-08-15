@@ -7,6 +7,8 @@ quota reporting and top-consumer visibility.
 
 - One to four independently enabled providers, resolved from OPNsense logical interfaces.
 - Downloadable CSV and JSON quota summaries and consumer/domain attribution reports.
+- Responsive Chart.js dashboard with quota cards, provider comparisons, traffic mix,
+  top-consumer/domain bars, daily/monthly trends, and visual source-health status.
 - Decimal-GB quota, billing-cycle day, warning threshold, remaining allowance,
   daily budget, projection, and vnStat-backed history.
 - Dashboard widgets and JSON API.

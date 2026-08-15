@@ -8,5 +8,6 @@ config.xml
 *.db
 *.rrd
 identity
+graphify-out/
 *.key
 *.pem

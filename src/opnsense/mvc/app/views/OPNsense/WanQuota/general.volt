@@ -1,3 +1,9 @@
+<script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
+<style>
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}@media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}}
+</style>
+<div class="wq-shell">
+<div class="wq-hero"><h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2><p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p></div>
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
     <li class="active"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
     <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
@@ -8,7 +14,7 @@
 </ul>
 
 <div class="tab-content content-box tab-content">
-    <div id="summary" class="tab-pane fade in active"><div style="padding:16px"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div id="summaryReport"></div></div></div>
+    <div id="summary" class="tab-pane fade in active"><div style="padding:16px"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div class="wq-grid" id="quotaCards"></div><div class="wq-grid"><div class="wq-card"><h3>Provider quota comparison</h3><div class="wq-chart"><canvas id="quotaChart"></canvas></div></div><div class="wq-card"><h3>Download and upload mix</h3><div class="wq-chart"><canvas id="trafficMixChart"></canvas></div></div></div><div id="summaryReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="consumers" class="tab-pane fade">
         <div style="padding:16px">
             <div class="form-inline" style="margin-bottom:12px">
@@ -22,8 +28,8 @@
                 <button id="refreshConsumers" class="btn btn-primary" type="button">{{ lang._('Refresh') }}</button>
                 <div class="btn-group"><button id="exportConsumersCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportConsumersJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div>
             </div>
-            <h3>{{ lang._('Top LAN consumers') }}</h3><div id="hostConsumers"></div>
-            <h3>{{ lang._('Top attributed domains') }}</h3><div id="domainConsumers"></div>
+            <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Top LAN consumers') }}</h3><div class="wq-chart"><canvas id="hostChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Top attributed domains') }}</h3><div class="wq-chart"><canvas id="domainChart"></canvas></div></div></div>
+            <div class="wq-section wq-table-wrap"><div id="hostConsumers"></div></div><div class="wq-section wq-table-wrap"><div id="domainConsumers"></div></div>
             <div id="domainCoverage"></div>
             <h3>{{ lang._('Per-WAN attributed traffic') }}</h3><div id="wanConsumers"></div>
             <h3>{{ lang._('Device and domain drill-down') }}</h3>
@@ -34,8 +40,8 @@
             <div id="deviceDomainMatrix"></div>
         </div>
     </div>
-    <div id="daily" class="tab-pane fade"><div id="dailyReport" style="padding:16px"></div></div>
-    <div id="monthly" class="tab-pane fade"><div id="monthlyReport" style="padding:16px"></div></div>
+    <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>Daily traffic trend</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>Monthly traffic trend</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade">
         <div class="content-box" style="padding-bottom:1.5em">
@@ -44,10 +50,19 @@
         </div>
     </div>
 </div>
+</div>
 
 <script>
 function gb(value) { return (Number(value || 0) / 1000000000).toFixed(3) + ' GB'; }
 function esc(value) { return $('<div>').text(value ?? '').html(); }
+const wqCharts = {};
+const wqColors = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#ef4444','#64748b'];
+function makeChart(id, config) { if (wqCharts[id]) wqCharts[id].destroy(); const canvas=document.getElementById(id); if(canvas) wqCharts[id]=new Chart(canvas,config); }
+function chartOptions(horizontal=false) { return {responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:true,position:'bottom'}},scales:{x:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}}}}; }
+function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3>${esc(p.name)}</h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
+function renderSummaryCharts(data){const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
+function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10);makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:chartOptions(true)});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:chartOptions(true)});}
+function renderHistoryChart(id,data){const dates=[...new Set((data.providers||[]).flatMap(p=>p.rows.map(r=>r.date)))].sort();makeChart(id,{type:'line',data:{labels:dates,datasets:(data.providers||[]).map((p,i)=>({label:p.name+' total GB',data:dates.map(d=>{const r=p.rows.find(x=>x.date===d);return r?r.total/1e9:null}),borderColor:wqColors[i%wqColors.length],backgroundColor:wqColors[i%wqColors.length]+'33',fill:true,tension:.3,pointRadius:2}))},options:chartOptions(false)});}
 function downloadReport(filename, content, type) {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([content], {type: type}));
@@ -55,7 +70,7 @@ function downloadReport(filename, content, type) {
     document.body.appendChild(link); link.click(); link.remove();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
-function csvCell(value) { return '"' + String(value ?? '').replace(/"/g, '""') + '"'; }
+function csvCell(value) { let text=String(value ?? ''); if (/^[=+\-@]/.test(text)) text="'"+text; return '"' + text.replace(/"/g, '""') + '"'; }
 function csvDocument(headers, rows) {
     return '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }
@@ -119,7 +134,10 @@ function refreshMatrix() {
 function healthTable(data) {
     if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';
     const labels = {ok: 'success', stale: 'warning', failed: 'danger', disabled: 'default'};
-    let html = `<div class="alert alert-${data.status === 'ok' ? 'success' : data.status === 'failed' ? 'danger' : 'warning'}"><b>Overall data health: ${esc(data.status)}</b><br><small>Generated: ${esc(data.generated_at)}</small></div>`;
+    const color = data.status === 'ok' ? '#10b981' : data.status === 'failed' ? '#ef4444' : '#f59e0b';
+    let html = `<div class="wq-hero" style="background:linear-gradient(135deg,#172033,${color})"><h2><span class="wq-health-dot" style="background:${color};box-shadow:0 0 12px ${color}"></span>Data health: ${esc(data.status).toUpperCase()}</h2><p>All reporting depends on fresh accounting sources · ${esc(data.generated_at)}</p></div><div class="wq-grid">`;
+    for (const item of data.checks) { const c=item.status==='ok'?'#10b981':item.status==='failed'?'#ef4444':'#f59e0b'; html+=`<div class="wq-card"><h3><span class="wq-health-dot" style="background:${c}"></span>${esc(item.name)}</h3><div class="wq-metric" style="font-size:18px">${esc(item.status).toUpperCase()}</div><div class="wq-muted">${esc(item.detail)}</div></div>`; }
+    html += '</div>';
     html += '<table class="table table-striped"><thead><tr><th>Source</th><th>Status</th><th>Detail</th><th>Freshness</th></tr></thead><tbody>';
     for (const item of data.checks) {
         const freshness = item.age_seconds == null ? '—' : item.age_seconds < 120 ? item.age_seconds + ' seconds' : Math.round(item.age_seconds / 60) + ' minutes';
@@ -131,6 +149,7 @@ function refreshConsumers() {
     const period = $('#consumerPeriod').val();
     ajaxCall('/api/wanquota/report/consumers_' + period, {}, function(data) {
         currentConsumerData = data;
+        renderConsumerCharts(data);
         $('#hostConsumers').html(consumerTable(data.hosts, 'name'));
         $('#domainConsumers').html(consumerTable(data.domains, 'domain'));
         const coverage = Number(data?.domain_attribution?.coverage_percent || 0).toFixed(1);
@@ -144,9 +163,9 @@ function refreshConsumers() {
     });
 }
 function refreshReports() {
-    ajaxCall('/api/wanquota/report/summary', {}, function(data) { currentSummaryData = data; $('#summaryReport').html(summaryTable(data)); });
-    ajaxCall('/api/wanquota/report/daily', {}, function(data) { $('#dailyReport').html(historyTable(data)); });
-    ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); });
+    ajaxCall('/api/wanquota/report/summary', {}, function(data) { currentSummaryData = data; $('#summaryReport').html(summaryTable(data)); renderSummaryCharts(data); });
+    ajaxCall('/api/wanquota/report/daily', {}, function(data) { $('#dailyReport').html(historyTable(data)); renderHistoryChart('dailyChart',data); });
+    ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); renderHistoryChart('monthlyChart',data); });
     ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
 }
 $(document).ready(function() {
@@ -159,6 +178,8 @@ $(document).ready(function() {
     }
     $('#maintabs a').on('shown.bs.tab', function(event) {
         history.replaceState(null, '', event.target.hash);
+        const pane = $(event.target.hash);
+        pane.find('canvas').each(function() { if (wqCharts[this.id]) wqCharts[this.id].resize(); });
     });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
     $('#drillDevice,#drillDomain').on('change', refreshMatrix);
