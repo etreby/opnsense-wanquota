@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# Remove only the scheduler entry owned by this plugin. Configuration and
+# historical accounting data are deliberately retained for reinstalls.
+/usr/local/bin/php /usr/local/opnsense/scripts/OPNsense/WanQuota/teardown.php
+/usr/local/sbin/pluginctl -s cron restart

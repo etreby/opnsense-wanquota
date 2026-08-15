@@ -5,7 +5,12 @@ export default class WanConsumers extends BaseTableWidget {
     }
 
     getGridOptions() { return { sizeToContent: 500 }; }
-    getMarkup() { return this.createTable('wan-consumers-table', { headerPosition: 'none' }); }
+    getMarkup() {
+        const container = $('<div class="wan-consumers-widget"></div>');
+        container.append(this.createTable('wan-consumers-table', { headerPosition: 'none' }));
+        container.append('<a class="btn btn-default btn-xs pull-right" style="margin-top:10px" href="/ui/wanquota/general/index#consumers"><i class="fa fa-users"></i>&nbsp; Devices &amp; domains</a><div class="clearfix"></div>');
+        return container;
+    }
     _gb(value) { return `${(Number(value || 0) / 1000000000).toFixed(2)} GB`; }
     _escape(value) {
         const element = document.createElement('div');
@@ -27,7 +32,7 @@ export default class WanConsumers extends BaseTableWidget {
         ]];
         for (const item of data.hosts.slice(0, 10)) {
             rows.push([
-                `<b>${this._escape(item.name)}</b><br><small>${this._escape(item.ip)}</small>`,
+                `<a href="/ui/wanquota/general/index#consumers"><b>${this._escape(item.name)}</b></a><br><small><i class="fa fa-desktop"></i> ${this._escape(item.ip)}</small>`,
                 this._gb(item.download),
                 this._gb(item.upload),
                 `<b>${this._gb(item.total)}</b>`

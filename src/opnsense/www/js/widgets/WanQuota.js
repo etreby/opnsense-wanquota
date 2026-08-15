@@ -5,7 +5,12 @@ export default class WanQuota extends BaseTableWidget {
     }
 
     getGridOptions() { return { sizeToContent: 520 }; }
-    getMarkup() { return this.createTable('wanquota-table', { headerPosition: 'none' }); }
+    getMarkup() {
+        const container = $('<div class="wanquota-widget"></div>');
+        container.append(this.createTable('wanquota-table', { headerPosition: 'none' }));
+        container.append('<a class="btn btn-default btn-xs pull-right" style="margin-top:10px" href="/ui/wanquota/general/index"><i class="fa fa-line-chart"></i>&nbsp; Open full report</a><div class="clearfix"></div>');
+        return container;
+    }
     _gb(value) { return `${(Number(value || 0) / 1000000000).toFixed(2)} GB`; }
     _escape(value) {
         const element = document.createElement('div');
@@ -31,7 +36,7 @@ export default class WanQuota extends BaseTableWidget {
             const note = item.complete ? '' : ' *';
             const warning = item.warning ? ' ⚠' : '';
             rows.push([
-                `<b>${this._escape(item.name)}${warning}</b><br><small>${this._escape(item.start)} – ${this._escape(item.end)}${note}<br>${this._escape(item.interface)}</small>`,
+                `<a href="/ui/wanquota/general/index"><b>${this._escape(item.name)}${warning}</b></a><br><small>${this._escape(item.start)} – ${this._escape(item.end)}${note}<br><i class="fa fa-random"></i> ${this._escape(item.interface)}</small>`,
                 this._gb(item.rx),
                 this._gb(item.tx),
                 `${this._gb(item.used)} (${pct}%)`,

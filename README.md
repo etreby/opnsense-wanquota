@@ -13,6 +13,13 @@ quota reporting and top-consumer visibility.
 - Estimated domain bandwidth by correlating Insight flow bytes with recently
   observed Unbound A/AAAA answers, including a visible coverage percentage.
 - Configurable reporting period, result count, and DNS mapping retention.
+- Clickable dashboard widgets that open the full report or Consumers tab.
+
+## Screenshots
+
+![WAN quota dashboard widgets](docs/screenshots/dashboard-widgets.png)
+
+![Consumer and attributed-domain report](docs/screenshots/consumer-report.png)
 
 ## Requirements
 
@@ -32,6 +39,12 @@ This repository is the source-only community preview. It intentionally contains
 no production configuration, databases, generated package, device inventory, or
 credentials. Installation through the OPNsense plugin catalog will require
 acceptance into the official `opnsense/plugins` repository.
+
+Official-framework builds generate the standard OPNsense install hooks. On
+install or upgrade these reload configd, run migrations, flush the menu and ACL
+caches, initialize defaults without overwriting existing settings, and register
+the DNS collector. Uninstall removes only the plugin-owned collector schedule;
+configuration and accounting history are retained for a future reinstall.
 
 Run the portable checks with:
 

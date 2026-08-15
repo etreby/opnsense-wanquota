@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# The framework-generated post-install script reloads configd, runs model
+# migrations, and flushes OPNsense's user-facing menu and ACL caches before
+# this extension is appended.
+/usr/local/bin/php /usr/local/opnsense/scripts/OPNsense/WanQuota/setup.php
+/usr/local/sbin/pluginctl -s cron restart

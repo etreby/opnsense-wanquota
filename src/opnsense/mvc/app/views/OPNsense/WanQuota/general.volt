@@ -90,6 +90,13 @@ $(document).ready(function() {
     mapDataToFormUI({'frm_wanquota_settings':'/api/wanquota/settings/get'}).done(function() { formatTokenizersUI(); $('.selectpicker').selectpicker('refresh'); });
     refreshReports();
     refreshConsumers();
+    if (window.location.hash) {
+        const tab = $('a[href="' + window.location.hash + '"]');
+        if (tab.length) tab.tab('show');
+    }
+    $('#maintabs a').on('shown.bs.tab', function(event) {
+        history.replaceState(null, '', event.target.hash);
+    });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
     $('#saveAct').click(function() {
         $('#saveAct_progress').addClass('fa fa-spinner fa-pulse');

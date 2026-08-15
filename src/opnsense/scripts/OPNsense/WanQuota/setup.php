@@ -45,13 +45,16 @@ $cron = new \OPNsense\Cron\Cron();
 $cronExists = false;
 foreach ($cron->jobs->job->iterateItems() as $item) {
     if ((string)$item->description === 'Collect DNS mappings for WAN domain attribution') {
+        // Adopt schedules created by the private preview package so future
+        // uninstall operations can identify plugin-owned state reliably.
+        $item->origin = 'wanquota';
         $cronExists = true;
         break;
     }
 }
 if (!$cronExists) {
     $job = $cron->jobs->job->add();
-    $job->origin = 'cron';
+    $job->origin = 'wanquota';
     $job->enabled = '1';
     $job->minutes = '*/5';
     $job->hours = '*';
@@ -69,8 +72,10 @@ if (!$cronExists) {
         }
         exit(1);
     }
-    $cron->serializeToConfig();
 }
+
+// Serialize even when adopting an older schedule with origin=cron.
+$cron->serializeToConfig();
 
 \OPNsense\Core\Config::getInstance()->save('Initialize WAN quota and consumer reporting plugin');
 echo "WAN quota settings and DNS collector schedule saved\n";
