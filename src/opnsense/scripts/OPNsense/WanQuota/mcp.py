@@ -36,7 +36,7 @@ import report
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "wanquota"
-SERVER_VERSION = "0.9"
+SERVER_VERSION = "0.10"
 
 PERIODS = ("today", "week", "thirty", "month")
 
@@ -457,6 +457,13 @@ def serve_stdio(stdin=None, stdout=None):
 
 
 def serve_once(encoded, client=None, config_path=None):
+    """Answer one request for the HTTP transport.
+
+    A JSON-RPC notification has no response. Rather than teach the controller to
+    parse JSON-RPC, signal it with a sentinel so it can reply 202 Accepted with
+    no body, which is what an MCP client over HTTP expects. Protocol decisions
+    stay here where they are covered by tests; the controller only moves bytes.
+    """
     if not is_permitted(client, config_path):
         return _error(None, NOT_PERMITTED, "WAN quota MCP is reachable from the LAN only")
     # Strip whitespace before validating: PHP's base64_encode emits one line, but
@@ -467,7 +474,7 @@ def serve_once(encoded, client=None, config_path=None):
         payload = base64.b64decode(encoded, validate=True).decode("utf-8")
     except (binascii.Error, UnicodeDecodeError, ValueError):
         return _error(None, PARSE_ERROR, "Request body was not valid base64 UTF-8")
-    return handle_raw(payload) or {"jsonrpc": "2.0", "id": None, "result": {}}
+    return handle_raw(payload) or {"_notification": True}
 
 
 def main():

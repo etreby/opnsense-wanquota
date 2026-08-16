@@ -333,6 +333,30 @@ class TransportTests(unittest.TestCase):
         response = MCP.serve_once(encoded)
         self.assertEqual(len(response["result"]["tools"]), len(MCP.TOOLS))
 
+    def test_once_signals_a_notification_so_http_can_answer_202(self):
+        encoded = base64.b64encode(
+            json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode()
+        ).decode()
+        self.assertEqual(MCP.serve_once(encoded), {"_notification": True})
+
+    def test_once_does_not_signal_notification_for_a_real_request(self):
+        encoded = base64.b64encode(json.dumps(request("tools/list")).encode()).decode()
+        self.assertNotIn("_notification", MCP.serve_once(encoded))
+
+    def test_refused_client_is_not_mistaken_for_a_notification(self):
+        handle = tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False)
+        handle.write(LAN_CONFIG)
+        handle.close()
+        try:
+            encoded = base64.b64encode(
+                json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode()
+            ).decode()
+            response = MCP.serve_once(encoded, "203.0.113.9", handle.name)
+            self.assertNotIn("_notification", response)
+            self.assertEqual(response["error"]["code"], MCP.NOT_PERMITTED)
+        finally:
+            Path(handle.name).unlink(missing_ok=True)
+
     def test_once_rejects_invalid_base64(self):
         response = MCP.serve_once("not base64 !!!")
         self.assertEqual(response["error"]["code"], MCP.PARSE_ERROR)

@@ -27,6 +27,12 @@ class McpController extends ApiControllerBase
     public function indexAction(): array
     {
         if (!$this->request->isPost()) {
+            // MCP over HTTP defines this endpoint as POST for client messages.
+            // A GET is the client asking to open a server-initiated stream, which
+            // this server does not offer; 405 tells it so rather than looking like
+            // a malformed request.
+            $this->response->setStatusCode(405, 'Method Not Allowed');
+            $this->response->setHeader('Allow', 'POST');
             return [
                 'jsonrpc' => '2.0',
                 'id' => null,
@@ -64,6 +70,11 @@ class McpController extends ApiControllerBase
                 'id' => null,
                 'error' => ['code' => -32603, 'message' => 'WAN quota MCP backend unavailable'],
             ];
+        }
+        if (!empty($result['_notification'])) {
+            // A JSON-RPC notification has no response body.
+            $this->response->setStatusCode(202, 'Accepted');
+            return [];
         }
         return $result;
     }

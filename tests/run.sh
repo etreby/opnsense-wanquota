@@ -40,9 +40,15 @@ from pathlib import Path
 
 source = Path(sys.argv[1]).read_text(encoding="utf-8")
 blocks = re.findall(r"<script[^>]*>(.*?)</script>", source, re.S)
-# Volt tags are rendered server-side; stand them in as literals so the remaining
-# JavaScript can be parsed on its own.
-script = re.sub(r"\{\{.*?\}\}", "'x'", "\n".join(blocks), flags=re.S)
+script = "\n".join(blocks)
+# Substitute what Volt actually renders, not a placeholder. Many of these tags sit
+# inside single-quoted JavaScript strings that also carry double-quoted HTML
+# attributes, so a rendered apostrophe would terminate the string early. Expanding
+# lang._('...') to its literal text means the check fails on exactly that mistake
+# instead of hiding it behind a safe stand-in token.
+script = re.sub(r"\{\{\s*lang\._\((['\"])(.*?)\1\)\s*\}\}", lambda m: m.group(2), script, flags=re.S)
+# Any remaining tag (cache_safe and friends) is not text; a bare token is fine.
+script = re.sub(r"\{\{.*?\}\}", "x", script, flags=re.S)
 Path(sys.argv[2]).write_text(script, encoding="utf-8")
 PY
     node --check "$extracted"
