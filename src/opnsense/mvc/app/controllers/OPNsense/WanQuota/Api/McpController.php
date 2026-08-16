@@ -24,8 +24,18 @@ use OPNsense\Core\Backend;
  */
 class McpController extends ApiControllerBase
 {
-    public function indexAction(): array
+    /**
+     * Returns the backend's JSON verbatim as a string rather than a decoded
+     * array. Returning an array would round-trip the payload through
+     * json_decode(..., true) and json_encode(), and PHP cannot tell an empty
+     * JSON object from an empty list: {} decodes to [] and re-encodes as [].
+     * That silently rewrote every "properties": {} in the tool schemas into
+     * "properties": [], which MCP clients reject as a malformed tools/list.
+     * The base controller passes a returned string through untouched.
+     */
+    public function indexAction()
     {
+        $this->response->setContentType('application/json', 'UTF-8');
         if (!$this->request->isPost()) {
             // MCP over HTTP defines this endpoint as POST for client messages.
             // A GET is the client asking to open a server-initiated stream, which
@@ -33,30 +43,18 @@ class McpController extends ApiControllerBase
             // a malformed request.
             $this->response->setStatusCode(405, 'Method Not Allowed');
             $this->response->setHeader('Allow', 'POST');
-            return [
-                'jsonrpc' => '2.0',
-                'id' => null,
-                'error' => ['code' => -32600, 'message' => 'POST required'],
-            ];
+            return $this->fault(-32600, 'POST required');
         }
 
         $body = (string)$this->request->getRawBody();
         if ($body === '') {
-            return [
-                'jsonrpc' => '2.0',
-                'id' => null,
-                'error' => ['code' => -32700, 'message' => 'Empty request body'],
-            ];
+            return $this->fault(-32700, 'Empty request body');
         }
 
         $client = (string)$this->request->getClientAddress();
         if (filter_var($client, FILTER_VALIDATE_IP) === false) {
             // Unknown origin is treated as untrusted rather than waved through.
-            return [
-                'jsonrpc' => '2.0',
-                'id' => null,
-                'error' => ['code' => -32000, 'message' => 'WAN quota MCP is reachable from the LAN only'],
-            ];
+            return $this->fault(-32000, 'WAN quota MCP is reachable from the LAN only');
         }
 
         $encoded = base64_encode($body);
@@ -65,17 +63,22 @@ class McpController extends ApiControllerBase
         );
         $result = json_decode($raw, true);
         if (!is_array($result)) {
-            return [
-                'jsonrpc' => '2.0',
-                'id' => null,
-                'error' => ['code' => -32603, 'message' => 'WAN quota MCP backend unavailable'],
-            ];
+            return $this->fault(-32603, 'WAN quota MCP backend unavailable');
         }
         if (!empty($result['_notification'])) {
             // A JSON-RPC notification has no response body.
             $this->response->setStatusCode(202, 'Accepted');
-            return [];
+            return '';
         }
-        return $result;
+        return $raw;
+    }
+
+    private function fault(int $code, string $message): string
+    {
+        return (string)json_encode([
+            'jsonrpc' => '2.0',
+            'id' => null,
+            'error' => ['code' => $code, 'message' => $message],
+        ]);
     }
 }
