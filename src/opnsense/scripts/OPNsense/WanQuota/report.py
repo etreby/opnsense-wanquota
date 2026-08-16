@@ -51,6 +51,9 @@ def configuration():
             "quota_gb": bounded_int(text(settings, f"provider{index}_quota_gb", defaults["quota_gb"]), defaults["quota_gb"], 1, 100000),
             "cycle_day": bounded_int(text(settings, f"provider{index}_cycle_day", defaults["cycle_day"]), defaults["cycle_day"], 1, 31),
             "warning_percent": bounded_int(text(settings, f"provider{index}_warning_percent", defaults["warning_percent"]), defaults["warning_percent"], 1, 100),
+            "cycle_cost": bounded_int(text(settings, f"provider{index}_cycle_cost", 0), 0, 0, 1000000),
+            "baseline_gb": bounded_int(text(settings, f"provider{index}_baseline_gb", 0), 0, 0, 100000),
+            "baseline_cycle": text(settings, f"provider{index}_baseline_cycle", ""),
         })
     return enabled, providers
 
@@ -166,7 +169,8 @@ def provider_summary(provider, today):
     relevant = [(row_date(row), row) for row in rows if start <= row_date(row) < end]
     rx = sum(row["rx"] for _, row in relevant)
     tx = sum(row["tx"] for _, row in relevant)
-    used = rx + tx
+    baseline = provider.get("baseline_gb", 0) * 1_000_000_000 if provider.get("baseline_cycle") == start.isoformat() else 0
+    used = rx + tx + baseline
     quota = provider["quota_gb"] * 1_000_000_000
     remaining = max(0, quota - used)
     elapsed = max(1, (today - start).days + 1)
@@ -180,6 +184,7 @@ def provider_summary(provider, today):
         "end": end.isoformat(),
         "rx": rx,
         "tx": tx,
+        "baseline": baseline,
         "used": used,
         "remaining": remaining,
         "percent": percent,
@@ -191,6 +196,8 @@ def provider_summary(provider, today):
         "warning": percent >= provider["warning_percent"],
         "available": error is None,
         "error": error,
+        "cost_per_quota_gb": provider.get("cycle_cost", 0) / provider["quota_gb"] if provider["quota_gb"] else 0,
+        "cost_per_used_gb": provider.get("cycle_cost", 0) / (used / 1e9) if used else 0,
     }
 
 

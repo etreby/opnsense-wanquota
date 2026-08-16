@@ -23,6 +23,17 @@ quota reporting and top-consumer visibility.
 - Data Health tab covering vnStat, ntopng, Insight, DNS mappings, and alert freshness.
 - Device-to-domain drill-down using a single deduplicated LAN flow source.
 - Exact per-WAN flow-total rankings for devices and domains when Insight retains the post-NAT internal address. Direction splits remain explicitly unavailable because Insight interface direction is not equivalent to download versus upload bytes.
+- Persistent completed-cycle archive, imported ISP baselines, previous-cycle comparisons,
+  exhaustion forecasts, daily budgets, and provider cost-per-GB metrics.
+- Gateway latency, loss, availability and traffic-versus-quality views.
+- Device groups discovered from OPNsense aliases, optional group budgets, domain
+  service categories, first/last-seen metadata, and search/filter drill-downs.
+- Conservative anomaly detection for device totals, unusual uploads, new devices,
+  quiet-hours traffic, provider spikes, and gateway health.
+- Multi-level quota guardrails with dry-run recommendations, emergency reserves,
+  expiring overrides, reversible weight/tier changes and an optional quota cutoff.
+- HTTPS webhook alerts and scheduled summaries, native authenticated JSON API,
+  Prometheus-compatible metrics, wallboard mode, high-contrast mode, and clickable charts.
 
 ## Screenshots
 
@@ -31,6 +42,33 @@ quota reporting and top-consumer visibility.
 ![Consumer and attributed-domain report](docs/screenshots/consumer-report.png)
 
 ![Data-source health report](docs/screenshots/data-health.png)
+
+![WAN intelligence, forecasts and guardrails](docs/screenshots/intelligence-report.png)
+
+## v0.7 configuration
+
+Open **Reporting → WAN Quota → Settings**. Intelligence collection is enabled by
+default, while automatic guardrail enforcement is disabled and dry-run is enabled.
+Keep those safe defaults until the recommendations match your intended routing.
+
+Device groups and budgets accept JSON arrays such as
+`[{"name":"Family","members":["192.168.1.0/25"],"budget_gb":200}]`.
+Per-device policies accept
+`[{"address":"192.168.1.20","budget_gb":50,"exclude":false}]`. Existing
+OPNsense aliases named `INFRASTRUCTURE_DEVICES`, `MY_DEVICES`,
+`HOME_IOT_DEVICES`, and `UNCLASSIFIED_DEVICES` are discovered automatically.
+
+Temporary policy overrides are available from the Intelligence tab. They expire
+after 1–168 hours and remain advisory while enforcement is disabled or dry-run.
+The emergency reserve and four configurable percentage thresholds determine when
+the plugin recommends deprioritizing, failing over, or cutting off a provider.
+All routing changes are reversible and the original gateway settings are retained.
+
+The authenticated OPNsense API exposes intelligence JSON at
+`/api/wanquota/report/intelligence_thirty` and Prometheus text inside the
+`metrics` field at `/api/wanquota/report/metrics`. HTTPS webhooks support generic,
+Discord, Slack, Telegram, and private Home Assistant destinations. SMTP reports
+use STARTTLS and can include a CSV provider summary.
 
 ## Requirements
 
@@ -63,7 +101,6 @@ Run the portable checks with:
 ./tests/run.sh
 ```
 
-## License and provenance
+## License
 
-BSD-2-Clause. The initial implementation and public-release hardening used
-OpenAI Codex (GPT-5 family) under human review.
+BSD-2-Clause.

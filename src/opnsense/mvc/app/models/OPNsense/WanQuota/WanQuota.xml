@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/WanQuota</mount>
     <description>WAN quota reporting configuration</description>
-    <version>1.3.0</version>
+    <version>1.4.0</version>
     <items>
         <general>
             <enabled type="BooleanField">
@@ -35,6 +35,9 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>100</MaximumValue>
             </provider1_warning_percent>
+            <provider1_cycle_cost type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>1000000</MaximumValue></provider1_cycle_cost>
+            <provider1_baseline_gb type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></provider1_baseline_gb>
+            <provider1_baseline_cycle type="TextField"><Default></Default></provider1_baseline_cycle>
             <provider2_enabled type="BooleanField"><Default>1</Default><Required>Y</Required></provider2_enabled>
             <provider2_name type="TextField">
                 <Default>ISP 2</Default>
@@ -62,18 +65,27 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>100</MaximumValue>
             </provider2_warning_percent>
+            <provider2_cycle_cost type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>1000000</MaximumValue></provider2_cycle_cost>
+            <provider2_baseline_gb type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></provider2_baseline_gb>
+            <provider2_baseline_cycle type="TextField"><Default></Default></provider2_baseline_cycle>
             <provider3_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider3_enabled>
             <provider3_name type="TextField"><Default>ISP 3</Default><Required>Y</Required></provider3_name>
             <provider3_interface type="InterfaceField"><Default>wan</Default><Required>Y</Required></provider3_interface>
             <provider3_quota_gb type="NumericField"><Default>100</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100000</MaximumValue></provider3_quota_gb>
             <provider3_cycle_day type="NumericField"><Default>1</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>31</MaximumValue></provider3_cycle_day>
             <provider3_warning_percent type="NumericField"><Default>80</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100</MaximumValue></provider3_warning_percent>
+            <provider3_cycle_cost type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>1000000</MaximumValue></provider3_cycle_cost>
+            <provider3_baseline_gb type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></provider3_baseline_gb>
+            <provider3_baseline_cycle type="TextField"><Default></Default></provider3_baseline_cycle>
             <provider4_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider4_enabled>
             <provider4_name type="TextField"><Default>ISP 4</Default><Required>Y</Required></provider4_name>
             <provider4_interface type="InterfaceField"><Default>wan</Default><Required>Y</Required></provider4_interface>
             <provider4_quota_gb type="NumericField"><Default>100</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100000</MaximumValue></provider4_quota_gb>
             <provider4_cycle_day type="NumericField"><Default>1</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>31</MaximumValue></provider4_cycle_day>
             <provider4_warning_percent type="NumericField"><Default>80</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100</MaximumValue></provider4_warning_percent>
+            <provider4_cycle_cost type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>1000000</MaximumValue></provider4_cycle_cost>
+            <provider4_baseline_gb type="NumericField"><Default>0</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></provider4_baseline_gb>
+            <provider4_baseline_cycle type="TextField"><Default></Default></provider4_baseline_cycle>
             <consumers_enabled type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
@@ -118,6 +130,30 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>168</MaximumValue>
             </alert_repeat_hours>
+            <intelligence_enabled type="BooleanField"><Default>1</Default><Required>Y</Required></intelligence_enabled>
+            <intelligence_retention_days type="NumericField"><Default>730</Default><Required>Y</Required><MinimumValue>30</MinimumValue><MaximumValue>3650</MaximumValue></intelligence_retention_days>
+            <anomaly_sigma type="NumericField"><Default>3</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>10</MaximumValue></anomaly_sigma>
+            <device_groups_json type="TextField"><Default>[]</Default><Required>Y</Required></device_groups_json>
+            <device_policies_json type="TextField"><Default>[]</Default><Required>Y</Required></device_policies_json>
+            <domain_categories_json type="TextField"><Default>{}</Default><Required>Y</Required></domain_categories_json>
+            <enforcement_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></enforcement_enabled>
+            <enforcement_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></enforcement_dry_run>
+            <enforcement_policy type="OptionField"><Default>observe</Default><Required>Y</Required><OptionValues><observe>Observe only</observe><deprioritize>Deprioritize</deprioritize><failover>Failover only</failover><cutoff>Cut off at quota</cutoff></OptionValues></enforcement_policy>
+            <guardrail_thresholds type="TextField"><Default>50,75,90,100</Default><Required>Y</Required></guardrail_thresholds>
+            <emergency_reserve_gb type="NumericField"><Default>5</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></emergency_reserve_gb>
+            <webhook_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></webhook_enabled>
+            <webhook_url type="TextField"><Default></Default></webhook_url>
+            <webhook_format type="OptionField"><Default>generic</Default><Required>Y</Required><OptionValues><generic>Generic JSON</generic><discord>Discord</discord><slack>Slack</slack><telegram>Telegram Bot API</telegram></OptionValues></webhook_format>
+            <webhook_recipient type="TextField"><Default></Default></webhook_recipient>
+            <scheduled_reports_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></scheduled_reports_enabled>
+            <email_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></email_enabled>
+            <email_to type="TextField"><Default></Default></email_to>
+            <smtp_host type="TextField"><Default></Default></smtp_host>
+            <smtp_port type="NumericField"><Default>587</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>65535</MaximumValue></smtp_port>
+            <smtp_username type="TextField"><Default></Default></smtp_username>
+            <smtp_password type="TextField"><Default></Default></smtp_password>
+            <prometheus_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></prometheus_enabled>
+            <dashboard_accent type="TextField"><Default>#3b82f6</Default><Required>Y</Required><Mask>/^#[0-9a-fA-F]{6}$/</Mask></dashboard_accent>
         </general>
     </items>
 </model>

@@ -6,9 +6,12 @@ import glob
 import json
 import os
 import sqlite3
+import xml.etree.ElementTree as ET
 
 import consumers
 import report
+
+INTELLIGENCE_DB = "/var/db/wanquota/intelligence.sqlite"
 
 
 def age_seconds(path, now):
@@ -88,6 +91,14 @@ def main():
         alert_state_age,
         required=False,
     ))
+    intelligence_age = age_seconds(INTELLIGENCE_DB, now)
+    intelligence_enabled = False
+    try:
+        root = ET.parse(report.CONFIG_PATH).getroot()
+        intelligence_enabled = report.text(root.find("./OPNsense/WanQuota/general"), "intelligence_enabled", "1") == "1"
+    except (OSError, ET.ParseError):
+        pass
+    checks.append(status("WAN intelligence history", os.path.exists(INTELLIGENCE_DB), "Forecast, quality, anomaly and cycle archive database" if os.path.exists(INTELLIGENCE_DB) else "No intelligence snapshots collected", intelligence_age, intelligence_enabled))
 
     overall = "ok"
     if any(item["status"] == "failed" and item["required"] for item in checks):

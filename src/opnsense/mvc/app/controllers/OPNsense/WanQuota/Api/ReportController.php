@@ -56,4 +56,44 @@ class ReportController extends ApiControllerBase
     {
         return $this->runReport('consumers month');
     }
+
+    public function intelligenceTodayAction(): array
+    {
+        return $this->runReport('intelligence today');
+    }
+
+    public function intelligenceWeekAction(): array
+    {
+        return $this->runReport('intelligence week');
+    }
+
+    public function intelligenceThirtyAction(): array
+    {
+        return $this->runReport('intelligence thirty');
+    }
+
+    public function intelligenceMonthAction(): array
+    {
+        return $this->runReport('intelligence month');
+    }
+
+    public function metricsAction(): array
+    {
+        $raw = (new Backend())->configdRun('wanquota metrics');
+        return ['status' => 'ok', 'content_type' => 'text/plain; version=0.0.4', 'metrics' => $raw];
+    }
+
+    public function overrideAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $provider = preg_replace('/[^a-zA-Z0-9 _.-]/', '', (string)$this->request->getPost('provider'));
+        $mode = (string)$this->request->getPost('mode');
+        $hours = max(1, min(168, (int)$this->request->getPost('hours')));
+        if ($provider === '' || !in_array($mode, ['observe', 'deprioritize', 'failover', 'cutoff'], true)) {
+            return ['status' => 'failed', 'error' => 'Invalid override'];
+        }
+        return $this->runReport(sprintf('override %s %s %d api', escapeshellarg($provider), escapeshellarg($mode), $hours));
+    }
 }
