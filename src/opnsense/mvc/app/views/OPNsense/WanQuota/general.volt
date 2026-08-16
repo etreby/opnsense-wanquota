@@ -1,6 +1,7 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}@media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}
+@media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
 <div class="wq-hero"><div class="wq-hero-tools"><button id="unitToggle" class="btn btn-sm" type="button">GB</button><button id="contrastToggle" class="btn btn-sm" type="button"><i class="fa fa-adjust"></i></button><button id="wallboardToggle" class="btn btn-sm" type="button"><i class="fa fa-television"></i></button></div><h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2><p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p></div>
@@ -37,7 +38,9 @@
             <div class="form-inline" style="margin-bottom:10px">
                 <label for="drillDevice">{{ lang._('Device') }}:&nbsp;</label><select id="drillDevice" class="form-control"><option value="">All devices</option></select>
                 <label for="drillDomain" style="margin-left:10px">{{ lang._('Domain') }}:&nbsp;</label><select id="drillDomain" class="form-control"><option value="">All domains</option></select>
+                <button id="drillClear" class="btn btn-default" type="button" style="margin-left:10px;display:none"><i class="fa fa-times"></i> {{ lang._('Clear') }}</button>
             </div>
+            <p class="wq-muted">{{ lang._('Click any device or site above to see what it exchanged traffic with.') }}</p>
             <div id="deviceDomainMatrix"></div>
         </div>
     </div>
@@ -64,7 +67,7 @@ function makeChart(id, config) { if (wqCharts[id]) wqCharts[id].destroy(); const
 function chartOptions(horizontal=false) { return {responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:true,position:'bottom'}},scales:{x:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}}}}; }
 function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3>${esc(p.name)}</h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
 function renderSummaryCharts(data){const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
-function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10),hostOptions=chartOptions(true),domainOptions=chartOptions(true);hostOptions.onClick=(event,elements)=>{if(elements.length){$('#drillDevice').val(hosts[elements[0].index].ip).trigger('change');document.getElementById('deviceDomainMatrix').scrollIntoView({behavior:'smooth'});}};domainOptions.onClick=(event,elements)=>{if(elements.length){$('#drillDomain').val(domains[elements[0].index].domain).trigger('change');document.getElementById('deviceDomainMatrix').scrollIntoView({behavior:'smooth'});}};makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:hostOptions});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:domainOptions});}
+function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10),hostOptions=chartOptions(true),domainOptions=chartOptions(true);hostOptions.onClick=(event,elements)=>{if(elements.length)drillTo('device',hosts[elements[0].index].ip);};domainOptions.onClick=(event,elements)=>{if(elements.length)drillTo('domain',domains[elements[0].index].domain);};makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:hostOptions});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:domainOptions});}
 function renderHistoryChart(id,data){const dates=[...new Set((data.providers||[]).flatMap(p=>p.rows.map(r=>r.date)))].sort();makeChart(id,{type:'line',data:{labels:dates,datasets:(data.providers||[]).map((p,i)=>({label:p.name+' total GB',data:dates.map(d=>{const r=p.rows.find(x=>x.date===d);return r?r.total/1e9:null}),borderColor:wqColors[i%wqColors.length],backgroundColor:wqColors[i%wqColors.length]+'33',fill:true,tension:.3,pointRadius:2}))},options:chartOptions(false)});}
 function downloadReport(filename, content, type) {
     const link = document.createElement('a');
@@ -104,9 +107,9 @@ function consumerTable(rows, key) {
         : '<table class="table table-striped"><thead><tr><th>Attributed domain</th><th>Observed IPs</th><th>Attributed total</th></tr></thead><tbody>';
     for (const row of rows) {
         if (key === 'name') {
-            html += `<tr><td><b>${esc(row.name)}</b><br><small>${esc(row.ip)}</small></td><td>${gb(row.download)}</td><td>${gb(row.upload)}</td><td><b>${gb(row.total)}</b></td></tr>`;
+            html += `<tr><td><a href="#" class="wq-drill" data-drill="device" data-value='${esc(row.ip)}' title="Show the sites this device used"><b>${esc(row.name)}</b></a><br><small>${esc(row.ip)}</small></td><td>${gb(row.download)}</td><td>${gb(row.upload)}</td><td><b>${gb(row.total)}</b></td></tr>`;
         } else {
-            html += `<tr><td><b>${esc(row.domain)}</b></td><td>${row.ip_count}</td><td><b>${gb(row.total)}</b></td></tr>`;
+            html += `<tr><td><a href="#" class="wq-drill" data-drill="domain" data-value='${esc(row.domain)}' title="Show the devices that used this site"><b>${esc(row.domain)}</b></a></td><td>${row.ip_count}</td><td><b>${gb(row.total)}</b></td></tr>`;
         }
     }
     return html + '</tbody></table>';
@@ -134,11 +137,78 @@ function matrixTable(rows) {
     for (const row of rows.slice(0, 100)) html += `<tr><td><b>${esc(row.name)}</b><br><small>${esc(row.device)}</small></td><td>${esc(row.domain)}</td><td><b>${gb(row.total)}</b></td></tr>`;
     return html + '</tbody></table>';
 }
+function shareBar(fraction, color) {
+    const pct = Math.max(0, Math.min(100, fraction * 100));
+    return `<div class="wq-share"><span style="width:${pct.toFixed(1)}%;background:${color}"></span></div>`;
+}
+function drillHeader(title, subtitle, metric, note) {
+    return `<div class="wq-drill-head"><div><div class="wq-muted">${esc(subtitle)}</div><h3 style="margin:2px 0">${esc(title)}</h3></div><div class="wq-drill-metric"><div class="wq-metric">${metric}</div><div class="wq-muted">${note}</div></div></div>`;
+}
+function devicePanel(deviceIp) {
+    const data = currentConsumerData || {};
+    const rows = (data.device_domains || []).filter(row => row.device === deviceIp)
+        .sort((a, b) => b.total - a.total);
+    const attribution = (data.device_attribution || []).find(item => item.device === deviceIp);
+    const host = (data.hosts || []).find(item => item.ip === deviceIp);
+    const label = (rows[0] && rows[0].name) || (host && host.name) || deviceIp;
+    const external = attribution ? attribution.external : rows.reduce((sum, r) => sum + r.total, 0);
+    const covered = attribution ? attribution.attributed : rows.reduce((sum, r) => sum + r.total, 0);
+    const pct = attribution ? Number(attribution.coverage_percent || 0) : 0;
+    let html = drillHeader(label, deviceIp + ' · sites this device used',
+        gb(external), 'external traffic seen in flows');
+    if (host) {
+        html += `<div class="wq-muted" style="margin-bottom:8px">Device total from ntopng: <b>${gb(host.total)}</b> (${gb(host.download)} down · ${gb(host.upload)} up). That counts all traffic; the sites below are attributed from external flows only.</div>`;
+    }
+    if (!rows.length) {
+        return html + '<div class="alert alert-info">No site could be attributed to this device for this period. Its traffic may be encrypted DNS, a VPN, or addresses with no recent DNS answer.</div>';
+    }
+    const top = rows[0].total || 1;
+    html += '<table class="table table-striped"><thead><tr><th>Site</th><th style="width:32%">Share of attributed</th><th>Traffic</th></tr></thead><tbody>';
+    for (const row of rows) {
+        html += `<tr><td><a href="#" class="wq-drill" data-drill="domain" data-value='${esc(row.domain)}'>${esc(row.domain)}</a></td><td>${shareBar(row.total / top, '#8b5cf6')}</td><td><b>${gb(row.total)}</b></td></tr>`;
+    }
+    if (attribution && attribution.unattributed > 0) {
+        html += `<tr class="wq-unattributed"><td><i>Unattributed</i></td><td>${shareBar(attribution.unattributed / top, 'rgba(128,128,128,.45)')}</td><td><b>${gb(attribution.unattributed)}</b></td></tr>`;
+    }
+    html += '</tbody></table>';
+    html += `<div class="wq-muted"><b>${gb(covered)}</b> of <b>${gb(external)}</b> external traffic attributed (${pct.toFixed(1)}%). Encrypted DNS, VPNs, ECH, and shared CDN addresses stay unattributed.</div>`;
+    return html;
+}
+function domainPanel(domain) {
+    const data = currentConsumerData || {};
+    const rows = (data.device_domains || []).filter(row => row.domain === domain)
+        .sort((a, b) => b.total - a.total);
+    const summary = (data.domains || []).find(item => item.domain === domain);
+    const total = rows.reduce((sum, r) => sum + r.total, 0);
+    let html = drillHeader(domain, 'devices that used this site', gb(summary ? summary.total : total),
+        summary ? `${summary.ip_count} observed IP(s)` : 'attributed traffic');
+    if (!rows.length) {
+        return html + '<div class="alert alert-info">No device could be attributed to this site for this period.</div>';
+    }
+    const top = rows[0].total || 1;
+    html += '<table class="table table-striped"><thead><tr><th>Device</th><th style="width:32%">Share</th><th>Traffic</th></tr></thead><tbody>';
+    for (const row of rows) {
+        html += `<tr><td><a href="#" class="wq-drill" data-drill="device" data-value='${esc(row.device)}'><b>${esc(row.name)}</b></a><br><small>${esc(row.device)}</small></td><td>${shareBar(row.total / top, '#3b82f6')}</td><td><b>${gb(row.total)}</b></td></tr>`;
+    }
+    return html + '</tbody></table>';
+}
 function refreshMatrix() {
     if (!currentConsumerData) return;
     const device = $('#drillDevice').val(), domain = $('#drillDomain').val();
+    $('#drillClear').toggle(Boolean(device || domain));
+    if (device && !domain) { $('#deviceDomainMatrix').html(devicePanel(device)); return; }
+    if (domain && !device) { $('#deviceDomainMatrix').html(domainPanel(domain)); return; }
     const rows = (currentConsumerData.device_domains || []).filter(row => (!device || row.device === device) && (!domain || row.domain === domain));
     $('#deviceDomainMatrix').html(matrixTable(rows));
+}
+function drillTo(kind, value) {
+    const target = kind === 'device' ? '#drillDevice' : '#drillDomain';
+    const other = kind === 'device' ? '#drillDomain' : '#drillDevice';
+    if (!$(target + " option[value='" + String(value).replace(/'/g, "\\'") + "']").length) return;
+    $(other).val('');
+    $(target).val(value);
+    refreshMatrix();
+    document.getElementById('deviceDomainMatrix').scrollIntoView({behavior: 'smooth', block: 'center'});
 }
 function healthTable(data) {
     if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';
@@ -164,8 +234,16 @@ function refreshConsumers() {
         const coverage = Number(data?.domain_attribution?.coverage_percent || 0).toFixed(1);
         $('#domainCoverage').html(`<div class="alert alert-info"><b>Domain attribution coverage: ${coverage}%</b><br><small>${esc(data?.domain_attribution?.method || '')}. Encrypted DNS, VPNs, ECH, shared CDN IPs, and uncached answers can remain unattributed.</small></div>`);
         $('#wanConsumers').html(wanTable(data.providers));
-        const devices = [...new Map((data.device_domains || []).map(row => [row.device, row.name])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-        const domains = [...new Set((data.device_domains || []).map(row => row.domain))].sort();
+        // Union with the headline tables: a device with no attributed flow, or a
+        // domain no longer in the capped matrix, is still clickable there and must
+        // resolve to a panel rather than silently doing nothing.
+        const deviceMap = new Map((data.hosts || []).map(row => [row.ip, row.name]));
+        for (const row of data.device_domains || []) deviceMap.set(row.device, row.name);
+        const devices = [...deviceMap.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+        const domains = [...new Set([
+            ...(data.domains || []).map(row => row.domain),
+            ...(data.device_domains || []).map(row => row.domain),
+        ])].sort();
         $('#drillDevice').html('<option value="">All devices</option>' + devices.map(item => `<option value="${esc(item[0])}">${esc(item[1])}</option>`).join(''));
         $('#drillDomain').html('<option value="">All domains</option>' + domains.map(item => `<option value="${esc(item)}">${esc(item)}</option>`).join(''));
         refreshMatrix();
@@ -192,6 +270,17 @@ $(document).ready(function() {
         pane.find('canvas').each(function() { if (wqCharts[this.id]) wqCharts[this.id].resize(); });
     });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
+    // Delegated: the consumer tables and drill panels are re-rendered on every
+    // refresh, so per-element handlers would be lost.
+    $('#consumers').on('click', 'a.wq-drill', function(event) {
+        event.preventDefault();
+        drillTo($(this).data('drill'), $(this).data('value'));
+    });
+    $('#drillClear').on('click', function() {
+        $('#drillDevice').val('');
+        $('#drillDomain').val('');
+        refreshMatrix();
+    });
     $('#drillDevice,#drillDomain').on('change', refreshMatrix);
     $('#refreshIntelligence,#intelligencePeriod').on('click change', refreshIntelligence);
     $('#intelligenceSearch').on('input', filterIntelligence);

@@ -224,6 +224,49 @@ def classify_flow(row, settings):
     return None
 
 
+def cap_matrix(rows, limit):
+    """Bound the device/domain matrix without truncating either drill-down.
+
+    A plain global top-N breaks the per-device view: a device's own top domains
+    can all rank below the global cut, leaving its drill-down empty or partial.
+    Keep the union of each device's top domains and each domain's top devices so
+    both directions stay complete to `limit` rows.
+    """
+    by_device = {}
+    by_domain = {}
+    for row in rows:
+        by_device.setdefault(row["device"], []).append(row)
+        by_domain.setdefault(row["domain"], []).append(row)
+    keep = {}
+    for grouping in (by_device, by_domain):
+        for members in grouping.values():
+            for row in sorted(members, key=lambda item: item["total"], reverse=True)[:limit]:
+                keep[(row["device"], row["domain"])] = row
+    return sorted(keep.values(), key=lambda item: item["total"], reverse=True)
+
+
+def attribution_rows(external, attributed, names):
+    """Per-device attributed share of external traffic.
+
+    The denominator is external flow bytes, not the ntopng RRD total: the RRD
+    counts all traffic including LAN-local, so dividing by it would understate
+    coverage against a different measurement entirely.
+    """
+    rows = []
+    for device, total in external.items():
+        covered = attributed.get(device, 0)
+        rows.append({
+            "device": device,
+            "name": names.get(device, device),
+            "external": total,
+            "attributed": covered,
+            "unattributed": max(0, total - covered),
+            "coverage_percent": covered / total * 100 if total else 0,
+        })
+    rows.sort(key=lambda item: item["external"], reverse=True)
+    return rows
+
+
 def report(period):
     settings, names = settings_and_names()
     if not settings["enabled"]:
@@ -259,13 +302,17 @@ def report(period):
     wan_domains = {interface: {} for interface in settings["providers"]}
     attributed = 0
     total_external = 0
+    device_external = {}
+    device_attributed = {}
     for flow in external_flows:
         remote, amount = flow["remote"], flow["amount"]
         total_external += amount
+        device_external[flow["host"]] = device_external.get(flow["host"], 0) + amount
         domain = mappings.get(remote)
         if not domain:
             continue
         attributed += amount
+        device_attributed[flow["host"]] = device_attributed.get(flow["host"], 0) + amount
         entry = domains.setdefault(domain, {"domain": domain, "total": 0, "ips": set()})
         entry["total"] += amount
         entry["ips"].add(remote)
@@ -288,7 +335,7 @@ def report(period):
             "ip_count": len(entry["ips"]),
         })
     domain_rows.sort(key=lambda item: item["total"], reverse=True)
-    matrix_rows = sorted(device_domains.values(), key=lambda item: item["total"], reverse=True)
+    matrix_rows = cap_matrix(list(device_domains.values()), settings["top_limit"])
     for item in matrix_rows:
         item["name"] = names.get(item["device"], item["device"])
     provider_rows = []
@@ -318,7 +365,8 @@ def report(period):
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "hosts": host_rows,
         "domains": domain_rows[: settings["top_limit"]],
-        "device_domains": matrix_rows[: settings["top_limit"] * 5],
+        "device_domains": matrix_rows,
+        "device_attribution": attribution_rows(device_external, device_attributed, names),
         "providers": provider_rows,
         "domain_attribution": {
             "attributed_bytes": attributed,

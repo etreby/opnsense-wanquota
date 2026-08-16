@@ -235,7 +235,7 @@ def send_webhook(cfg, event, payload):
     elif cfg.get("webhook_format") == "telegram": document = {"chat_id": cfg.get("webhook_recipient", ""), "text": message[:4000]}
     else: document = {"event": event, "payload": payload}
     body = json.dumps(document).encode()
-    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.8"})
+    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.9"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return str(response.status)

@@ -36,7 +36,7 @@ import report
 
 PROTOCOL_VERSION = "2024-11-05"
 SERVER_NAME = "wanquota"
-SERVER_VERSION = "0.8"
+SERVER_VERSION = "0.9"
 
 PERIODS = ("today", "week", "thirty", "month")
 
