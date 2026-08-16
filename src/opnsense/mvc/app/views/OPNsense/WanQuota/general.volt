@@ -125,8 +125,8 @@ function wanTable(providers) {
     if (!providers || !providers.length) return '<div class="alert alert-info">No per-WAN download data is available.</div>';
     let html = '<table class="table table-striped"><thead><tr><th>Provider</th><th>Attributed flow total</th><th>Top devices</th><th>Top domains</th><th>Direction split</th></tr></thead><tbody>';
     for (const provider of providers) {
-        const devices = (provider.devices || []).slice(0, 5).map(item => `${esc(item.name)} (${gb(item.total)})`).join('<br>') || '—';
-        const domains = (provider.domains || []).slice(0, 5).map(item => `${esc(item.domain)} (${gb(item.total)})`).join('<br>') || '—';
+        const devices = (provider.devices || []).slice(0, 5).map(item => `<a href="#" class="wq-drill" data-drill="device" data-value='${esc(item.ip)}'>${esc(item.name)}</a> (${gb(item.total)})`).join('<br>') || '—';
+        const domains = (provider.domains || []).slice(0, 5).map(item => `<a href="#" class="wq-drill" data-drill="domain" data-value='${esc(item.domain)}'>${esc(item.domain)}</a> (${gb(item.total)})`).join('<br>') || '—';
         html += `<tr><td><b>${esc(provider.name)}</b><br><small>${esc(provider.logical_interface)} → ${esc(provider.interface)}</small></td><td><b>${gb(provider.total)}</b></td><td>${devices}</td><td>${domains}</td><td><span class="text-muted">Not attributable</span><br><small>${esc(provider.direction_attribution)}</small></td></tr>`;
     }
     return html + '</tbody></table>';
@@ -144,13 +144,26 @@ function shareBar(fraction, color) {
 function drillHeader(title, subtitle, metric, note) {
     return `<div class="wq-drill-head"><div><div class="wq-muted">${esc(subtitle)}</div><h3 style="margin:2px 0">${esc(title)}</h3></div><div class="wq-drill-metric"><div class="wq-metric">${metric}</div><div class="wq-muted">${note}</div></div></div>`;
 }
+function providerBreakdown(kind, value) {
+    const providers = (currentConsumerData || {}).providers || [];
+    const found = [];
+    for (const provider of providers) {
+        const list = kind === 'device' ? (provider.devices || []) : (provider.domains || []);
+        const hit = list.find(row => (kind === 'device' ? row.ip : row.domain) === value);
+        if (hit) found.push({name: provider.name, interface: provider.interface, total: hit.total});
+    }
+    if (!found.length) return '';
+    const cells = found.map(item => `<b>${esc(item.name)}</b> ${gb(item.total)} <small class="wq-muted">(${esc(item.interface)})</small>`).join(' · ');
+    return `<div class="wq-muted" style="margin-bottom:10px">Seen on: ${cells}</div>`;
+}
 function devicePanel(deviceIp) {
     const data = currentConsumerData || {};
     const rows = (data.device_domains || []).filter(row => row.device === deviceIp)
         .sort((a, b) => b.total - a.total);
     const attribution = (data.device_attribution || []).find(item => item.device === deviceIp);
     const host = (data.hosts || []).find(item => item.ip === deviceIp);
-    const label = (rows[0] && rows[0].name) || (host && host.name) || deviceIp;
+    const viaProvider = (data.providers || []).flatMap(p => p.devices || []).find(row => row.ip === deviceIp);
+    const label = (rows[0] && rows[0].name) || (host && host.name) || (viaProvider && viaProvider.name) || deviceIp;
     const external = attribution ? attribution.external : rows.reduce((sum, r) => sum + r.total, 0);
     const covered = attribution ? attribution.attributed : rows.reduce((sum, r) => sum + r.total, 0);
     const pct = attribution ? Number(attribution.coverage_percent || 0) : 0;
@@ -159,6 +172,7 @@ function devicePanel(deviceIp) {
     if (host) {
         html += `<div class="wq-muted" style="margin-bottom:8px">Device total from ntopng: <b>${gb(host.total)}</b> (${gb(host.download)} down · ${gb(host.upload)} up). That counts all traffic; the sites below are attributed from external flows only.</div>`;
     }
+    html += providerBreakdown('device', deviceIp);
     if (!rows.length) {
         return html + '<div class="alert alert-info">No site could be attributed to this device for this period. Its traffic may be encrypted DNS, a VPN, or addresses with no recent DNS answer.</div>';
     }
@@ -182,8 +196,9 @@ function domainPanel(domain) {
     const total = rows.reduce((sum, r) => sum + r.total, 0);
     let html = drillHeader(domain, 'devices that used this site', gb(summary ? summary.total : total),
         summary ? `${summary.ip_count} observed IP(s)` : 'attributed traffic');
+    html += providerBreakdown('domain', domain);
     if (!rows.length) {
-        return html + '<div class="alert alert-info">No device could be attributed to this site for this period.</div>';
+        return html + '<div class="alert alert-info">No LAN device could be attributed to this site for this period. It may only appear in per-WAN download flows, where the internal address is not retained.</div>';
     }
     const top = rows[0].total || 1;
     html += '<table class="table table-striped"><thead><tr><th>Device</th><th style="width:32%">Share</th><th>Traffic</th></tr></thead><tbody>';
@@ -239,10 +254,17 @@ function refreshConsumers() {
         // resolve to a panel rather than silently doing nothing.
         const deviceMap = new Map((data.hosts || []).map(row => [row.ip, row.name]));
         for (const row of data.device_domains || []) deviceMap.set(row.device, row.name);
+        // Per-WAN rows come from provider-scope flows, which can name devices and
+        // domains the LAN-scope matrix never saw. They are clickable too, so they
+        // must resolve.
+        for (const provider of data.providers || []) {
+            for (const row of provider.devices || []) if (!deviceMap.has(row.ip)) deviceMap.set(row.ip, row.name);
+        }
         const devices = [...deviceMap.entries()].sort((a, b) => String(a[1]).localeCompare(String(b[1])));
         const domains = [...new Set([
             ...(data.domains || []).map(row => row.domain),
             ...(data.device_domains || []).map(row => row.domain),
+            ...(data.providers || []).flatMap(provider => (provider.domains || []).map(row => row.domain)),
         ])].sort();
         $('#drillDevice').html('<option value="">All devices</option>' + devices.map(item => `<option value="${esc(item[0])}">${esc(item[1])}</option>`).join(''));
         $('#drillDomain').html('<option value="">All domains</option>' + domains.map(item => `<option value="${esc(item)}">${esc(item)}</option>`).join(''));
