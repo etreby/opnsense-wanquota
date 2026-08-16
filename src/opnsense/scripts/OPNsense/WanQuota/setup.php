@@ -41,7 +41,17 @@ $defaults = [
     'alerts_enabled' => '1',
     'projection_alert_enabled' => '1',
     'alert_repeat_hours' => '24',
+    'recovery_enabled' => '0',
+    'recovery_failures' => '3',
+    'recovery_cooldown_minutes' => '360',
+    'recovery_daily_limit' => '2',
+    'recovery_minimum_remaining_gb' => '1',
 ];
+for ($index = 1; $index <= 4; $index++) {
+    $defaults["provider{$index}_recovery_enabled"] = '0';
+    $defaults["provider{$index}_recovery_method"] = $index === 1 ? 'dlink_m961' : 'url';
+    $defaults["provider{$index}_recovery_target"] = ['1.1.1.1', '8.8.8.8', '9.9.9.9', '208.67.222.222'][$index - 1];
+}
 foreach ($defaults as $field => $value) {
     if ((string)$model->general->{$field} === '') {
         $model->general->{$field} = $value;

@@ -35,6 +35,13 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>100</MaximumValue>
             </provider1_warning_percent>
+            <provider1_recovery_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider1_recovery_enabled>
+            <provider1_recovery_method type="OptionField"><Default>dlink_m961</Default><Required>Y</Required><OptionValues><dlink_m961>D-Link DWR-M961</dlink_m961><url>HTTP(S) recovery endpoint / smart plug</url></OptionValues></provider1_recovery_method>
+            <provider1_router type="NetworkField"><Required>N</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider1_router>
+            <provider1_recovery_target type="NetworkField"><Default>1.1.1.1</Default><Required>Y</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider1_recovery_target>
+            <provider1_recovery_url type="TextField"><Required>N</Required></provider1_recovery_url>
+            <provider1_recovery_username type="TextField"><Required>N</Required></provider1_recovery_username>
+            <provider1_recovery_password type="TextField"><Required>N</Required></provider1_recovery_password>
             <provider2_enabled type="BooleanField"><Default>1</Default><Required>Y</Required></provider2_enabled>
             <provider2_name type="TextField">
                 <Default>ISP 2</Default>
@@ -62,18 +69,39 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>100</MaximumValue>
             </provider2_warning_percent>
+            <provider2_recovery_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider2_recovery_enabled>
+            <provider2_recovery_method type="OptionField"><Default>url</Default><Required>Y</Required><OptionValues><dlink_m961>D-Link DWR-M961</dlink_m961><url>HTTP(S) recovery endpoint / smart plug</url></OptionValues></provider2_recovery_method>
+            <provider2_router type="NetworkField"><Required>N</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider2_router>
+            <provider2_recovery_target type="NetworkField"><Default>8.8.8.8</Default><Required>Y</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider2_recovery_target>
+            <provider2_recovery_url type="TextField"><Required>N</Required></provider2_recovery_url>
+            <provider2_recovery_username type="TextField"><Required>N</Required></provider2_recovery_username>
+            <provider2_recovery_password type="TextField"><Required>N</Required></provider2_recovery_password>
             <provider3_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider3_enabled>
             <provider3_name type="TextField"><Default>ISP 3</Default><Required>Y</Required></provider3_name>
             <provider3_interface type="InterfaceField"><Default>wan</Default><Required>Y</Required></provider3_interface>
             <provider3_quota_gb type="NumericField"><Default>100</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100000</MaximumValue></provider3_quota_gb>
             <provider3_cycle_day type="NumericField"><Default>1</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>31</MaximumValue></provider3_cycle_day>
             <provider3_warning_percent type="NumericField"><Default>80</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100</MaximumValue></provider3_warning_percent>
+            <provider3_recovery_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider3_recovery_enabled>
+            <provider3_recovery_method type="OptionField"><Default>url</Default><Required>Y</Required><OptionValues><dlink_m961>D-Link DWR-M961</dlink_m961><url>HTTP(S) recovery endpoint / smart plug</url></OptionValues></provider3_recovery_method>
+            <provider3_router type="NetworkField"><Required>N</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider3_router>
+            <provider3_recovery_target type="NetworkField"><Default>9.9.9.9</Default><Required>Y</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider3_recovery_target>
+            <provider3_recovery_url type="TextField"><Required>N</Required></provider3_recovery_url>
+            <provider3_recovery_username type="TextField"><Required>N</Required></provider3_recovery_username>
+            <provider3_recovery_password type="TextField"><Required>N</Required></provider3_recovery_password>
             <provider4_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider4_enabled>
             <provider4_name type="TextField"><Default>ISP 4</Default><Required>Y</Required></provider4_name>
             <provider4_interface type="InterfaceField"><Default>wan</Default><Required>Y</Required></provider4_interface>
             <provider4_quota_gb type="NumericField"><Default>100</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100000</MaximumValue></provider4_quota_gb>
             <provider4_cycle_day type="NumericField"><Default>1</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>31</MaximumValue></provider4_cycle_day>
             <provider4_warning_percent type="NumericField"><Default>80</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>100</MaximumValue></provider4_warning_percent>
+            <provider4_recovery_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></provider4_recovery_enabled>
+            <provider4_recovery_method type="OptionField"><Default>url</Default><Required>Y</Required><OptionValues><dlink_m961>D-Link DWR-M961</dlink_m961><url>HTTP(S) recovery endpoint / smart plug</url></OptionValues></provider4_recovery_method>
+            <provider4_router type="NetworkField"><Required>N</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider4_router>
+            <provider4_recovery_target type="NetworkField"><Default>208.67.222.222</Default><Required>Y</Required><FieldSeparator>,</FieldSeparator><AddressFamily>ipv4</AddressFamily></provider4_recovery_target>
+            <provider4_recovery_url type="TextField"><Required>N</Required></provider4_recovery_url>
+            <provider4_recovery_username type="TextField"><Required>N</Required></provider4_recovery_username>
+            <provider4_recovery_password type="TextField"><Required>N</Required></provider4_recovery_password>
             <consumers_enabled type="BooleanField">
                 <Default>1</Default>
                 <Required>Y</Required>
@@ -118,6 +146,11 @@
                 <MinimumValue>1</MinimumValue>
                 <MaximumValue>168</MaximumValue>
             </alert_repeat_hours>
+            <recovery_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></recovery_enabled>
+            <recovery_failures type="NumericField"><Default>3</Default><Required>Y</Required><MinimumValue>2</MinimumValue><MaximumValue>12</MaximumValue></recovery_failures>
+            <recovery_cooldown_minutes type="NumericField"><Default>360</Default><Required>Y</Required><MinimumValue>30</MinimumValue><MaximumValue>1440</MaximumValue></recovery_cooldown_minutes>
+            <recovery_daily_limit type="NumericField"><Default>2</Default><Required>Y</Required><MinimumValue>1</MinimumValue><MaximumValue>10</MaximumValue></recovery_daily_limit>
+            <recovery_minimum_remaining_gb type="NumericField"><Default>1</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>10000</MaximumValue></recovery_minimum_remaining_gb>
         </general>
     </items>
 </model>

@@ -6,6 +6,7 @@ import glob
 import json
 import os
 import sqlite3
+import xml.etree.ElementTree as ET
 
 import consumers
 import report
@@ -86,6 +87,18 @@ def main():
         alert_options["enabled"],
         f"Repeat interval {alert_options['repeat_hours']} hours" if alert_options["enabled"] else "Disabled in plugin settings",
         alert_state_age,
+        required=False,
+    ))
+
+    recovery_age = age_seconds(os.path.join(report.STATE_DIR, "recovery.json"), now)
+    root = ET.parse(report.CONFIG_PATH).getroot()
+    settings_node = root.find("./OPNsense/WanQuota/general")
+    recovery_enabled = report.text(settings_node, "recovery_enabled", "0") == "1"
+    checks.append(status(
+        "Automatic WAN recovery",
+        recovery_enabled,
+        "Guarded recovery monitor enabled" if recovery_enabled else "Disabled in plugin settings",
+        recovery_age,
         required=False,
     ))
 

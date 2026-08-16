@@ -115,4 +115,26 @@
         <label>Alert repeat interval (hours)</label>
         <type>text</type>
     </field>
+    <field><label>Automatic WAN recovery</label><type>header</type></field>
+    <field><id>wanquota.general.recovery_enabled</id><label>Enable guarded automatic recovery</label><type>checkbox</type><help>Fail closed: requires remaining quota, a healthy alternate WAN, repeated failures, cooldown, and daily limits.</help></field>
+    <field><id>wanquota.general.recovery_failures</id><label>Consecutive failed checks</label><type>text</type><help>Checks run every five minutes. Three failures require approximately fifteen minutes.</help></field>
+    <field><id>wanquota.general.recovery_cooldown_minutes</id><label>Recovery cooldown (minutes)</label><type>text</type></field>
+    <field><id>wanquota.general.recovery_daily_limit</id><label>Maximum attempts per WAN per day</label><type>text</type></field>
+    <field><id>wanquota.general.recovery_minimum_remaining_gb</id><label>Minimum remaining quota (GB)</label><type>text</type></field>
+    <field><label>Provider 1 recovery</label><type>header</type></field>
+    <field><id>wanquota.general.provider1_recovery_enabled</id><label>Enable provider 1 recovery</label><type>checkbox</type></field>
+    <field><id>wanquota.general.provider1_recovery_method</id><label>Provider 1 recovery method</label><type>dropdown</type></field>
+    <field><id>wanquota.general.provider1_router</id><label>Provider 1 router IPv4 address</label><type>text</type></field>
+    <field><id>wanquota.general.provider1_recovery_target</id><label>Provider 1 public probe IPv4</label><type>text</type></field>
+    <field><id>wanquota.general.provider1_recovery_url</id><label>Provider 1 recovery URL</label><type>text</type><help>Root-controlled HTTP(S) POST endpoint, normally a router helper or smart plug. Empty means monitor only.</help></field>
+    <field><id>wanquota.general.provider1_recovery_username</id><label>Provider 1 recovery username</label><type>text</type></field>
+    <field><id>wanquota.general.provider1_recovery_password</id><label>Provider 1 recovery password</label><type>password</type></field>
+    <field><label>Provider 2 recovery</label><type>header</type></field>
+    <field><id>wanquota.general.provider2_recovery_enabled</id><label>Enable provider 2 recovery</label><type>checkbox</type></field>
+    <field><id>wanquota.general.provider2_recovery_method</id><label>Provider 2 recovery method</label><type>dropdown</type></field>
+    <field><id>wanquota.general.provider2_router</id><label>Provider 2 router IPv4 address</label><type>text</type></field>
+    <field><id>wanquota.general.provider2_recovery_target</id><label>Provider 2 public probe IPv4</label><type>text</type></field>
+    <field><id>wanquota.general.provider2_recovery_url</id><label>Provider 2 recovery URL</label><type>text</type></field>
+    <field><id>wanquota.general.provider2_recovery_username</id><label>Provider 2 recovery username</label><type>text</type></field>
+    <field><id>wanquota.general.provider2_recovery_password</id><label>Provider 2 recovery password</label><type>password</type></field>
 </form>

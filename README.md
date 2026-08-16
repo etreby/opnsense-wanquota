@@ -23,6 +23,12 @@ quota reporting and top-consumer visibility.
 - Data Health tab covering vnStat, ntopng, Insight, DNS mappings, and alert freshness.
 - Device-to-domain drill-down using a single deduplicated LAN flow source.
 - Exact per-WAN flow-total rankings for devices and domains when Insight retains the post-NAT internal address. Direction splits remain explicitly unavailable because Insight interface direction is not equivalent to download versus upload bytes.
+- Guarded multi-WAN recovery monitoring with per-provider probes, remaining-quota checks, repeated-failure confirmation, alternate-WAN interlock, serialized actions, cooldowns, daily limits, persistent audit state, and optional authenticated HTTP(S) recovery endpoints for router helpers or smart plugs.
+
+Automatic recovery is disabled by default and fails closed. A soft-reboot URL cannot
+recover a router whose management plane is frozen; use a supported smart plug or
+another independently powered recovery endpoint for hard power cycling. Never point
+both providers at the same power-control endpoint.
 
 ## Screenshots
 

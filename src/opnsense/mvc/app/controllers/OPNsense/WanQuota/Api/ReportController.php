@@ -37,6 +37,11 @@ class ReportController extends ApiControllerBase
         return $this->runReport('health');
     }
 
+    public function recoveryAction(): array
+    {
+        return $this->runReport('recovery');
+    }
+
     public function consumersTodayAction(): array
     {
         return $this->runReport('consumers today');

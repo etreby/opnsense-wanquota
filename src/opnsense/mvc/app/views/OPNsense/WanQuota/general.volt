@@ -42,7 +42,7 @@
     </div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>Daily traffic trend</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>Monthly traffic trend</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
-    <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
+    <div id="health" class="tab-pane fade"><div style="padding:16px"><div id="healthReport"></div><h3>{{ lang._('WAN recovery') }}</h3><div id="recoveryReport"></div></div></div>
     <div id="settings" class="tab-pane fade">
         <div class="content-box" style="padding-bottom:1.5em">
             {{ partial("layout_partials/base_form", ['fields':generalForm,'id':'frm_wanquota_settings']) }}
@@ -145,6 +145,16 @@ function healthTable(data) {
     }
     return html + '</tbody></table>';
 }
+function recoveryTable(data) {
+    if (!data || data.status === 'disabled') return '<div class="alert alert-info">Automatic WAN recovery is disabled.</div>';
+    if (!data.providers) return '<div class="alert alert-danger">Recovery status unavailable.</div>';
+    let html = '<table class="table table-striped"><thead><tr><th>Provider</th><th>Router</th><th>Internet</th><th>Decision</th><th>Last action</th></tr></thead><tbody>';
+    for (const item of data.providers) {
+        const action = item.action ? (item.action.success ? 'Succeeded: ' : 'Failed: ') + esc(item.action.detail) : '—';
+        html += `<tr><td><b>${esc(item.name)}</b><br><small>${esc(item.interface)}</small></td><td>${item.router_reachable?'reachable':'unreachable'}</td><td>${item.internet_reachable?'reachable':'unreachable'}</td><td>${esc(item.decision)}</td><td>${action}</td></tr>`;
+    }
+    return html + '</tbody></table><small>Generated: ' + esc(data.generated_at || '') + '</small>';
+}
 function refreshConsumers() {
     const period = $('#consumerPeriod').val();
     ajaxCall('/api/wanquota/report/consumers_' + period, {}, function(data) {
@@ -167,6 +177,7 @@ function refreshReports() {
     ajaxCall('/api/wanquota/report/daily', {}, function(data) { $('#dailyReport').html(historyTable(data)); renderHistoryChart('dailyChart',data); });
     ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); renderHistoryChart('monthlyChart',data); });
     ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
+    ajaxCall('/api/wanquota/report/recovery', {}, function(data) { $('#recoveryReport').html(recoveryTable(data)); });
 }
 $(document).ready(function() {
     mapDataToFormUI({'frm_wanquota_settings':'/api/wanquota/settings/get'}).done(function() { formatTokenizersUI(); $('.selectpicker').selectpicker('refresh'); });
