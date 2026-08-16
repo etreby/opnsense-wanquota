@@ -197,6 +197,14 @@ class TransportTests(unittest.TestCase):
         response = MCP.serve_once("not base64 !!!")
         self.assertEqual(response["error"]["code"], MCP.PARSE_ERROR)
 
+    def test_once_tolerates_wrapped_base64(self):
+        # FreeBSD's b64encode wraps at 76 columns; the embedded newline must not
+        # be read as a malformed request.
+        raw = base64.b64encode(json.dumps(request("tools/list")).encode()).decode()
+        wrapped = "\n".join([raw[:40], raw[40:]]) + "\n"
+        response = MCP.serve_once(wrapped)
+        self.assertEqual(len(response["result"]["tools"]), 7)
+
 
 if __name__ == "__main__":
     unittest.main()

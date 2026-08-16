@@ -300,6 +300,10 @@ def serve_stdio(stdin=None, stdout=None):
 def serve_once(encoded, client=None, config_path=None):
     if not is_permitted(client, config_path):
         return _error(None, NOT_PERMITTED, "WAN quota MCP is reachable from the LAN only")
+    # Strip whitespace before validating: PHP's base64_encode emits one line, but
+    # a hand-run configctl using a wrapping encoder (FreeBSD b64encode) does not,
+    # and validate=True rejects the embedded newline.
+    encoded = "".join((encoded or "").split())
     try:
         payload = base64.b64decode(encoded, validate=True).decode("utf-8")
     except (binascii.Error, UnicodeDecodeError, ValueError):
