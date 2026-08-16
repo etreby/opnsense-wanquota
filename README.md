@@ -141,6 +141,32 @@ unavailable the call returns `isError` with the reason rather than dropping the
 session, and `wanquota_health` is the tool to reach for first when a figure looks
 wrong.
 
+## Building and installing
+
+Build a real package rather than copying files into place. Copying preserves the
+source tree's file modes, and a script that loses its executable bit stops being
+runnable by configd without any visible error.
+
+On the firewall, fetch the plugins tree once:
+
+```
+opnsense-code plugins
+```
+
+Then place this repository at `/usr/plugins/net/wanquota` and build:
+
+```
+cd /usr/plugins/net/wanquota
+make clean && make package
+pkg install -y -f work/pkg/os-wanquota-*.pkg
+```
+
+The post-install hook reloads configd, runs migrations, flushes the menu and ACL
+caches, and registers the DNS collector, so no manual restart is needed.
+
+`PLUGIN_REVISION` tracks fixes released against the same `PLUGIN_VERSION`, giving
+package versions such as `0.8_2`.
+
 ## Requirements
 
 - A current OPNsense installation with `os-vnstat` and `os-ntopng`.
