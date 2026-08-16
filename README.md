@@ -34,6 +34,8 @@ quota reporting and top-consumer visibility.
   expiring overrides, reversible weight/tier changes and an optional quota cutoff.
 - HTTPS webhook alerts and scheduled summaries, native authenticated JSON API,
   Prometheus-compatible metrics, wallboard mode, high-contrast mode, and clickable charts.
+- Read-only Model Context Protocol server so AI agents can query quota status,
+  consumers, forecasts, and data-source health over stdio or the authenticated API.
 
 ## Screenshots
 
@@ -45,7 +47,7 @@ quota reporting and top-consumer visibility.
 
 ![WAN intelligence, forecasts and guardrails](docs/screenshots/intelligence-report.png)
 
-## v0.7 configuration
+## Configuration
 
 Open **Reporting → WAN Quota → Settings**. Intelligence collection is enabled by
 default, while automatic guardrail enforcement is disabled and dry-run is enabled.
@@ -69,6 +71,75 @@ The authenticated OPNsense API exposes intelligence JSON at
 `metrics` field at `/api/wanquota/report/metrics`. HTTPS webhooks support generic,
 Discord, Slack, Telegram, and private Home Assistant destinations. SMTP reports
 use STARTTLS and can include a CSV provider summary.
+
+## Model Context Protocol
+
+The plugin ships a read-only MCP server so an AI agent can answer questions about
+the link ("is either provider going to blow its cap this cycle?", "which device
+drove yesterday's spike?") without being handed shell access to the firewall.
+
+Seven tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
+`wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`, and
+`wanquota_metrics`. The three period-aware tools accept `today`, `week`, `thirty`,
+or `month`.
+
+Guardrail overrides are deliberately **not** exposed. The tool surface cannot
+change routing, set an override, or write any state, so connecting an agent
+cannot alter how traffic leaves the network. Use the Intelligence tab or the
+existing POST API for overrides.
+
+### Exposure
+
+`/api/wanquota/mcp` refuses any request whose client address is not inside the
+LAN network defined in `config.xml`, or loopback. The check fails closed: if the
+LAN cannot be determined the endpoint serves nothing. An off-LAN caller is
+refused before its request body is parsed, so it learns nothing about the
+endpoint beyond the refusal.
+
+That guard is defence in depth, **not** the primary control. This endpoint is
+served by the OPNsense web GUI, so what can reach it at all is decided by the
+interfaces the GUI listens on (**System → Settings → Administration**) and the
+firewall rules in front of it. If the GUI itself is reachable from WAN, that is
+the exposure to fix; the plugin only guarantees it will not answer MCP there.
+
+Two consequences worth knowing:
+
+- Administering from a different internal VLAN is refused too. "LAN" means the
+  `lan` interface in `config.xml`, not RFC1918 generally.
+- The stdio transport is not address-filtered, because reaching it already
+  requires shell access to the firewall.
+
+Over stdio, from a workstation with SSH access to the firewall:
+
+```json
+{
+  "mcpServers": {
+    "wanquota": {
+      "command": "ssh",
+      "args": ["root@firewall.example", "/usr/local/opnsense/scripts/OPNsense/WanQuota/mcp.py", "--stdio"]
+    }
+  }
+}
+```
+
+Over the authenticated API, POST a JSON-RPC request to `/api/wanquota/mcp` using
+an OPNsense API key and secret as HTTP Basic credentials:
+
+```
+curl -sk -u "$KEY:$SECRET" https://firewall.example/api/wanquota/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
+
+Both transports run the same dispatcher in
+`src/opnsense/scripts/OPNsense/WanQuota/mcp.py`. It implements JSON-RPC 2.0
+against the Python standard library only, so the feature adds no packages to
+`PLUGIN_DEPENDS`.
+
+Tool calls degrade the way the rest of the plugin does: if a collector is
+unavailable the call returns `isError` with the reason rather than dropping the
+session, and `wanquota_health` is the tool to reach for first when a figure looks
+wrong.
 
 ## Requirements
 
