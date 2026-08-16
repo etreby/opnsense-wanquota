@@ -51,6 +51,14 @@ INTERNAL_ERROR = -32603
 NOT_PERMITTED = -32000
 
 
+class UnknownTool(Exception):
+    """Requested tool does not exist."""
+
+
+class InvalidParams(Exception):
+    """Tool arguments failed validation."""
+
+
 def lan_networks(config_path=None):
     """LAN networks permitted to reach the MCP endpoint.
 
@@ -62,13 +70,21 @@ def lan_networks(config_path=None):
         root = ET.parse(config_path or report.CONFIG_PATH).getroot()
     except (OSError, ET.ParseError):
         return []
-    address = consumers.node_text(root, "./interfaces/lan/ipaddr")
-    prefix = consumers.node_text(root, "./interfaces/lan/subnet")
-    if not address or not prefix:
-        return []
-    try:
-        networks.append(ipaddress.ip_network(f"{address}/{int(prefix)}", strict=False))
-    except (ValueError, TypeError):
+    # Both families: a LAN client reaching the GUI over IPv6 is still on the LAN,
+    # and refusing it would be a confusing lockout. Addresses that are not literal
+    # (dhcp, track6, an empty element) simply contribute no network.
+    found = False
+    for address_key, prefix_key in (("ipaddr", "subnet"), ("ipaddrv6", "subnetv6")):
+        address = consumers.node_text(root, f"./interfaces/lan/{address_key}")
+        prefix = consumers.node_text(root, f"./interfaces/lan/{prefix_key}")
+        if not address or not prefix:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(f"{address}/{int(prefix)}", strict=False))
+            found = True
+        except (ValueError, TypeError):
+            continue
+    if not found:
         return []
     return networks
 
@@ -88,7 +104,7 @@ def is_permitted(client, config_path=None):
 def _period(arguments, default="thirty"):
     period = arguments.get("period", default)
     if period not in PERIODS:
-        raise ValueError(f"period must be one of {', '.join(PERIODS)}")
+        raise InvalidParams(f"period must be one of {', '.join(PERIODS)}")
     return period
 
 
@@ -207,9 +223,9 @@ def tool_descriptors():
 def call_tool(name, arguments):
     tool = TOOLS_BY_NAME.get(name)
     if tool is None:
-        raise LookupError(f"Unknown tool: {name}")
+        raise UnknownTool(f"Unknown tool: {name}")
     if not isinstance(arguments, dict):
-        raise ValueError("arguments must be an object")
+        raise InvalidParams("arguments must be an object")
     return tool["handler"](arguments)
 
 
@@ -255,11 +271,15 @@ def handle(request):
         arguments = params.get("arguments") or {} if isinstance(params, dict) else {}
         try:
             payload = call_tool(name, arguments)
-        except LookupError as error:
+        except UnknownTool as error:
             return _error(request_id, METHOD_NOT_FOUND, str(error))
-        except ValueError as error:
+        except InvalidParams as error:
             return _error(request_id, INVALID_PARAMS, str(error))
-        except Exception as error:  # a collector failure must not kill the session
+        except Exception as error:
+            # Anything raised inside a tool is a collector or data problem, not a
+            # bad request. It must not kill the session, and it must not be
+            # reported as the caller's fault: a KeyError from a report helper is
+            # a LookupError, and would otherwise read as "unknown tool".
             return _result(request_id, {
                 "content": [{"type": "text", "text": f"{type(error).__name__}: {error}"}],
                 "isError": True,

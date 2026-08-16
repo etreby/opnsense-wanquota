@@ -110,6 +110,30 @@ class ToolCallTests(unittest.TestCase):
         self.assertTrue(response["result"]["isError"])
         self.assertIn("vnstat database missing", response["result"]["content"][0]["text"])
 
+    def test_keyerror_inside_a_tool_is_not_reported_as_unknown_tool(self):
+        # KeyError is a LookupError; catching LookupError broadly would blame the
+        # caller for a missing settings key.
+        def explode(_arguments):
+            raise KeyError("domain_enabled")
+
+        MCP.TOOLS_BY_NAME["wanquota_consumers"]["handler"] = explode
+        response = MCP.handle(request("tools/call", {
+            "name": "wanquota_consumers", "arguments": {"period": "week"},
+        }))
+        self.assertNotIn("error", response)
+        self.assertTrue(response["result"]["isError"])
+        self.assertIn("KeyError", response["result"]["content"][0]["text"])
+
+    def test_valueerror_inside_a_tool_is_not_reported_as_invalid_params(self):
+        def explode(_arguments):
+            raise ValueError("invalid literal for int() with base 10: ''")
+
+        MCP.TOOLS_BY_NAME["wanquota_summary"]["handler"] = explode
+        response = MCP.handle(request("tools/call", {"name": "wanquota_summary", "arguments": {}}))
+        self.assertNotIn("error", response)
+        self.assertTrue(response["result"]["isError"])
+        self.assertIn("ValueError", response["result"]["content"][0]["text"])
+
 
 LAN_CONFIG = """<?xml version="1.0"?>
 <opnsense>
@@ -153,6 +177,30 @@ class LanOnlyTests(unittest.TestCase):
     def test_missing_config_fails_closed(self):
         self.assertFalse(MCP.is_permitted("192.168.10.55", "/nonexistent/config.xml"))
         self.assertEqual(MCP.lan_networks("/nonexistent/config.xml"), [])
+
+    def test_non_literal_address_fails_closed(self):
+        handle = tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False)
+        handle.write(LAN_CONFIG.replace("192.168.10.1", "dhcp"))
+        handle.close()
+        try:
+            self.assertEqual(MCP.lan_networks(handle.name), [])
+            self.assertFalse(MCP.is_permitted("192.168.10.55", handle.name))
+        finally:
+            Path(handle.name).unlink(missing_ok=True)
+
+    def test_ipv6_lan_client_is_permitted(self):
+        handle = tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False)
+        handle.write(LAN_CONFIG.replace(
+            "<subnet>24</subnet>",
+            "<subnet>24</subnet><ipaddrv6>fd00:abcd::1</ipaddrv6><subnetv6>64</subnetv6>",
+        ))
+        handle.close()
+        try:
+            self.assertTrue(MCP.is_permitted("fd00:abcd::5", handle.name))
+            self.assertTrue(MCP.is_permitted("192.168.10.55", handle.name))
+            self.assertFalse(MCP.is_permitted("fd00:beef::5", handle.name))
+        finally:
+            Path(handle.name).unlink(missing_ok=True)
 
     def test_absent_client_is_treated_as_stdio_and_allowed(self):
         self.assertTrue(MCP.is_permitted(None, self.config))
