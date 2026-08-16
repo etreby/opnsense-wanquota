@@ -6,3 +6,6 @@ includes a responsive chart-led report view, settings page, API, export tools, a
 dashboard widgets.
 Optional consumer reports use ntopng host RRDs and correlate Insight flow bytes
 with recent Unbound answers for explicitly coverage-labelled domain estimates.
+A read-only Model Context Protocol server exposes quota status, consumers,
+forecasts and data-source health to AI agents over stdio or the authenticated
+API, without offering any tool that can change routing.

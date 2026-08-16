@@ -1,0 +1,321 @@
+#!/usr/local/bin/python3
+"""Model Context Protocol server exposing WAN quota reports to AI agents.
+
+Read-only by design: every tool maps to an existing report path. Guardrail
+overrides stay out of the tool surface so an agent can never change routing,
+matching the advisory-first posture of the rest of the plugin.
+
+Two transports share one dispatcher:
+  mcp.py --stdio                     newline-delimited JSON-RPC on stdin/stdout
+  mcp.py --once <base64> [client]    single base64-encoded request, for configd
+
+The base64 wrapper on --once exists because configd passes parameters as
+space-separated tokens; encoding sidesteps quoting entirely.
+
+When a client address is supplied it must fall inside the LAN network defined in
+config.xml, or be loopback. Anything else is refused before the request is even
+parsed. This fails closed: if the LAN cannot be determined, nothing is served.
+The stdio transport carries no client address and is not filtered, because
+reaching it already requires shell access to the firewall.
+
+No third-party modules: JSON-RPC 2.0 is small enough to implement directly,
+and the plugin ships with a stdlib-only Python surface.
+"""
+
+import base64
+import binascii
+import ipaddress
+import json
+import sys
+import xml.etree.ElementTree as ET
+
+import consumers
+import health
+import intelligence
+import report
+
+PROTOCOL_VERSION = "2024-11-05"
+SERVER_NAME = "wanquota"
+SERVER_VERSION = "0.8"
+
+PERIODS = ("today", "week", "thirty", "month")
+
+PARSE_ERROR = -32700
+INVALID_REQUEST = -32600
+METHOD_NOT_FOUND = -32601
+INVALID_PARAMS = -32602
+INTERNAL_ERROR = -32603
+
+# Outside the JSON-RPC reserved range, so a client can tell "you are not allowed
+# to reach this from here" apart from a malformed call.
+NOT_PERMITTED = -32000
+
+
+def lan_networks(config_path=None):
+    """LAN networks permitted to reach the MCP endpoint.
+
+    Loopback is always included. Returns an empty list when the LAN cannot be
+    determined, which the caller treats as deny-all rather than allow-all.
+    """
+    networks = [ipaddress.ip_network("127.0.0.0/8"), ipaddress.ip_network("::1/128")]
+    try:
+        root = ET.parse(config_path or report.CONFIG_PATH).getroot()
+    except (OSError, ET.ParseError):
+        return []
+    address = consumers.node_text(root, "./interfaces/lan/ipaddr")
+    prefix = consumers.node_text(root, "./interfaces/lan/subnet")
+    if not address or not prefix:
+        return []
+    try:
+        networks.append(ipaddress.ip_network(f"{address}/{int(prefix)}", strict=False))
+    except (ValueError, TypeError):
+        return []
+    return networks
+
+
+def is_permitted(client, config_path=None):
+    """True when the client address sits on the LAN (or is loopback)."""
+    if client is None or client == "":
+        # stdio: reaching it already required shell access to the firewall.
+        return True
+    try:
+        address = ipaddress.ip_address(client.strip())
+    except ValueError:
+        return False
+    return any(address in network for network in lan_networks(config_path))
+
+
+def _period(arguments, default="thirty"):
+    period = arguments.get("period", default)
+    if period not in PERIODS:
+        raise ValueError(f"period must be one of {', '.join(PERIODS)}")
+    return period
+
+
+def tool_summary(_arguments):
+    enabled, providers = report.configuration()
+    return report.summary(enabled, providers)
+
+
+def tool_daily(_arguments):
+    enabled, providers = report.configuration()
+    return report.history(enabled, providers, "daily")
+
+
+def tool_monthly(_arguments):
+    enabled, providers = report.configuration()
+    return report.history(enabled, providers, "monthly")
+
+
+def tool_health(_arguments):
+    return health.document()
+
+
+def tool_consumers(arguments):
+    return consumers.report(_period(arguments))
+
+
+def tool_intelligence(arguments):
+    return intelligence.dashboard(_period(arguments))
+
+
+def tool_metrics(_arguments):
+    return {"content_type": "text/plain; version=0.0.4", "metrics": intelligence.prometheus()}
+
+
+_PERIOD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "period": {
+            "type": "string",
+            "enum": list(PERIODS),
+            "default": "thirty",
+            "description": "Reporting window to cover.",
+        }
+    },
+}
+
+_NO_ARGUMENTS = {"type": "object", "properties": {}}
+
+TOOLS = (
+    {
+        "name": "wanquota_summary",
+        "description": (
+            "Current billing-cycle quota status for every enabled WAN provider: used and "
+            "remaining GB, percent of allowance, daily budget, and projected cycle total."
+        ),
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_summary,
+    },
+    {
+        "name": "wanquota_daily",
+        "description": "Per-day download and upload history for each enabled WAN provider.",
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_daily,
+    },
+    {
+        "name": "wanquota_monthly",
+        "description": "Per-month download and upload history for each enabled WAN provider.",
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_monthly,
+    },
+    {
+        "name": "wanquota_health",
+        "description": (
+            "Freshness and availability of every data source the reports depend on "
+            "(vnStat, ntopng, Insight/NetFlow, DNS attribution, alert monitor). Check this "
+            "first when a number looks wrong: a stale collector yields stale reports."
+        ),
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_health,
+    },
+    {
+        "name": "wanquota_consumers",
+        "description": (
+            "Top LAN devices and attributed domains by bytes. Domain attribution is an "
+            "estimate correlating flow bytes with recent DNS answers; read the coverage "
+            "percentage in the response before treating the domain list as complete."
+        ),
+        "inputSchema": _PERIOD_SCHEMA,
+        "handler": tool_consumers,
+    },
+    {
+        "name": "wanquota_intelligence",
+        "description": (
+            "Quota forecasts, gateway quality, device-group budgets, anomalies and the "
+            "current guardrail recommendation per provider. Recommendations are advisory "
+            "while enforcement is disabled or dry-run."
+        ),
+        "inputSchema": _PERIOD_SCHEMA,
+        "handler": tool_intelligence,
+    },
+    {
+        "name": "wanquota_metrics",
+        "description": "WAN quota metrics in Prometheus text exposition format.",
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_metrics,
+    },
+)
+
+TOOLS_BY_NAME = {tool["name"]: tool for tool in TOOLS}
+
+
+def tool_descriptors():
+    return [{key: tool[key] for key in ("name", "description", "inputSchema")} for tool in TOOLS]
+
+
+def call_tool(name, arguments):
+    tool = TOOLS_BY_NAME.get(name)
+    if tool is None:
+        raise LookupError(f"Unknown tool: {name}")
+    if not isinstance(arguments, dict):
+        raise ValueError("arguments must be an object")
+    return tool["handler"](arguments)
+
+
+def _result(request_id, payload):
+    return {"jsonrpc": "2.0", "id": request_id, "result": payload}
+
+
+def _error(request_id, code, message):
+    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+
+
+def handle(request):
+    """Dispatch one decoded JSON-RPC request. Returns a response dict, or None for notifications."""
+    if not isinstance(request, dict) or request.get("jsonrpc") != "2.0":
+        return _error(None, INVALID_REQUEST, "Expected a JSON-RPC 2.0 request object")
+
+    method = request.get("method")
+    request_id = request.get("id")
+    params = request.get("params") or {}
+    is_notification = "id" not in request
+
+    if method == "initialize":
+        # Echo the client's protocol revision when it offers one; clients reject a
+        # server that answers with a version they did not ask for.
+        requested = params.get("protocolVersion") if isinstance(params, dict) else None
+        return _result(request_id, {
+            "protocolVersion": requested or PROTOCOL_VERSION,
+            "capabilities": {"tools": {"listChanged": False}},
+            "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+        })
+
+    if method in ("notifications/initialized", "initialized"):
+        return None
+
+    if method == "ping":
+        return None if is_notification else _result(request_id, {})
+
+    if method == "tools/list":
+        return _result(request_id, {"tools": tool_descriptors()})
+
+    if method == "tools/call":
+        name = params.get("name") if isinstance(params, dict) else None
+        arguments = params.get("arguments") or {} if isinstance(params, dict) else {}
+        try:
+            payload = call_tool(name, arguments)
+        except LookupError as error:
+            return _error(request_id, METHOD_NOT_FOUND, str(error))
+        except ValueError as error:
+            return _error(request_id, INVALID_PARAMS, str(error))
+        except Exception as error:  # a collector failure must not kill the session
+            return _result(request_id, {
+                "content": [{"type": "text", "text": f"{type(error).__name__}: {error}"}],
+                "isError": True,
+            })
+        return _result(request_id, {
+            "content": [{"type": "text", "text": json.dumps(payload, separators=(",", ":"))}],
+            "isError": False,
+        })
+
+    if is_notification:
+        return None
+    return _error(request_id, METHOD_NOT_FOUND, f"Unknown method: {method}")
+
+
+def handle_raw(line):
+    """Decode one JSON-RPC line and dispatch it. Returns a response dict or None."""
+    try:
+        request = json.loads(line)
+    except (ValueError, TypeError):
+        return _error(None, PARSE_ERROR, "Invalid JSON")
+    return handle(request)
+
+
+def serve_stdio(stdin=None, stdout=None):
+    stdin = stdin or sys.stdin
+    stdout = stdout or sys.stdout
+    for line in stdin:
+        line = line.strip()
+        if not line:
+            continue
+        response = handle_raw(line)
+        if response is None:
+            continue
+        stdout.write(json.dumps(response, separators=(",", ":")) + "\n")
+        stdout.flush()
+
+
+def serve_once(encoded, client=None, config_path=None):
+    if not is_permitted(client, config_path):
+        return _error(None, NOT_PERMITTED, "WAN quota MCP is reachable from the LAN only")
+    try:
+        payload = base64.b64decode(encoded, validate=True).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return _error(None, PARSE_ERROR, "Request body was not valid base64 UTF-8")
+    return handle_raw(payload) or {"jsonrpc": "2.0", "id": None, "result": {}}
+
+
+def main():
+    arguments = sys.argv[1:]
+    if arguments and arguments[0] == "--once":
+        encoded = arguments[1] if len(arguments) > 1 else ""
+        client = arguments[2] if len(arguments) > 2 else None
+        print(json.dumps(serve_once(encoded, client), separators=(",", ":")))
+        return
+    serve_stdio()
+
+
+if __name__ == "__main__":
+    main()

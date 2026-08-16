@@ -45,7 +45,7 @@ def domain_database_health(now, enabled):
         return status("Domain attribution", False, f"Database error: {error}")
 
 
-def main():
+def document():
     now = dt.datetime.now().timestamp()
     settings, _ = consumers.settings_and_names()
     checks = []
@@ -105,11 +105,15 @@ def main():
         overall = "failed"
     elif any(item["status"] in {"failed", "stale"} for item in checks):
         overall = "degraded"
-    print(json.dumps({
+    return {
         "status": overall,
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "checks": checks,
-    }, separators=(",", ":")))
+    }
+
+
+def main():
+    print(json.dumps(document(), separators=(",", ":")))
 
 
 if __name__ == "__main__":
