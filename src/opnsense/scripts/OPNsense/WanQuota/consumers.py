@@ -245,23 +245,38 @@ def cap_matrix(rows, limit):
     return sorted(keep.values(), key=lambda item: item["total"], reverse=True)
 
 
+UNATTRIBUTABLE_MIN_BYTES = 50_000_000
+UNATTRIBUTABLE_MAX_PERCENT = 20
+
+
 def attribution_rows(external, attributed, names):
     """Per-device attributed share of external traffic.
 
     The denominator is external flow bytes, not the ntopng RRD total: the RRD
     counts all traffic including LAN-local, so dividing by it would understate
     coverage against a different measurement entirely.
+
+    A device moving real traffic that almost none of resolves to a domain is
+    reported with `likely_unattributable`. That pattern is what encrypted DNS, a
+    VPN tunnel or ECH looks like from here, and saying so is more useful than
+    letting the reader assume the device was idle or the collector broken. Small
+    talkers are excluded because a low percentage of very little traffic says
+    nothing.
     """
     rows = []
     for device, total in external.items():
         covered = attributed.get(device, 0)
+        percent = covered / total * 100 if total else 0
         rows.append({
             "device": device,
             "name": names.get(device, device),
             "external": total,
             "attributed": covered,
             "unattributed": max(0, total - covered),
-            "coverage_percent": covered / total * 100 if total else 0,
+            "coverage_percent": percent,
+            "likely_unattributable": (
+                total >= UNATTRIBUTABLE_MIN_BYTES and percent < UNATTRIBUTABLE_MAX_PERCENT
+            ),
         })
     rows.sort(key=lambda item: item["external"], reverse=True)
     return rows

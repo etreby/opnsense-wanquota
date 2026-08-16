@@ -6,5 +6,11 @@
             <pattern>api/wanquota/*</pattern>
         </patterns>
     </page-services-wanquota>
+    <page-services-wanquota-readonly>
+        <name>Services: WAN Quotas (read only)</name>
+        <patterns>
+            <pattern>api/wanquota/report/*</pattern>
+            <pattern>api/wanquota/mcp/*</pattern>
+        </patterns>
+    </page-services-wanquota-readonly>
 </acl>
-

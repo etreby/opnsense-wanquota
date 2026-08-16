@@ -104,6 +104,19 @@ class DeviceAttributionTests(unittest.TestCase):
         rows = CONSUMERS.attribution_rows({"192.0.2.40": 0}, {}, {})
         self.assertEqual(rows[0]["coverage_percent"], 0)
 
+    def test_flags_a_busy_device_that_resolves_to_almost_nothing(self):
+        rows = CONSUMERS.attribution_rows({"192.0.2.20": 400_000_000}, {"192.0.2.20": 2_000_000}, {})
+        self.assertTrue(rows[0]["likely_unattributable"])
+
+    def test_does_not_flag_a_small_talker(self):
+        # 0% of a trivial amount says nothing about encrypted DNS.
+        rows = CONSUMERS.attribution_rows({"192.0.2.21": 1_000_000}, {}, {})
+        self.assertFalse(rows[0]["likely_unattributable"])
+
+    def test_does_not_flag_a_well_attributed_device(self):
+        rows = CONSUMERS.attribution_rows({"192.0.2.22": 900_000_000}, {"192.0.2.22": 800_000_000}, {})
+        self.assertFalse(rows[0]["likely_unattributable"])
+
     def test_uses_friendly_name_and_sorts_by_external(self):
         rows = CONSUMERS.attribution_rows(
             {"192.0.2.20": 100, "192.0.2.30": 900},

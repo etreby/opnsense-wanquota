@@ -54,7 +54,7 @@ class ToolSurfaceTests(unittest.TestCase):
     def test_tools_list_is_advertised_with_schemas(self):
         response = MCP.handle(request("tools/list"))
         tools = response["result"]["tools"]
-        self.assertEqual(len(tools), 7)
+        self.assertEqual(len(tools), len(MCP.TOOLS))
         for tool in tools:
             self.assertIn("name", tool)
             self.assertIn("description", tool)
@@ -133,6 +133,98 @@ class ToolCallTests(unittest.TestCase):
         self.assertNotIn("error", response)
         self.assertTrue(response["result"]["isError"])
         self.assertIn("ValueError", response["result"]["content"][0]["text"])
+
+
+SAMPLE_CONSUMERS = {
+    "status": "ok",
+    "period": "thirty",
+    "hosts": [
+        {"ip": "192.0.2.10", "name": "TRUENAS", "download": 900, "upload": 100, "total": 1000},
+        {"ip": "192.0.2.11", "name": "Quiet Box", "download": 5, "upload": 0, "total": 5},
+    ],
+    "domains": [{"domain": "cdn.example", "total": 700, "ip_count": 3}],
+    "device_domains": [
+        {"device": "192.0.2.10", "name": "TRUENAS", "domain": "cdn.example", "total": 600},
+        {"device": "192.0.2.10", "name": "TRUENAS", "domain": "pkg.example", "total": 200},
+        {"device": "192.0.2.12", "name": "Laptop", "domain": "cdn.example", "total": 100},
+    ],
+    "device_attribution": [
+        {"device": "192.0.2.10", "name": "TRUENAS", "external": 1000, "attributed": 800,
+         "unattributed": 200, "coverage_percent": 80.0, "likely_unattributable": False},
+    ],
+    "providers": [
+        {"name": "ETISALAT", "interface": "igb0",
+         "devices": [{"ip": "192.0.2.10", "name": "TRUENAS", "total": 400}],
+         "domains": [{"domain": "cdn.example", "total": 350}]},
+    ],
+}
+
+
+class DrillToolTests(unittest.TestCase):
+    def setUp(self):
+        self.original = MCP.consumers.report
+        MCP.consumers.report = lambda _period: SAMPLE_CONSUMERS
+
+    def tearDown(self):
+        MCP.consumers.report = self.original
+
+    def call(self, name, arguments):
+        return MCP.handle(request("tools/call", {"name": name, "arguments": arguments}))
+
+    @staticmethod
+    def payload(response):
+        return json.loads(response["result"]["content"][0]["text"])
+
+    def test_device_by_name_is_case_insensitive(self):
+        body = self.payload(self.call("wanquota_device", {"device": "truenas"}))
+        self.assertEqual(body["device"], "192.0.2.10")
+        self.assertEqual([s["domain"] for s in body["sites"]], ["cdn.example", "pkg.example"])
+
+    def test_device_by_ip(self):
+        body = self.payload(self.call("wanquota_device", {"device": "192.0.2.10"}))
+        self.assertEqual(body["name"], "TRUENAS")
+        self.assertEqual(body["attribution"]["coverage_percent"], 80.0)
+
+    def test_device_reports_carrying_providers(self):
+        body = self.payload(self.call("wanquota_device", {"device": "TRUENAS"}))
+        self.assertEqual(body["providers"], [{"name": "ETISALAT", "total": 400}])
+
+    def test_device_known_only_from_rrd_returns_empty_sites(self):
+        body = self.payload(self.call("wanquota_device", {"device": "Quiet Box"}))
+        self.assertEqual(body["sites"], [])
+        self.assertEqual(body["device_total"], 5)
+
+    def test_unknown_device_is_invalid_params(self):
+        response = self.call("wanquota_device", {"device": "nosuchbox"})
+        self.assertEqual(response["error"]["code"], MCP.INVALID_PARAMS)
+
+    def test_device_is_required(self):
+        response = self.call("wanquota_device", {})
+        self.assertEqual(response["error"]["code"], MCP.INVALID_PARAMS)
+
+    def test_device_response_is_smaller_than_the_full_report(self):
+        body = self.payload(self.call("wanquota_device", {"device": "TRUENAS"}))
+        self.assertLess(len(json.dumps(body)), len(json.dumps(SAMPLE_CONSUMERS)))
+
+    def test_site_lists_devices_ranked(self):
+        body = self.payload(self.call("wanquota_site", {"site": "cdn.example"}))
+        self.assertEqual([d["name"] for d in body["devices"]], ["TRUENAS", "Laptop"])
+        self.assertEqual(body["total"], 700)
+        self.assertEqual(body["observed_ip_count"], 3)
+
+    def test_site_is_case_and_dot_insensitive(self):
+        body = self.payload(self.call("wanquota_site", {"site": "CDN.Example."}))
+        self.assertEqual(body["site"], "cdn.example")
+
+    def test_unknown_site_is_invalid_params(self):
+        response = self.call("wanquota_site", {"site": "nowhere.example"})
+        self.assertEqual(response["error"]["code"], MCP.INVALID_PARAMS)
+
+    def test_drill_tools_are_still_read_only(self):
+        for tool in ("wanquota_device", "wanquota_site"):
+            self.assertIn(tool, MCP.TOOLS_BY_NAME)
+        names = {t["name"] for t in MCP.tool_descriptors()}
+        self.assertFalse(any("override" in n or "enforce" in n or "set" in n for n in names))
 
 
 LAN_CONFIG = """<?xml version="1.0"?>
@@ -214,7 +306,7 @@ class LanOnlyTests(unittest.TestCase):
     def test_serve_once_allows_lan_client(self):
         encoded = base64.b64encode(json.dumps(request("tools/list")).encode()).decode()
         response = MCP.serve_once(encoded, "192.168.10.55", self.config)
-        self.assertEqual(len(response["result"]["tools"]), 7)
+        self.assertEqual(len(response["result"]["tools"]), len(MCP.TOOLS))
 
     def test_refusal_precedes_body_parsing(self):
         # Even a malformed body must be refused as off-LAN, not reported as a
@@ -239,7 +331,7 @@ class TransportTests(unittest.TestCase):
     def test_once_decodes_base64_request(self):
         encoded = base64.b64encode(json.dumps(request("tools/list")).encode()).decode()
         response = MCP.serve_once(encoded)
-        self.assertEqual(len(response["result"]["tools"]), 7)
+        self.assertEqual(len(response["result"]["tools"]), len(MCP.TOOLS))
 
     def test_once_rejects_invalid_base64(self):
         response = MCP.serve_once("not base64 !!!")
@@ -251,7 +343,7 @@ class TransportTests(unittest.TestCase):
         raw = base64.b64encode(json.dumps(request("tools/list")).encode()).decode()
         wrapped = "\n".join([raw[:40], raw[40:]]) + "\n"
         response = MCP.serve_once(wrapped)
-        self.assertEqual(len(response["result"]["tools"]), 7)
+        self.assertEqual(len(response["result"]["tools"]), len(MCP.TOOLS))
 
 
 if __name__ == "__main__":

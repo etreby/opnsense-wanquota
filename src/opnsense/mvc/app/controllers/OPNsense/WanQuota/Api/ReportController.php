@@ -83,17 +83,4 @@ class ReportController extends ApiControllerBase
         return ['status' => 'ok', 'content_type' => 'text/plain; version=0.0.4', 'metrics' => $raw];
     }
 
-    public function overrideAction(): array
-    {
-        if (!$this->request->isPost()) {
-            return ['status' => 'failed', 'error' => 'POST required'];
-        }
-        $provider = preg_replace('/[^a-zA-Z0-9 _.-]/', '', (string)$this->request->getPost('provider'));
-        $mode = (string)$this->request->getPost('mode');
-        $hours = max(1, min(168, (int)$this->request->getPost('hours')));
-        if ($provider === '' || !in_array($mode, ['observe', 'deprioritize', 'failover', 'cutoff'], true)) {
-            return ['status' => 'failed', 'error' => 'Invalid override'];
-        }
-        return $this->runReport(sprintf('override %s %s %d api', escapeshellarg($provider), escapeshellarg($mode), $hours));
-    }
 }

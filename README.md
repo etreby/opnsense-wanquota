@@ -85,8 +85,23 @@ or `month`.
 
 Guardrail overrides are deliberately **not** exposed. The tool surface cannot
 change routing, set an override, or write any state, so connecting an agent
-cannot alter how traffic leaves the network. Use the Intelligence tab or the
-existing POST API for overrides.
+cannot alter how traffic leaves the network. Use the Intelligence tab or
+`POST /api/wanquota/override` for overrides.
+
+### Giving an agent a read-only credential
+
+The tool surface being read-only is not enough on its own: a key is only as
+narrow as the privilege it is issued under, and a key holding the full
+**Services: WAN Quotas** privilege can also POST an override.
+
+Grant **Services: WAN Quotas (read only)** instead. It covers the reporting and
+MCP endpoints and nothing else, so the credential cannot change routing even if
+something else on the box could. Overrides live on their own path precisely so
+this split is possible — ACL patterns match on the URL, so an override action
+sharing the reporting path could not have been excluded.
+
+Create a group with only that privilege, add a user to it, and issue the API key
+under that user.
 
 ### Exposure
 

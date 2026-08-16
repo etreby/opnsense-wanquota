@@ -173,6 +173,9 @@ function devicePanel(deviceIp) {
         html += `<div class="wq-muted" style="margin-bottom:8px">Device total from ntopng: <b>${gb(host.total)}</b> (${gb(host.download)} down · ${gb(host.upload)} up). That counts all traffic; the sites below are attributed from external flows only.</div>`;
     }
     html += providerBreakdown('device', deviceIp);
+    if (attribution && attribution.likely_unattributable) {
+        html += `<div class="alert alert-warning" style="margin-bottom:10px"><b>${esc(label)} moved ${gb(attribution.external)} that mostly cannot be resolved to a site</b> (${pct.toFixed(1)}% attributed).<br><small>That pattern is what encrypted DNS (DoH/DoT), a VPN tunnel, or ECH looks like from the firewall. The traffic is real and counted against your quota; only the destination names are hidden.</small></div>`;
+    }
     if (!rows.length) {
         return html + '<div class="alert alert-info">No site could be attributed to this device for this period. Its traffic may be encrypted DNS, a VPN, or addresses with no recent DNS answer.</div>';
     }
@@ -306,7 +309,7 @@ $(document).ready(function() {
     $('#drillDevice,#drillDomain').on('change', refreshMatrix);
     $('#refreshIntelligence,#intelligencePeriod').on('click change', refreshIntelligence);
     $('#intelligenceSearch').on('input', filterIntelligence);
-    $('#applyOverride').on('click',function(){const button=$(this),payload={provider:$('#overrideProvider').val(),mode:$('#overrideMode').val(),hours:$('#overrideHours').val()};button.prop('disabled',true);$('#overrideStatus').text('Applying…');ajaxCall('/api/wanquota/report/override',payload,function(result){button.prop('disabled',false);$('#overrideStatus').text(result.status==='ok'?'Override saved until '+new Date(result.expires*1000).toLocaleString():(result.error||'Override failed'));refreshIntelligence();});});
+    $('#applyOverride').on('click',function(){const button=$(this),payload={provider:$('#overrideProvider').val(),mode:$('#overrideMode').val(),hours:$('#overrideHours').val()};button.prop('disabled',true);$('#overrideStatus').text('Applying…');ajaxCall('/api/wanquota/override',payload,function(result){button.prop('disabled',false);$('#overrideStatus').text(result.status==='ok'?'Override saved until '+new Date(result.expires*1000).toLocaleString():(result.error||'Override failed'));refreshIntelligence();});});
     $('#unitToggle').on('click',function(){wqUnit=wqUnit==='GB'?'MB':'GB';$(this).text(wqUnit);refreshReports();refreshConsumers();if(currentIntelligenceData)renderIntelligence(currentIntelligenceData);});
     $('#contrastToggle').on('click',function(){$('.wq-shell').toggleClass('wq-contrast');});
     $('#wallboardToggle').on('click',function(){$('body').toggleClass('wq-wallboard');if($('body').hasClass('wq-wallboard'))$('a[href="#intelligence"]').tab('show');Object.values(wqCharts).forEach(c=>c.resize());});

@@ -139,6 +139,107 @@ def tool_metrics(_arguments):
     return {"content_type": "text/plain; version=0.0.4", "metrics": intelligence.prometheus()}
 
 
+def _require(arguments, key):
+    value = arguments.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise InvalidParams(f"{key} is required")
+    return value.strip()
+
+
+def tool_device(arguments):
+    """One device's sites. Returns a slice, not the whole consumers payload.
+
+    The full report runs to tens of kilobytes; an agent asking what a single
+    device did should not have to read all of it to find out.
+    """
+    wanted = _require(arguments, "device")
+    payload = consumers.report(_period(arguments))
+    lowered = wanted.lower()
+    attribution = payload.get("device_attribution", [])
+    match = next(
+        (row for row in attribution
+         if row["device"] == wanted or str(row["name"]).lower() == lowered),
+        None,
+    )
+    address = match["device"] if match else wanted
+    if match is None:
+        # Fall back to the RRD host list: a device can appear there with no
+        # attributable external flow at all, which is itself the answer.
+        host = next(
+            (row for row in payload.get("hosts", [])
+             if row["ip"] == wanted or str(row["name"]).lower() == lowered),
+            None,
+        )
+        if host is None:
+            known = sorted(
+                {row["name"] for row in attribution}
+                | {row["name"] for row in payload.get("hosts", [])}
+            )
+            message = f"Unknown device: {wanted}"
+            if known:
+                message += ". Known devices: " + ", ".join(known[:25])
+            raise InvalidParams(message)
+        address = host["ip"]
+    sites = sorted(
+        (row for row in payload.get("device_domains", []) if row["device"] == address),
+        key=lambda row: row["total"],
+        reverse=True,
+    )
+    host = next((row for row in payload.get("hosts", []) if row["ip"] == address), None)
+    return {
+        "status": payload.get("status"),
+        "period": payload.get("period"),
+        "device": address,
+        "name": (match or host or {}).get("name", address),
+        "device_total": host.get("total") if host else None,
+        "attribution": match,
+        "sites": [{"domain": row["domain"], "total": row["total"]} for row in sites],
+        "providers": [
+            {"name": provider["name"], "total": entry["total"]}
+            for provider in payload.get("providers", [])
+            for entry in provider.get("devices", []) if entry["ip"] == address
+        ],
+        "note": (
+            "Site totals come from external flows correlated with recent DNS answers. "
+            "device_total comes from ntopng and counts all traffic, so the two differ."
+        ),
+    }
+
+
+def tool_site(arguments):
+    """One site's devices. The reciprocal slice of wanquota_device."""
+    wanted = _require(arguments, "site").lower().strip(".")
+    payload = consumers.report(_period(arguments))
+    devices = sorted(
+        (row for row in payload.get("device_domains", []) if row["domain"].lower() == wanted),
+        key=lambda row: row["total"],
+        reverse=True,
+    )
+    summary = next(
+        (row for row in payload.get("domains", []) if row["domain"].lower() == wanted),
+        None,
+    )
+    providers = [
+        {"name": provider["name"], "total": entry["total"]}
+        for provider in payload.get("providers", [])
+        for entry in provider.get("domains", []) if entry["domain"].lower() == wanted
+    ]
+    if not devices and summary is None and not providers:
+        raise InvalidParams(f"No attributed traffic for site: {wanted}")
+    return {
+        "status": payload.get("status"),
+        "period": payload.get("period"),
+        "site": wanted,
+        "total": summary["total"] if summary else sum(row["total"] for row in devices),
+        "observed_ip_count": summary["ip_count"] if summary else None,
+        "devices": [
+            {"device": row["device"], "name": row["name"], "total": row["total"]}
+            for row in devices
+        ],
+        "providers": providers,
+    }
+
+
 _PERIOD_SCHEMA = {
     "type": "object",
     "properties": {
@@ -210,6 +311,44 @@ TOOLS = (
         "description": "WAN quota metrics in Prometheus text exposition format.",
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_metrics,
+    },
+    {
+        "name": "wanquota_device",
+        "description": (
+            "What one device exchanged traffic with: its sites ranked by bytes, its "
+            "attributed share, and which providers carried it. Prefer this over "
+            "wanquota_consumers when the question is about a single device. Accepts "
+            "either the friendly name (TRUENAS) or the IP address."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "device": {
+                    "type": "string",
+                    "description": "Device name or IP address, e.g. TRUENAS or 192.168.1.10.",
+                },
+                "period": _PERIOD_SCHEMA["properties"]["period"],
+            },
+            "required": ["device"],
+        },
+        "handler": tool_device,
+    },
+    {
+        "name": "wanquota_site",
+        "description": (
+            "Which devices used one site, ranked by bytes, and which providers carried "
+            "it. The reciprocal of wanquota_device; prefer it over wanquota_consumers "
+            "when the question is about a single domain."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "site": {"type": "string", "description": "Domain name, e.g. video.example.com."},
+                "period": _PERIOD_SCHEMA["properties"]["period"],
+            },
+            "required": ["site"],
+        },
+        "handler": tool_site,
     },
 )
 
