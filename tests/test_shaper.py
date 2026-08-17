@@ -376,6 +376,72 @@ class BandwidthFieldTests(unittest.TestCase):
         self.assertIsNone(entry["upload_bandwidth"])
 
 
+class VerifyFreshnessTests(unittest.TestCase):
+    """A zero counter means two very different things.
+
+    Applying reloads the shaper, which resets every ipfw counter. Verify run just
+    after saving therefore reported every rule as having matched nothing, which reads
+    as the limits being broken when it only means no traffic has arrived yet. That is
+    exactly what a user saw after adding a device limit.
+    """
+
+    LISTING = ("60001 0 0 pipe 21015 ip from table(__rule__abc__source) to any out via em0\n"
+               "60002 2 640 pipe 22001 ip from any to 192.168.1.30 out via em0\n")
+    PLAN = {"pipes": [{"pipe": 21015, "service": "youtube", "label": "YouTube"}],
+            "device_pipes": [{"pipe": 22001, "device": "192.168.1.30", "name": "Living room TV",
+                              "upload_pipe": None}]}
+
+    def test_a_fresh_install_says_nothing_yet_rather_than_nothing(self):
+        result = SHAPER.verify(self.LISTING, interception={"active": False},
+                               plan=self.PLAN, age=12)
+        self.assertTrue(result["settling"])
+        self.assertEqual(result["installed_seconds_ago"], 12)
+        self.assertIn("no traffic yet", result["note"])
+
+    def test_a_settled_install_draws_the_stronger_conclusion(self):
+        result = SHAPER.verify(self.LISTING, interception={"active": False},
+                               plan=self.PLAN, age=4000)
+        self.assertFalse(result["settling"])
+        self.assertIn("is not limiting anything", result["note"])
+
+    def test_the_boundary_is_the_settling_window(self):
+        for age, settling in ((SHAPER.SETTLING_SECONDS - 1, True),
+                              (SHAPER.SETTLING_SECONDS, False)):
+            result = SHAPER.verify(self.LISTING, interception={"active": False},
+                                   plan=self.PLAN, age=age)
+            self.assertEqual(result["settling"], settling, age)
+
+    def test_rules_are_labelled_with_something_a_person_recognises(self):
+        """The match text is an ipfw table built from a uuid, which names nothing."""
+        rows = {row["pipe"]: row for row in
+                SHAPER.verify(self.LISTING, interception={"active": False},
+                              plan=self.PLAN, age=10)["rules"]}
+        self.assertEqual(rows[21015]["label"], "YouTube")
+        self.assertEqual(rows[22001]["label"], "Living room TV")
+
+    def test_an_unknown_pipe_gets_an_empty_label_not_a_crash(self):
+        listing = "60001 0 0 pipe 21099 ip from any to any out via em0\n"
+        rows = SHAPER.verify(listing, interception={"active": False},
+                             plan=self.PLAN, age=10)["rules"]
+        self.assertEqual(rows[0]["label"], "")
+
+    def test_a_missing_marker_reads_as_unknown_age(self):
+        self.assertIsNone(SHAPER.installed_age("/nonexistent/wanquota-installed"))
+
+    def test_an_unknown_age_does_not_claim_the_counters_are_fresh(self):
+        result = SHAPER.verify(self.LISTING, interception={"active": False},
+                               plan=self.PLAN, age=None)
+        self.assertFalse(result["settling"],
+                         "with no timestamp, do not excuse a zero as too early")
+
+    def test_the_age_is_read_from_the_marker_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            marker = os.path.join(folder, "shaper-installed")
+            open(marker, "w").close()
+            os.utime(marker, (1000, 1000))
+            self.assertEqual(SHAPER.installed_age(marker, now=1090), 90)
+
+
 class CombinedLimitTests(unittest.TestCase):
     """Per-service and per-device limits are not a choice between two modes.
 

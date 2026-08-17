@@ -842,6 +842,15 @@ function refreshDeviceLimits() { ajaxCall('/api/wanquota/limits/devices', {}, re
  * direct evidence either way. Zero bytes on a rule whose traffic has been flowing
  * means that limit is not working.
  */
+/* Bytes at whatever scale they actually are: 640 bytes is not "0.000 GB". */
+function bytesLabel(bytes) {
+    const value = Number(bytes) || 0;
+    const units = [['GB', 1e9], ['MB', 1e6], ['kB', 1e3]];
+    for (const [name, size] of units) {
+        if (value >= size) return (value / size).toFixed(value / size < 10 ? 2 : 1) + ' ' + name;
+    }
+    return value + ' B';
+}
 function renderLimitVerify(data) {
     $('#verifyLimits').prop('disabled', false);
     if (data.status !== 'ok') {
@@ -860,19 +869,35 @@ function renderLimitVerify(data) {
         'device-download': '{{ lang._("download") }}',
         'device-upload': '{{ lang._("upload") }}',
     };
-    let html = '<div class="wq-table-wrap"><table class="table table-condensed table-striped">'
-             + '<thead><tr><th>{{ lang._("Pipe") }}</th><th>{{ lang._("Kind") }}</th>'
-             + '<th>{{ lang._("Matches") }}</th><th>{{ lang._("Packets") }}</th>'
-             + '<th>{{ lang._("Matched") }}</th></tr></thead><tbody>';
+    /*
+     * Applying reloads the shaper and resets every counter, so a zero straight after
+     * a save means "no traffic yet", not "not working". Marking those rows as a
+     * problem is how this table came to read as every limit being dead.
+     */
+    const settling = data.settling === true;
+    let html = '';
+    if (settling) {
+        html += '<div class="alert alert-info">'
+             + esc('Rules were installed ' + data.installed_seconds_ago
+                   + ' seconds ago and the counters restart with them, so a rule showing '
+                   + 'nothing here has simply had no traffic yet.') + '</div>';
+    }
+    html += '<div class="wq-table-wrap"><table class="table table-condensed table-striped">'
+         +  '<thead><tr><th>{{ lang._("Limit") }}</th><th>{{ lang._("Kind") }}</th>'
+         +  '<th>{{ lang._("Matches") }}</th><th>{{ lang._("Packets") }}</th>'
+         +  '<th>{{ lang._("Matched") }}</th></tr></thead><tbody>';
     for (const rule of rules) {
         const idle = rule.bytes === 0;
-        html += '<tr' + (idle ? ' class="danger"' : '') + '><td>' + esc(rule.pipe) + '</td>'
+        html += '<tr' + (idle && !settling ? ' class="danger"' : '') + '>'
+             +  '<td><b>' + esc(rule.label || rule.pipe) + '</b>'
+             +  '<br><small class="wq-muted">' + esc('pipe ' + rule.pipe) + '</small></td>'
              +  '<td>' + esc(kinds[rule.kind] || rule.kind) + '</td>'
              +  '<td><code>' + esc(rule.match) + '</code></td>'
-             +  '<td>' + esc(rule.packets) + '</td>'
+             +  '<td>' + esc(rule.packets.toLocaleString()) + '</td>'
              +  '<td>' + (idle
-                    ? '<span class="wq-pill wq-pill-warn">' + esc('nothing') + '</span>'
-                    : esc(gb(rule.bytes))) + '</td></tr>';
+                    ? '<span class="wq-pill' + (settling ? '' : ' wq-pill-warn') + '">'
+                      + esc(settling ? 'nothing yet' : 'nothing') + '</span>'
+                    : esc(bytesLabel(rule.bytes))) + '</td></tr>';
     }
     html += '</tbody></table></div><p class="wq-muted">' + esc(data.note || '') + '</p>';
     $('#limitVerify').html(html);

@@ -21,6 +21,9 @@ require_once 'util.inc';
 
 const ORIGIN = 'wanquota';
 const PLAN = '/var/db/wanquota/shaper-plan.json';
+// Touched whenever rules are installed, so Verify can tell "no traffic yet"
+// apart from "matching nothing": a reload resets every ipfw counter.
+const INSTALLED_MARKER = '/var/db/wanquota/shaper-installed';
 
 
 /*
@@ -397,6 +400,17 @@ OPNsense\Core\Config::getInstance()->save('Apply WAN quota per-service bandwidth
  * saving; doing it by hand means doing it here too.
  */
 reload_shaper();
+
+/*
+ * Record when the rules were installed.
+ *
+ * Reloading the shaper resets every ipfw counter, so "bytes matched" is always
+ * measured from this moment. Without the timestamp, Verify run just after saving
+ * reports every rule as having matched nothing, which reads as the limits being
+ * broken when it only means no traffic has arrived yet. The marker lets it say
+ * which of the two it is.
+ */
+@touch(INSTALLED_MARKER);
 
 echo json_encode([
     'status' => 'ok',

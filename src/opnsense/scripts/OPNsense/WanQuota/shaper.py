@@ -34,12 +34,17 @@ import re
 import sqlite3
 import subprocess
 import sys
+import time
 
 import addresses as address_book
 import consumers
 
 STATE_DIR = "/var/db/wanquota"
 PLAN_PATH = os.path.join(STATE_DIR, "shaper-plan.json")
+# Touched by shaper.php whenever rules are installed. Applying reloads the
+# shaper, which resets every ipfw counter, so this is the zero point for
+# "bytes matched" and the difference between "nothing yet" and "nothing".
+INSTALLED_PATH = os.path.join(STATE_DIR, "shaper-installed")
 
 # A packet-capture engine holding /dev/netmap takes traffic off the normal kernel
 # path before ipfw's inbound hook runs. Measured on a live firewall running
@@ -785,7 +790,46 @@ def parse_rule_counters(listing, service_base=PIPE_BASE, device_base=DEVICE_PIPE
     return sorted(rows, key=lambda row: row["pipe"])
 
 
-def verify(listing=None, interception=None):
+# Below this age, a rule that has matched nothing is telling you nothing. Applying
+# reloads the shaper, which resets every ipfw counter, so a Verify run straight after
+# saving would otherwise report every limit as dead.
+SETTLING_SECONDS = 180
+
+
+def installed_age(path=None, now=None):
+    """Seconds since rules were last installed, or None if never recorded."""
+    try:
+        stamp = os.path.getmtime(path or INSTALLED_PATH)
+    except OSError:
+        return None
+    return max(0, int((now if now is not None else time.time()) - stamp))
+
+
+def rule_labels(plan=None):
+    """pipe number -> what a person calls it.
+
+    The rule's own match text is an ipfw table name built from a uuid, which tells a
+    reader nothing about which service they are looking at.
+    """
+    document = plan
+    if document is None:
+        try:
+            with open(PLAN_PATH, encoding="utf-8") as handle:
+                document = json.load(handle)
+        except (OSError, ValueError):
+            return {}
+    labels = {}
+    for entry in (document or {}).get("pipes") or ():
+        labels[entry.get("pipe")] = entry.get("label") or entry.get("service") or ""
+    for entry in (document or {}).get("device_pipes") or ():
+        name = entry.get("name") or entry.get("device") or ""
+        labels[entry.get("pipe")] = name
+        if entry.get("upload_pipe"):
+            labels[entry["upload_pipe"]] = name
+    return {number: label for number, label in labels.items() if number is not None}
+
+
+def verify(listing=None, interception=None, plan=None, age=None):
     """Report what each of the plugin's shaper rules has actually matched."""
     text = listing
     if text is None:
@@ -797,20 +841,43 @@ def verify(listing=None, interception=None):
                     "rules": []}
     rows = parse_rule_counters(text)
     state = interception if interception is not None else netmap_interception()
-    idle = [row for row in rows if row["bytes"] == 0]
+    labels = rule_labels(plan)
+    for row in rows:
+        row["label"] = labels.get(row["pipe"], "")
+    seconds = installed_age() if age is None else age
+    settling = seconds is not None and seconds < SETTLING_SECONDS
+    idle = [row["pipe"] for row in rows if row["bytes"] == 0]
+
+    if settling:
+        note = (
+            f"Rules were installed {seconds} seconds ago, and applying resets every "
+            "counter, so a rule showing nothing here has simply had no traffic yet. "
+            f"Wait until they have been running for {SETTLING_SECONDS // 60} minutes "
+            "of normal use before reading anything into a zero."
+        )
+    elif state.get("active"):
+        note = (
+            "Bytes are counted since the rules were last installed. A rule that has "
+            "matched nothing while its service or device was in use is not limiting "
+            "anything — on this firewall that is expected for upload rules, which "
+            "cannot match at all."
+        )
+    else:
+        note = (
+            "Bytes are counted since the rules were last installed. A rule that has "
+            "matched nothing while its service or device was in use is not limiting "
+            "anything."
+        )
     return {
         "status": "ok",
         "rules": rows,
         "interception": state,
-        "idle": [row["pipe"] for row in idle],
-        "note": (
-            "Bytes are counted since the rule was installed. A rule that has matched "
-            "nothing while the device or service was in use is not limiting anything — "
-            "on this firewall that is expected for upload rules." if state.get("active")
-            else "Bytes are counted since the rule was installed. A rule that has "
-                 "matched nothing while the device or service was in use is not "
-                 "limiting anything."
-        ),
+        "installed_seconds_ago": seconds,
+        # True when the counters are too fresh to draw a conclusion from. The
+        # interface uses this to avoid marking every rule as dead right after a save.
+        "settling": settling,
+        "idle": idle,
+        "note": note,
     }
 
 
