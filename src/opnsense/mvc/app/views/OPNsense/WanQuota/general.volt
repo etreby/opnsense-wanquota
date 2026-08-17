@@ -37,6 +37,7 @@
             <div class="wq-section wq-table-wrap"><div id="hostConsumers"></div></div><div class="wq-section wq-table-wrap"><div id="domainConsumers"></div></div>
             <div id="domainCoverage"></div>
             <h3>{{ lang._('Per-WAN attributed traffic') }}</h3><div id="wanConsumers"></div>
+            <div id="providerDrill" class="wq-section wq-table-wrap"></div>
             <h3>{{ lang._('Device and domain drill-down') }}</h3>
             <div class="form-inline" style="margin-bottom:10px">
                 <label for="drillDevice">{{ lang._('Device') }}:&nbsp;</label><select id="drillDevice" class="form-control"><option value="">All devices</option></select>
@@ -191,7 +192,7 @@ const wqCharts = {};
 const wqColors = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#ef4444','#64748b'];
 function makeChart(id, config) { if (wqCharts[id]) wqCharts[id].destroy(); const canvas=document.getElementById(id); if(canvas) wqCharts[id]=new Chart(canvas,config); }
 function chartOptions(horizontal=false) { return {responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:true,position:'bottom'}},scales:{x:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}}}}; }
-function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3>${esc(p.name)}</h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
+function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
 function renderPluginVersion(data){const v=data&&data.plugin_version;$('#pluginVersion').text(v?('os-wanquota '+v):'');}
 function renderSummaryCharts(data){renderPluginVersion(data);const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
 function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10),hostOptions=chartOptions(true),domainOptions=chartOptions(true);hostOptions.onClick=(event,elements)=>{if(elements.length)drillTo('device',hosts[elements[0].index].ip);};domainOptions.onClick=(event,elements)=>{if(elements.length)drillTo('domain',domains[elements[0].index].domain);};makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:hostOptions});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:domainOptions});}
@@ -243,7 +244,7 @@ function consumerTable(rows, key) {
 }
 let currentSummaryData = null, currentConsumerData = null;
 let currentIntelligenceData = null;
-function intelligenceCards(data){const providers=data?.summary?.providers||[];return providers.map(p=>{const f=p.forecast||{},q=p.quality||{},policy=p.policy||{},movement=p.movement;const trend=movement?(movement.used_delta>=0?'▲ ':'▼ ')+gb(Math.abs(movement.used_delta))+' in 24h':'Collecting 24h comparison';return `<div class="wq-card" data-filter="${esc((p.name+' '+f.risk+' '+policy.recommended).toLowerCase())}"><div class="wq-muted">${esc(p.logical_interface)} · ${esc(q.status||'unknown')}</div><h3>${esc(p.name)}</h3><div class="wq-metric wq-risk-${esc(f.risk||'on_track')}">${esc((f.risk||'unknown').replace('_',' ').toUpperCase())}</div><div>${f.exhaustion_date?'Exhaustion '+esc(f.exhaustion_date):'Projected within allowance'}</div><div><b>${esc(trend)}</b></div><div class="wq-muted">Latency ${Number(q.latency||0).toFixed(1)} ms · Loss ${Number(q.loss||0).toFixed(1)}% · Guardrail ${esc(policy.recommended||'observe')} ${policy.dry_run?'(dry-run)':''}</div></div>`}).join('');}
+function intelligenceCards(data){const providers=data?.summary?.providers||[];return providers.map(p=>{const f=p.forecast||{},q=p.quality||{},policy=p.policy||{},movement=p.movement;const trend=movement?(movement.used_delta>=0?'▲ ':'▼ ')+gb(Math.abs(movement.used_delta))+' in 24h':'Collecting 24h comparison';return `<div class="wq-card" data-filter="${esc((p.name+' '+f.risk+' '+policy.recommended).toLowerCase())}"><div class="wq-muted">${esc(p.logical_interface)} · ${esc(q.status||'unknown')}</div><h3><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3><div class="wq-metric wq-risk-${esc(f.risk||'on_track')}">${esc((f.risk||'unknown').replace('_',' ').toUpperCase())}</div><div>${f.exhaustion_date?'Exhaustion '+esc(f.exhaustion_date):'Projected within allowance'}</div><div><b>${esc(trend)}</b></div><div class="wq-muted">Latency ${Number(q.latency||0).toFixed(1)} ms · Loss ${Number(q.loss||0).toFixed(1)}% · Guardrail ${esc(policy.recommended||'observe')} ${policy.dry_run?'(dry-run)':''}</div></div>`}).join('');}
 function intelligenceDetails(data){const anomalies=data.anomalies||[],archives=data.archives||[],patterns=data.patterns||[],domains=(data?.consumers?.domains||[]).slice(0,30);let html='<h3>{{ lang._('Domain intelligence') }}</h3><table class="table table-striped"><thead><tr><th>{{ lang._('Domain') }}</th><th>{{ lang._('Category') }}</th><th>{{ lang._('Traffic') }}</th><th>{{ lang._('First seen') }}</th><th>{{ lang._('Last seen') }}</th></tr></thead><tbody>';for(const d of domains)html+=`<tr data-filter="${esc((d.domain+' '+d.category).toLowerCase())}"><td><b>${esc(d.domain)}</b></td><td>${esc(d.category||'Other')}</td><td>${gb(d.total)}</td><td>${d.first_seen?new Date(d.first_seen*1000).toLocaleString():'—'}</td><td>${d.last_seen?new Date(d.last_seen*1000).toLocaleString():'—'}</td></tr>`;html+='</tbody></table><h3>{{ lang._('Recent anomalies') }}</h3><table class="table table-striped"><thead><tr><th>{{ lang._('Time') }}</th><th>{{ lang._('Severity') }}</th><th>{{ lang._('Subject') }}</th><th>{{ lang._('Finding') }}</th></tr></thead><tbody>';for(const a of anomalies)html+=`<tr data-filter="${esc((a.subject+' '+a.kind+' '+a.severity).toLowerCase())}"><td>${new Date(a.ts*1000).toLocaleString()}</td><td><span class="label label-${a.severity==='critical'?'danger':'warning'}">${esc(a.severity)}</span></td><td>${esc(a.subject)}</td><td>${esc(a.message)}</td></tr>`;html+='</tbody></table><h3>{{ lang._('Weekday / weekend pattern') }}</h3><table class="table table-striped"><thead><tr><th>{{ lang._('Provider') }}</th><th>{{ lang._('Average weekday') }}</th><th>{{ lang._('Average weekend day') }}</th></tr></thead><tbody>';for(const p of patterns)html+=`<tr data-filter="${esc(p.provider.toLowerCase())}"><td>${esc(p.provider)}</td><td>${gb(p.weekday_average)}</td><td>${gb(p.weekend_average)}</td></tr>`;html+='</tbody></table><h3>{{ lang._('Completed billing cycles') }}</h3><table class="table table-striped"><thead><tr><th>{{ lang._('Provider') }}</th><th>{{ lang._('Cycle') }}</th><th>{{ lang._('Used') }}</th><th>{{ lang._('Quota') }}</th><th>{{ lang._('Utilization') }}</th></tr></thead><tbody>';for(const a of archives)html+=`<tr data-filter="${esc(a.provider.toLowerCase())}"><td>${esc(a.provider)}</td><td>${esc(a.start)} → ${esc(a.end)}</td><td>${gb(a.used)}</td><td>${gb(a.quota)}</td><td>${(a.used/a.quota*100).toFixed(1)}%</td></tr>`;return html+'</tbody></table>';}
 function categoryPalette(count) {
     // Repeat the accent palette rather than generating random hues, so a category
@@ -917,7 +918,7 @@ function wanTable(providers) {
     for (const provider of providers) {
         const devices = (provider.devices || []).slice(0, 5).map(item => `<a href="#" class="wq-drill" data-drill="device" data-value='${esc(item.ip)}'>${esc(item.name)}</a> (${gb(item.total)})`).join('<br>') || '—';
         const domains = (provider.domains || []).slice(0, 5).map(item => `<a href="#" class="wq-drill" data-drill="domain" data-value='${esc(item.domain)}'>${esc(item.domain)}</a> (${gb(item.total)})`).join('<br>') || '—';
-        html += `<tr><td><b>${esc(provider.name)}</b><br><small>${esc(provider.logical_interface)} → ${esc(provider.interface)}</small></td><td><b>${gb(provider.total)}</b></td><td>${devices}</td><td>${domains}</td><td><span class="text-muted">Not attributable</span><br><small>${esc(provider.direction_attribution)}</small></td></tr>`;
+        html += `<tr><td><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(provider.name)}' title="Rank every device on this WAN"><b>${esc(provider.name)}</b></a><br><small>${esc(provider.logical_interface)} → ${esc(provider.interface)}</small></td><td><b>${gb(provider.total)}</b></td><td>${devices}</td><td>${domains}</td><td><span class="text-muted">Not attributable</span><br><small>${esc(provider.direction_attribution)}</small></td></tr>`;
     }
     return html + '</tbody></table>';
 }
@@ -1009,7 +1010,75 @@ function refreshMatrix() {
     const rows = (currentConsumerData.device_domains || []).filter(row => (!device || row.device === device) && (!domain || row.domain === domain));
     $('#deviceDomainMatrix').html(matrixTable(rows));
 }
+/*
+ * Every device on one WAN, ranked.
+ *
+ * The per-WAN table shows a provider's five busiest devices in a single cell, which
+ * answers "who is on this gateway" only if the answer is short. This ranks all of
+ * them with their share, so the question "which device is eating this gateway" has a
+ * real answer. The data is already in the consumers report, so opening this costs
+ * nothing.
+ */
+/*
+ * A WAN name is clickable from the Summary and Intelligence cards as well as the
+ * per-WAN table, but the ranking lives on the Consumers tab and is built from the
+ * consumers report. Opening from elsewhere therefore switches tab and, if that
+ * report has not been fetched yet, fetches it before drilling — otherwise the panel
+ * would report "no attributed traffic" purely because nothing had loaded.
+ */
+function openProvider(name) {
+    $('a[href="#consumers"]').tab('show');
+    if (currentConsumerData) { providerDrill(name); return; }
+    ajaxCall('/api/wanquota/report/consumers_' + $('#consumerPeriod').val(), {}, function(data) {
+        currentConsumerData = data;
+        providerDrill(name);
+    });
+}
+function providerDrill(name) {
+    const provider = (currentConsumerData?.providers || [])
+        .find(item => String(item.name) === String(name));
+    if (!provider) {
+        $('#providerDrill').html('<div class="alert alert-info">'
+            + esc('No attributed traffic is recorded for that WAN in this period.') + '</div>');
+        return;
+    }
+    const devices = (provider.devices || []).slice();
+    devices.sort((a, b) => (b.total || 0) - (a.total || 0));
+    const attributed = devices.reduce((sum, item) => sum + (item.total || 0), 0);
+    let html = '<h3>' + esc(provider.name) + ' — ' + esc('devices by attributed traffic')
+             + ' <a href="#" class="wq-drill wq-muted" data-drill="provider-close" data-value="">'
+             + esc('hide') + '</a></h3>'
+             + '<div class="wq-muted" style="margin-bottom:8px">'
+             + esc(provider.logical_interface + ' → ' + provider.interface
+                   + ' · ' + gb(provider.total) + ' attributed in this period') + '</div>';
+    if (!devices.length) {
+        $('#providerDrill').html(html + '<div class="alert alert-info">'
+            + esc('No device on this WAN has attributable flow data.') + '</div>');
+        return;
+    }
+    html += '<table class="table table-condensed table-striped"><thead><tr>'
+         +  '<th>#</th><th>{{ lang._("Device") }}</th><th>{{ lang._("Attributed") }}</th>'
+         +  '<th>{{ lang._("Share of this WAN") }}</th></tr></thead><tbody>';
+    devices.forEach(function(item, index) {
+        const share = attributed ? (item.total || 0) / attributed * 100 : 0;
+        html += '<tr><td>' + (index + 1) + '</td>'
+             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(item.ip) + '\'>'
+             +  '<b>' + esc(item.name || item.ip) + '</b></a>'
+             +  '<br><small class="wq-muted">' + esc(item.ip) + '</small></td>'
+             +  '<td><b>' + esc(gb(item.total)) + '</b></td>'
+             +  '<td>' + shareBar(share / 100, '#1677a8') + '<small>' + share.toFixed(1) + '%</small></td>'
+             +  '</tr>';
+    });
+    html += '</tbody></table><p class="wq-muted">'
+         +  esc('Ranking uses attributed flow totals, so a device using encrypted DNS or a '
+               + 'VPN may be under-represented. Direction splits are not available per WAN.')
+         +  '</p>';
+    $('#providerDrill').html(html);
+    document.getElementById('providerDrill').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
 function drillTo(kind, value) {
+    if (kind === 'provider') { openProvider(value); return; }
+    if (kind === 'provider-close') { $('#providerDrill').empty(); return; }
     const target = kind === 'device' ? '#drillDevice' : '#drillDomain';
     const other = kind === 'device' ? '#drillDomain' : '#drillDevice';
     if (!$(target + " option[value='" + String(value).replace(/'/g, "\\'") + "']").length) return;
@@ -1102,6 +1171,12 @@ $(document).ready(function() {
     $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
+    // Summary has no drill handler of its own; Intelligence already routes through
+    // drillTo, so binding it here too would run the drill twice.
+    $('#summary').on('click', 'a.wq-drill[data-drill="provider"]', function(event) {
+        event.preventDefault();
+        openProvider($(this).data('value'));
+    });
     /*
      * Reload on tab entry as well as after a save. A change can also arrive from
      * outside this page — the MCP server can set limits and settings — so the form
