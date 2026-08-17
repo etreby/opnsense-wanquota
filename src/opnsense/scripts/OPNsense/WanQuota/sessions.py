@@ -18,6 +18,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 
 import consumers
 
@@ -105,6 +106,8 @@ def parse_states(output):
                 "age_seconds": 0,
                 "bytes": 0,
                 "packets": 0,
+                "upload": 0,
+                "download": 0,
             }
             key = (current["protocol"], current["device"], current["device_port"],
                    current["remote"], current["remote_port"])
@@ -117,8 +120,17 @@ def parse_states(output):
         if detail:
             values = detail.groupdict()
             current["age_seconds"] = max(current["age_seconds"], _seconds(values["age"]))
-            total = int(values["bytes_in"]) + int(values["bytes_out"])
-            current["bytes"] = max(current["bytes"], total)
+            # pf prints the pair in the order the state was created. For a
+            # LAN-originated connection the first figure is what the device sent and
+            # the second is what it received, confirmed by measuring a known 8 MB
+            # download: the counters read 28177:8252529. A connection opened from
+            # outside, through a port forward, would be the other way round; those
+            # are not this plugin's subject and are filtered out with LAN-to-LAN.
+            upload = int(values["bytes_in"])
+            download = int(values["bytes_out"])
+            current["upload"] = max(current["upload"], upload)
+            current["download"] = max(current["download"], download)
+            current["bytes"] = max(current["bytes"], upload + download)
             current["packets"] = max(
                 current["packets"], int(values["pkts_in"]) + int(values["pkts_out"]))
     return list(records.values())
@@ -167,9 +179,12 @@ def document(runner=None, limit=STATE_LIMIT):
     by_device = {}
     for row in sessions:
         entry = by_device.setdefault(row["device"], {
-            "device": row["device"], "name": row["name"], "sessions": 0, "bytes": 0})
+            "device": row["device"], "name": row["name"], "sessions": 0,
+            "bytes": 0, "download": 0, "upload": 0})
         entry["sessions"] += 1
         entry["bytes"] += row["bytes"]
+        entry["download"] += row["download"]
+        entry["upload"] += row["upload"]
     return {
         "status": "ok",
         "total_states": len(states),
@@ -177,11 +192,15 @@ def document(runner=None, limit=STATE_LIMIT):
         "limit": limit,
         "sessions": sessions,
         "devices": sorted(by_device.values(), key=lambda item: item["bytes"], reverse=True),
+        "collected_at": int(time.time()),
         "note": (
             "State counters are per state and reset when a state is created, so these "
-            "byte figures are not quota accounting. Sessions are shown whether or not "
-            "the destination has a known name, so traffic missing from the domain "
-            "reports still appears here."
+            "byte figures are not quota accounting. Download and upload are read from "
+            "the state's own counter pair, which is oriented by who opened the "
+            "connection. Sessions are shown whether or not the destination has a known "
+            "name, so traffic missing from the domain reports still appears here. Rates "
+            "are computed by the interface from the change between two refreshes, so the "
+            "first reading after opening the tab shows totals only."
         ),
     }
 

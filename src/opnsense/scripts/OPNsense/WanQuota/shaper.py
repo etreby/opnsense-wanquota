@@ -97,6 +97,34 @@ STREAMING_SERVICES = {
         "label": "OSN+",
         "suffixes": ("osn.com", "osnplus.com"),
     },
+    "instagram": {
+        "label": "Instagram",
+        "suffixes": ("instagram.com", "cdninstagram.com"),
+    },
+    "facebook": {
+        "label": "Facebook",
+        "suffixes": ("facebook.com", "fb.com", "facebook.net"),
+    },
+    # fbcdn.net carries media for both Facebook and Instagram, so it is offered on
+    # its own rather than filed under either. Putting it under one service would
+    # quietly cap the other, and splitting it between both would give two pipes the
+    # same addresses.
+    "meta_cdn": {
+        "label": "Meta CDN (Facebook and Instagram media)",
+        "suffixes": ("fbcdn.net",),
+    },
+    "watchit": {
+        "label": "WatchIt",
+        "suffixes": ("watchit.com", "watchit-mena.com", "watchit.video"),
+    },
+    "yango_play": {
+        "label": "Yango Play",
+        "suffixes": ("yango.com", "yangoplay.com", "yango-play.com"),
+    },
+    "tod": {
+        "label": "TOD",
+        "suffixes": ("tod.tv", "todtv.com", "beinsports.com"),
+    },
     # Bulk background downloads. Capping these is usually more welcome than capping
     # streaming: nobody is watching them, and they saturate a link for hours.
     "windows_update": {
@@ -119,7 +147,26 @@ STREAMING_SERVICES = {
     },
     "steam_downloads": {
         "label": "Steam downloads",
-        "suffixes": ("steamcontent.com", "steamstatic.com"),
+        # steamcdn-a.akamaihd.net is deliberately absent: it is Akamai, shared with
+        # unrelated services, so capping it would throttle traffic that has nothing
+        # to do with Steam. The shared-CDN guard rejects the whole service if it is
+        # listed, which is the guard doing its job.
+        "suffixes": ("steamcontent.com", "steamstatic.com", "steampowered.com",
+                     "steamserver.net"),
+    },
+    "xbox": {
+        "label": "Xbox",
+        "suffixes": ("xboxlive.com", "xbox.com", "xboxservices.com",
+                     "gameclipscontent.xboxlive.com", "assets1.xboxlive.com"),
+    },
+    "epic_games": {
+        "label": "Epic Games",
+        "suffixes": ("epicgames.com", "epicgames.dev", "unrealengine.com",
+                     "fortnite.com", "ol.epicgames.com"),
+    },
+    "playstation": {
+        "label": "PlayStation",
+        "suffixes": ("playstation.net", "playstation.com", "sonyentertainmentnetwork.com"),
     },
 }
 

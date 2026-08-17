@@ -1,0 +1,87 @@
+<?xml version="1.0" ?>
+<form>
+    <field>
+        <id>wanquota.general.alerts_enabled</id>
+        <label>Enable quota alerts</label>
+        <type>checkbox</type>
+        <help>Write deduplicated threshold and projection alerts to the system log.</help>
+    </field>
+    <field>
+        <id>wanquota.general.projection_alert_enabled</id>
+        <label>Alert when projected usage exceeds quota</label>
+        <type>checkbox</type>
+        <help>Also alert when the projected cycle total would exceed the quota, before the threshold is actually reached.</help>
+    </field>
+    <field>
+        <id>wanquota.general.alert_repeat_hours</id>
+        <label>Alert repeat interval (hours)</label>
+        <type>text</type>
+        <help>Minimum gap before the same alert is repeated. Prevents one sustained condition filling the log.</help>
+    </field>
+    <field>
+        <id>wanquota.general.webhook_enabled</id>
+        <label>Enable HTTPS webhook notifications</label>
+        <type>checkbox</type>
+        <help>Send alerts to an HTTPS webhook. HTTP is refused.</help>
+    </field>
+    <field>
+        <id>wanquota.general.webhook_url</id>
+        <label>Webhook URL</label>
+        <type>text</type>
+        <help>HTTPS endpoint to post alerts to.</help>
+    </field>
+    <field>
+        <id>wanquota.general.webhook_format</id>
+        <label>Webhook format</label>
+        <type>dropdown</type>
+        <help>Payload shape: generic, Discord, Slack, Telegram, or Home Assistant.</help>
+    </field>
+    <field>
+        <id>wanquota.general.webhook_recipient</id>
+        <label>Webhook recipient / Telegram chat ID</label>
+        <type>text</type>
+        <help>Channel, chat or entity the chosen format needs, where applicable.</help>
+    </field>
+    <field>
+        <id>wanquota.general.scheduled_reports_enabled</id>
+        <label>Enable scheduled webhook reports</label>
+        <type>checkbox</type>
+        <help>Email a periodic summary in addition to alerts.</help>
+    </field>
+    <field>
+        <id>wanquota.general.email_enabled</id>
+        <label>Enable SMTP email notifications</label>
+        <type>checkbox</type>
+        <help>Send alerts and summaries by email over SMTP with STARTTLS.</help>
+    </field>
+    <field>
+        <id>wanquota.general.email_to</id>
+        <label>Email recipient</label>
+        <type>text</type>
+        <help>Recipient address for alerts and summaries.</help>
+    </field>
+    <field>
+        <id>wanquota.general.smtp_host</id>
+        <label>SMTP host</label>
+        <type>text</type>
+        <help>SMTP server hostname.</help>
+    </field>
+    <field>
+        <id>wanquota.general.smtp_port</id>
+        <label>SMTP STARTTLS port</label>
+        <type>text</type>
+        <help>SMTP port. 587 for STARTTLS submission.</help>
+    </field>
+    <field>
+        <id>wanquota.general.smtp_username</id>
+        <label>SMTP username</label>
+        <type>text</type>
+        <help>SMTP username, if the server requires authentication.</help>
+    </field>
+    <field>
+        <id>wanquota.general.smtp_password</id>
+        <label>SMTP password</label>
+        <type>password</type>
+        <help>SMTP password. Stored in the configuration, so use a dedicated account.</help>
+    </field>
+</form>

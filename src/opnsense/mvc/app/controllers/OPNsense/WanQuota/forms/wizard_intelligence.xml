@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<form>
+    <field>
+        <id>wanquota.general.intelligence_enabled</id>
+        <label>Enable intelligence history and analytics</label>
+        <type>checkbox</type>
+        <help>Collect snapshots for forecasts, gateway quality, anomalies and the completed-cycle archive. Reporting works without it, but history and forecasts need it.</help>
+    </field>
+    <field>
+        <id>wanquota.general.intelligence_retention_days</id>
+        <label>Analytics retention (days)</label>
+        <type>text</type>
+        <help>How long snapshots are kept. Longer history makes anomaly baselines and cycle comparisons more meaningful.</help>
+    </field>
+    <field>
+        <id>wanquota.general.anomaly_sigma</id>
+        <label>Anomaly sensitivity (standard deviations)</label>
+        <type>text</type>
+        <help>Lower values detect more deviations. Three is a conservative default.</help>
+    </field>
+    <field>
+        <id>wanquota.general.device_groups_json</id>
+        <label>Device groups (JSON)</label>
+        <type>text</type>
+        <help>Array of objects with name, members (IP/CIDR list), and optional budget_gb.</help>
+    </field>
+    <field>
+        <id>wanquota.general.device_policies_json</id>
+        <label>Per-device policies (JSON)</label>
+        <type>text</type>
+        <help>Array of objects with address, optional budget_gb, and exclude true/false.</help>
+    </field>
+</form>

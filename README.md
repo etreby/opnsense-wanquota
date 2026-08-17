@@ -52,13 +52,25 @@ quota reporting and top-consumer visibility.
 
 ## Screenshots
 
-![WAN quota dashboard widgets](docs/screenshots/dashboard-widgets.png)
+![Apps breakdown and domain identification](docs/screenshots/apps-breakdown.png)
+
+![Per-service bandwidth limits](docs/screenshots/limits.png)
+
+![Live sessions with per-device rates](docs/screenshots/live-sessions.png)
+
+![Guided settings wizard](docs/screenshots/settings-wizard.png)
+
+![WAN quota summary](docs/screenshots/dashboard-widgets.png)
 
 ![Consumer and attributed-domain report](docs/screenshots/consumer-report.png)
 
+![WAN intelligence, forecasts and guardrails](docs/screenshots/intelligence-report.png)
+
 ![Data-source health report](docs/screenshots/data-health.png)
 
-![WAN intelligence, forecasts and guardrails](docs/screenshots/intelligence-report.png)
+The figures shown are real measurements from a running installation, not
+placeholders. They are rendered from the mockups in `docs/mockups/`, which is why
+they stay in step with the interface as tabs are added.
 
 ## Configuration
 

@@ -1,0 +1,219 @@
+<?xml version="1.0" ?>
+<form>
+    <field>
+        <id>wanquota.general.provider1_enabled</id>
+        <label>Enable provider 1</label>
+        <type>checkbox</type>
+        <help>Provider 1: Report on this provider. Providers 3 and 4 are off by default.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_name</id>
+        <label>Provider 1 name</label>
+        <type>text</type>
+        <help>Provider 1: Display name, usually the ISP. Appears in every report and alert.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_interface</id>
+        <label>Provider 1 interface</label>
+        <type>dropdown</type>
+        <help>Provider 1: OPNsense logical interface, not the device name, so reassigning hardware does not break accounting.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_quota_gb</id>
+        <label>Provider 1 quota (decimal GB)</label>
+        <type>text</type>
+        <help>Provider 1: Monthly allowance in decimal GB, as the ISP states it.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_cycle_day</id>
+        <label>Provider 1 billing-cycle day</label>
+        <type>text</type>
+        <help>Provider 1: Day of the month the allowance resets. Caps that reset mid-month are common.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_warning_percent</id>
+        <label>Provider 1 warning threshold (%)</label>
+        <type>text</type>
+        <help>Provider 1: Percentage of the allowance at which a warning is raised.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_cycle_cost</id>
+        <label>Provider 1 cycle cost</label>
+        <type>text</type>
+        <help>Provider 1: What the cycle costs, used for cost-per-GB. Leave at zero to skip.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_baseline_gb</id>
+        <label>Provider 1 imported cycle baseline (GB)</label>
+        <type>text</type>
+        <help>Usage reported by the ISP before this plugin began accounting for the current cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider1_baseline_cycle</id>
+        <label>Provider 1 baseline cycle start (YYYY-MM-DD)</label>
+        <type>text</type>
+        <help>The baseline applies only to this cycle and expires automatically afterward.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_enabled</id>
+        <label>Enable provider 2</label>
+        <type>checkbox</type>
+        <help>Provider 2: Report on this provider. Providers 3 and 4 are off by default.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_name</id>
+        <label>Provider 2 name</label>
+        <type>text</type>
+        <help>Provider 2: Display name, usually the ISP. Appears in every report and alert.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_interface</id>
+        <label>Provider 2 interface</label>
+        <type>dropdown</type>
+        <help>Provider 2: OPNsense logical interface, not the device name, so reassigning hardware does not break accounting.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_quota_gb</id>
+        <label>Provider 2 quota (decimal GB)</label>
+        <type>text</type>
+        <help>Provider 2: Monthly allowance in decimal GB, as the ISP states it.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_cycle_day</id>
+        <label>Provider 2 billing-cycle day</label>
+        <type>text</type>
+        <help>Provider 2: Day of the month the allowance resets. Caps that reset mid-month are common.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_warning_percent</id>
+        <label>Provider 2 warning threshold (%)</label>
+        <type>text</type>
+        <help>Provider 2: Percentage of the allowance at which a warning is raised.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_cycle_cost</id>
+        <label>Provider 2 cycle cost</label>
+        <type>text</type>
+        <help>Provider 2: What the cycle costs, used for cost-per-GB. Leave at zero to skip.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_baseline_gb</id>
+        <label>Provider 2 imported cycle baseline (GB)</label>
+        <type>text</type>
+        <help>Provider 2: Usage already consumed this cycle before the plugin could measure it. Added to the measured total, which closes the gap when vnStat has no history for part of the cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider2_baseline_cycle</id>
+        <label>Provider 2 baseline cycle start (YYYY-MM-DD)</label>
+        <type>text</type>
+        <help>Provider 2: The cycle start date the baseline applies to, as YYYY-MM-DD. The baseline is ignored for any other cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_enabled</id>
+        <label>Enable provider 3</label>
+        <type>checkbox</type>
+        <help>Provider 3: Report on this provider. Providers 3 and 4 are off by default.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_name</id>
+        <label>Provider 3 name</label>
+        <type>text</type>
+        <help>Provider 3: Display name, usually the ISP. Appears in every report and alert.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_interface</id>
+        <label>Provider 3 interface</label>
+        <type>dropdown</type>
+        <help>Provider 3: OPNsense logical interface, not the device name, so reassigning hardware does not break accounting.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_quota_gb</id>
+        <label>Provider 3 quota (decimal GB)</label>
+        <type>text</type>
+        <help>Provider 3: Monthly allowance in decimal GB, as the ISP states it.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_cycle_day</id>
+        <label>Provider 3 billing-cycle day</label>
+        <type>text</type>
+        <help>Provider 3: Day of the month the allowance resets. Caps that reset mid-month are common.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_warning_percent</id>
+        <label>Provider 3 warning threshold (%)</label>
+        <type>text</type>
+        <help>Provider 3: Percentage of the allowance at which a warning is raised.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_cycle_cost</id>
+        <label>Provider 3 cycle cost</label>
+        <type>text</type>
+        <help>Provider 3: What the cycle costs, used for cost-per-GB. Leave at zero to skip.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_baseline_gb</id>
+        <label>Provider 3 imported cycle baseline (GB)</label>
+        <type>text</type>
+        <help>Provider 3: Usage already consumed this cycle before the plugin could measure it. Added to the measured total, which closes the gap when vnStat has no history for part of the cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider3_baseline_cycle</id>
+        <label>Provider 3 baseline cycle start (YYYY-MM-DD)</label>
+        <type>text</type>
+        <help>Provider 3: The cycle start date the baseline applies to, as YYYY-MM-DD. The baseline is ignored for any other cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_enabled</id>
+        <label>Enable provider 4</label>
+        <type>checkbox</type>
+        <help>Provider 4: Report on this provider. Providers 3 and 4 are off by default.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_name</id>
+        <label>Provider 4 name</label>
+        <type>text</type>
+        <help>Provider 4: Display name, usually the ISP. Appears in every report and alert.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_interface</id>
+        <label>Provider 4 interface</label>
+        <type>dropdown</type>
+        <help>Provider 4: OPNsense logical interface, not the device name, so reassigning hardware does not break accounting.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_quota_gb</id>
+        <label>Provider 4 quota (decimal GB)</label>
+        <type>text</type>
+        <help>Provider 4: Monthly allowance in decimal GB, as the ISP states it.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_cycle_day</id>
+        <label>Provider 4 billing-cycle day</label>
+        <type>text</type>
+        <help>Provider 4: Day of the month the allowance resets. Caps that reset mid-month are common.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_warning_percent</id>
+        <label>Provider 4 warning threshold (%)</label>
+        <type>text</type>
+        <help>Provider 4: Percentage of the allowance at which a warning is raised.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_cycle_cost</id>
+        <label>Provider 4 cycle cost</label>
+        <type>text</type>
+        <help>Provider 4: What the cycle costs, used for cost-per-GB. Leave at zero to skip.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_baseline_gb</id>
+        <label>Provider 4 imported cycle baseline (GB)</label>
+        <type>text</type>
+        <help>Provider 4: Usage already consumed this cycle before the plugin could measure it. Added to the measured total, which closes the gap when vnStat has no history for part of the cycle.</help>
+    </field>
+    <field>
+        <id>wanquota.general.provider4_baseline_cycle</id>
+        <label>Provider 4 baseline cycle start (YYYY-MM-DD)</label>
+        <type>text</type>
+        <help>Provider 4: The cycle start date the baseline applies to, as YYYY-MM-DD. The baseline is ignored for any other cycle.</help>
+    </field>
+</form>

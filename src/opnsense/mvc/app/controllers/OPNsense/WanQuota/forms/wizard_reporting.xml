@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<form>
+    <field>
+        <id>wanquota.general.top_limit</id>
+        <label>Top results</label>
+        <type>text</type>
+        <help>How many rows each ranking shows. Higher values make the reports larger and the device/domain matrix wider.</help>
+    </field>
+    <field>
+        <id>wanquota.general.default_period</id>
+        <label>Default consumer period</label>
+        <type>dropdown</type>
+        <help>The window the Consumers tab opens on. Shorter periods are faster but flow records are collected in daily buckets, so 'Today' can be empty until the bucket rolls over.</help>
+    </field>
+    <field>
+        <id>wanquota.general.domain_retention_days</id>
+        <label>DNS attribution retention (days)</label>
+        <type>text</type>
+        <help>How long an observed IP-to-domain mapping is kept. Longer retention names more traffic but risks attributing an address that has since been reassigned.</help>
+    </field>
+    <field>
+        <id>wanquota.general.domain_categories_json</id>
+        <label>Custom domain categories (JSON)</label>
+        <type>text</type>
+        <help>Object mapping category names to domain-suffix arrays. Built-in categories remain available.</help>
+    </field>
+    <field>
+        <id>wanquota.general.prometheus_enabled</id>
+        <label>Enable Prometheus metrics output</label>
+        <type>checkbox</type>
+        <help>Expose metrics in Prometheus text format inside the metrics field of the report API.</help>
+    </field>
+    <field>
+        <id>wanquota.general.dashboard_accent</id>
+        <label>Dashboard accent color</label>
+        <type>text</type>
+        <help>Accent colour for the charts, as a hex value such as #3b82f6.</help>
+    </field>
+</form>

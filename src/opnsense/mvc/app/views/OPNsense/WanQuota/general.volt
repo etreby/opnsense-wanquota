@@ -1,6 +1,6 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -69,6 +69,8 @@
         <div class="wq-action-box" style="margin-bottom:14px">
           <label class="wq-switch"><input type="checkbox" id="limitEnabled"> <b>{{ lang._('Enable per-service limits') }}</b></label>
           <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="limitDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label>
+          <input id="limitSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search services…') }}">
+          <span id="limitCount" class="wq-muted"></span>
           <button id="saveLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
         </div>
         <div id="limitStatus"></div>
@@ -81,17 +83,61 @@
           <input id="sessionSearch" class="form-control" placeholder="{{ lang._('Filter device, destination or service') }}">
           <span id="sessionSummary" class="wq-muted"></span>
         </div>
-        <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Busiest devices right now') }}</h3><div class="wq-chart-sm"><canvas id="sessionChart"></canvas></div></div></div>
-        <div class="wq-section wq-table-wrap"><div id="sessionTable"></div></div>
+        <label class="wq-switch" style="margin-bottom:10px"><input type="checkbox" id="sessionAuto" checked> {{ lang._('Refresh every 5 seconds') }}</label>
+        <div class="wq-section wq-table-wrap"><h3>{{ lang._('Devices by live usage') }}</h3><div id="sessionDevices"></div></div>
+        <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Live rate per device') }}</h3><div class="wq-chart-sm"><canvas id="sessionChart"></canvas></div></div></div>
+        <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions') }}</h3><div id="sessionTable"></div></div>
     </div></div>
     <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="categoryDrill" class="wq-section wq-table-wrap"></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
-    <div id="settings" class="tab-pane fade">
-        <div class="content-box" style="padding-bottom:1.5em">
-            {{ partial("layout_partials/base_form", ['fields':generalForm,'id':'frm_wanquota_settings']) }}
-            <div class="col-md-12"><hr><button class="btn btn-primary" id="saveAct" type="button"><b>{{ lang._('Save') }}</b> <i id="saveAct_progress"></i></button></div>
+    <div id="settings" class="tab-pane fade"><div style="padding:16px">
+        <ol class="wq-steps" id="wizardSteps">
+            <li data-step="0" class="active"><span>1</span> {{ lang._('Getting started') }}</li>
+            <li data-step="1"><span>2</span> {{ lang._('WAN providers') }}</li>
+            <li data-step="2"><span>3</span> {{ lang._('Reporting') }}</li>
+            <li data-step="3"><span>4</span> {{ lang._('Alerts and delivery') }}</li>
+            <li data-step="4"><span>5</span> {{ lang._('Intelligence and devices') }}</li>
+            <li data-step="5"><span>6</span> {{ lang._('Enforcement and limits') }}</li>
+        </ol>
+        <div id="frm_wanquota_settings">
+            <div class="wq-step" data-step="0">
+                <div class="wq-card"><h3>{{ lang._('Getting started') }}</h3>
+                <p class="wq-muted">{{ lang._('What the plugin collects at all. Start here.') }}</p>
+                {{ partial("layout_partials/base_form", ['fields':wizardBasics,'id':'frm_step_basics']) }}</div>
+            </div>
+            <div class="wq-step" data-step="1" style="display:none">
+                <div class="wq-card"><h3>{{ lang._('WAN providers') }}</h3>
+                <p class="wq-muted">{{ lang._('One entry per internet connection, with its allowance and billing day. Providers 3 and 4 are off by default.') }}</p>
+                {{ partial("layout_partials/base_form", ['fields':wizardProviders,'id':'frm_step_providers']) }}</div>
+            </div>
+            <div class="wq-step" data-step="2" style="display:none">
+                <div class="wq-card"><h3>{{ lang._('Reporting') }}</h3>
+                <p class="wq-muted">{{ lang._('How much detail the reports show, and how long observations are kept.') }}</p>
+                {{ partial("layout_partials/base_form", ['fields':wizardReporting,'id':'frm_step_reporting']) }}</div>
+            </div>
+            <div class="wq-step" data-step="3" style="display:none">
+                <div class="wq-card"><h3>{{ lang._('Alerts and delivery') }}</h3>
+                <p class="wq-muted">{{ lang._('When to warn, and where to send it. Webhooks are HTTPS only; SMTP uses STARTTLS.') }}</p>
+                {{ partial("layout_partials/base_form", ['fields':wizardAlerts,'id':'frm_step_alerts']) }}</div>
+            </div>
+            <div class="wq-step" data-step="4" style="display:none">
+                <div class="wq-card"><h3>{{ lang._('Intelligence and devices') }}</h3>
+                <p class="wq-muted">{{ lang._('Forecasts, anomaly detection, and per-device grouping. A per-device policy may key on address, MAC or DHCP hostname; MAC survives a DHCP change.') }}</p>
+                {{ partial("layout_partials/base_form", ['fields':wizardIntelligence,'id':'frm_step_intelligence']) }}</div>
+            </div>
+            <div class="wq-step" data-step="5" style="display:none">
+                <div class="wq-card"><h3>{{ lang._('Enforcement and limits') }}</h3>
+                <div class="alert alert-warning">{{ lang._('These are the only settings that change how traffic flows. Every one defaults to off, and to dry-run when first enabled. Per-service rates are set in the Limits tab.') }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardEnforcement,'id':'frm_step_enforcement']) }}</div>
+            </div>
         </div>
-    </div>
+        <div class="wq-toolbar" style="margin-top:14px">
+            <button class="btn btn-default" id="wizardBack" type="button"><i class="fa fa-arrow-left"></i> {{ lang._('Back') }}</button>
+            <button class="btn btn-default" id="wizardNext" type="button">{{ lang._('Next') }} <i class="fa fa-arrow-right"></i></button>
+            <button class="btn btn-primary" id="saveAct" type="button" style="margin-left:auto"><b>{{ lang._('Save') }}</b> <i id="saveAct_progress"></i></button>
+        </div>
+        <p class="wq-muted">{{ lang._('Save applies every step, not just the one on screen.') }}</p>
+    </div></div>
 </div>
 </div>
 
@@ -353,6 +399,45 @@ function showApp(name) {
     $('#appDrill').html(html + '</tbody></table>');
     document.getElementById('appDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
+let sessionPrevious = null, sessionTimer = null;
+function rate(bytes, seconds) {
+    if (!seconds || seconds <= 0 || bytes <= 0) return null;
+    return bytes / seconds;
+}
+function rateText(value) {
+    if (value === null) return '<span class="wq-muted">—</span>';
+    const mbit = value * 8 / 1e6;
+    return '<b>' + (mbit >= 1 ? mbit.toFixed(2) + ' Mbit/s' : (value / 1024).toFixed(0) + ' KB/s') + '</b>';
+}
+function deviceTable(data) {
+    const rows = (data.devices || []).slice();
+    if (!rows.length) return '<div class="alert alert-info">' + esc('No live WAN sessions from LAN devices right now.') + '</div>';
+    // Rates come from the change since the previous poll: state counters are
+    // cumulative, so a single reading cannot show a rate at all.
+    const elapsed = sessionPrevious ? (data.collected_at - sessionPrevious.collected_at) : 0;
+    const before = {};
+    for (const row of (sessionPrevious && sessionPrevious.devices) || []) before[row.device] = row;
+    rows.sort((a, b) => (b.download + b.upload) - (a.download + a.upload));
+    const top = rows[0] ? (rows[0].download + rows[0].upload) || 1 : 1;
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th>{{ lang._("Device") }}</th><th style="width:20%">{{ lang._("Share of live traffic") }}</th>'
+             + '<th>{{ lang._("Download") }}</th><th>{{ lang._("Upload") }}</th>'
+             + '<th>{{ lang._("Down rate") }}</th><th>{{ lang._("Up rate") }}</th>'
+             + '<th>{{ lang._("Sessions") }}</th></tr></thead><tbody>';
+    for (const row of rows) {
+        const prior = before[row.device];
+        const down = prior ? rate(row.download - prior.download, elapsed) : null;
+        const up = prior ? rate(row.upload - prior.upload, elapsed) : null;
+        html += '<tr><td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.device) + '\'>'
+             +  '<b>' + esc(row.name) + '</b></a><br><small class="wq-muted">' + esc(row.device) + '</small></td>'
+             +  '<td>' + shareBar((row.download + row.upload) / top, '#3b82f6') + '</td>'
+             +  '<td>' + gb(row.download) + '</td><td>' + gb(row.upload) + '</td>'
+             +  '<td>' + rateText(down) + '</td><td>' + rateText(up) + '</td>'
+             +  '<td>' + row.sessions + '</td></tr>';
+    }
+    return html + '</tbody></table>';
+}
+
 let currentSessionData = null;
 function sessionTable(data) {
     const rows = (data && data.sessions) || [];
@@ -377,20 +462,46 @@ function sessionTable(data) {
     return html + '</tbody></table>';
 }
 function renderSessions(data) {
-    currentSessionData = data;
     if (data.status !== 'ok') {
         $('#sessionTable').html('<div class="alert alert-danger">' + esc(data.error || 'Live sessions unavailable') + '</div>');
         return;
     }
     $('#sessionSummary').text(data.shown + ' of ' + data.total_states + ' states shown');
+    $('#sessionDevices').html(deviceTable(data));
     $('#sessionTable').html(sessionTable(data));
-    const devices = (data.devices || []).slice(0, 10);
+
+    const elapsed = sessionPrevious ? (data.collected_at - sessionPrevious.collected_at) : 0;
+    const before = {};
+    for (const row of (sessionPrevious && sessionPrevious.devices) || []) before[row.device] = row;
+    const ranked = (data.devices || []).slice()
+        .sort((a, b) => (b.download + b.upload) - (a.download + a.upload)).slice(0, 10);
+    const downRates = ranked.map(d => {
+        const p = before[d.device];
+        return p && elapsed > 0 ? Math.max(0, (d.download - p.download)) * 8 / elapsed / 1e6 : 0;
+    });
+    const upRates = ranked.map(d => {
+        const p = before[d.device];
+        return p && elapsed > 0 ? Math.max(0, (d.upload - p.upload)) * 8 / elapsed / 1e6 : 0;
+    });
     makeChart('sessionChart', {
         type: 'bar',
-        data: {labels: devices.map(d => d.name), datasets: [{label: 'Session bytes', data: devices.map(d => d.bytes / 1e6), backgroundColor: '#06b6d4'}]},
+        data: {labels: ranked.map(d => d.name), datasets: [
+            {label: 'Download Mbit/s', data: downRates, backgroundColor: '#3b82f6'},
+            {label: 'Upload Mbit/s', data: upRates, backgroundColor: '#06b6d4'}]},
         options: chartOptions(true)
     });
+    sessionPrevious = data;
+    currentSessionData = data;
     filterSessions();
+}
+function scheduleSessions() {
+    if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
+    if (!$('#sessionAuto').is(':checked')) return;
+    // Only poll while the tab is actually visible; a background timer hitting the
+    // state table every few seconds for nobody is pure waste.
+    sessionTimer = setInterval(function() {
+        if ($('#sessions').hasClass('active')) refreshSessions();
+    }, 5000);
 }
 function filterSessions() {
     const query = String($('#sessionSearch').val() || '').toLowerCase();
@@ -428,7 +539,10 @@ function renderLimits(data) {
             presets.map(p => '<option value="' + esc(p) + '"' + (service.resolution === p ? ' selected' : '') + '>'
                 + esc(p.toUpperCase().replace('_', ' ')) + ' — ' + data.resolutions[p] + ' Mbit/s</option>')
         ).join('');
-        html += '<div class="wq-card wq-limit' + (service.selected ? '' : ' wq-limit-off') + '" data-service="' + esc(service.service) + '">'
+        // Searchable on label, key and hostnames, so "netflix", "update" or a domain
+        // all find the right card.
+        const haystack = (service.label + ' ' + service.service + ' ' + (service.suffixes || []).join(' ')).toLowerCase();
+        html += '<div class="wq-card wq-limit' + (service.selected ? '' : ' wq-limit-off') + '" data-service="' + esc(service.service) + '" data-search="' + esc(haystack) + '">'
              +  '<div class="wq-limit-head">'
              +  '<input type="checkbox" class="limit-on"' + (service.selected ? ' checked' : '') + '>'
              +  '<h3>' + esc(service.label) + '</h3>' + badge + '</div>'
@@ -440,6 +554,21 @@ function renderLimits(data) {
              +  '</div>';
     }
     $('#limitCards').html(html || '<div class="alert alert-info">' + esc('No limitable services are available.') + '</div>');
+    filterLimits();
+}
+function filterLimits() {
+    const query = String($('#limitSearch').val() || '').toLowerCase().trim();
+    let shown = 0;
+    $('#limitCards .wq-limit').each(function() {
+        // A selected service always stays visible: hiding a card whose switch is on
+        // would make it look as though the limit had been removed.
+        const selected = $(this).find('.limit-on').is(':checked');
+        const match = !query || String($(this).data('search')).includes(query) || selected;
+        $(this).toggle(match);
+        if (match) shown++;
+    });
+    const total = $('#limitCards .wq-limit').length;
+    $('#limitCount').text(query ? shown + ' / ' + total : total + ' {{ lang._("services") }}');
 }
 function collectLimits() {
     const limits = [];
@@ -511,6 +640,23 @@ function explainDomain(domain) {
     $('#explainInput').val(domain);
     $('#explainResult').html('<div class="wq-muted">' + esc('Identifying…') + '</div>');
     ajaxCall('/api/wanquota/report/explain?domain=' + encodeURIComponent(domain), {}, renderExplain);
+}
+
+let wizardStep = 0;
+const WIZARD_LAST = 5;
+function showWizardStep(index) {
+    wizardStep = Math.max(0, Math.min(WIZARD_LAST, index));
+    $('.wq-step').each(function() {
+        $(this).toggle(Number($(this).data('step')) === wizardStep);
+    });
+    $('#wizardSteps li').each(function() {
+        const step = Number($(this).data('step'));
+        $(this).toggleClass('active', step === wizardStep);
+        // Steps already passed are marked done, so progress is visible at a glance.
+        $(this).toggleClass('done', step < wizardStep);
+    });
+    $('#wizardBack').prop('disabled', wizardStep === 0);
+    $('#wizardNext').prop('disabled', wizardStep === WIZARD_LAST);
 }
 
 function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));renderApps(data);$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
@@ -699,6 +845,11 @@ $(document).ready(function() {
         event.preventDefault();
         drillTo($(this).data('drill'), $(this).data('value'));
     });
+    showWizardStep(0);
+    $('#wizardNext').on('click', function() { showWizardStep(wizardStep + 1); });
+    $('#wizardBack').on('click', function() { showWizardStep(wizardStep - 1); });
+    $('#wizardSteps').on('click', 'li', function() { showWizardStep(Number($(this).data('step'))); });
+    $('#limitSearch').on('keyup', filterLimits);
     $('#explainGo').on('click', function() { explainDomain($('#explainInput').val().trim()); });
     $('#explainInput').on('keydown', function(event) {
         if (event.key === 'Enter') explainDomain($(this).val().trim());
@@ -728,8 +879,10 @@ $(document).ready(function() {
         drillTo(kind, value);
     });
     $('#maintabs a[href="#sessions"]').on('shown.bs.tab', function() {
-        if (!currentSessionData) refreshSessions();
+        refreshSessions();
+        scheduleSessions();
     });
+    $('#sessionAuto').on('change', scheduleSessions);
     $('#intelligence').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();
         const kind = $(this).data('drill'), value = $(this).data('value');

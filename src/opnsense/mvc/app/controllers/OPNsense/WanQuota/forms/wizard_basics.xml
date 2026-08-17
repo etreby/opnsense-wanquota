@@ -1,0 +1,21 @@
+<?xml version="1.0" ?>
+<form>
+    <field>
+        <id>wanquota.general.enabled</id>
+        <label>Enable WAN quota reporting</label>
+        <type>checkbox</type>
+        <help>Master switch. With this off the plugin collects nothing and every report is empty.</help>
+    </field>
+    <field>
+        <id>wanquota.general.consumers_enabled</id>
+        <label>Enable consumer reporting</label>
+        <type>checkbox</type>
+        <help>Rank LAN hosts using the persistent OPNsense Insight daily-flow database.</help>
+    </field>
+    <field>
+        <id>wanquota.general.domain_enabled</id>
+        <label>Enable domain attribution</label>
+        <type>checkbox</type>
+        <help>Correlate Insight flow bytes with recently observed Unbound DNS answers. Results are attributed estimates.</help>
+    </field>
+</form>

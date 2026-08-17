@@ -65,6 +65,26 @@ class SharedCdnTests(unittest.TestCase):
         for suffix in ("nflxvideo.net", "googlevideo.com", "ttvnw.net", "scdn.co"):
             self.assertFalse(SHAPER.is_shared_cdn(suffix), suffix)
 
+    def test_no_suffix_belongs_to_two_services(self):
+        # Two services sharing a suffix would give two pipes the same addresses,
+        # and capping one would silently cap the other. fbcdn.net is the case that
+        # forced this: it carries both Facebook and Instagram media, so it is its
+        # own entry rather than filed under either.
+        seen = {}
+        for key, service in SHAPER.STREAMING_SERVICES.items():
+            for suffix in service["suffixes"]:
+                self.assertNotIn(suffix, seen,
+                                 f"{suffix} in both {seen.get(suffix)} and {key}")
+                seen[suffix] = key
+
+    def test_social_services_are_present(self):
+        for key in ("instagram", "facebook", "meta_cdn"):
+            self.assertIn(key, SHAPER.STREAMING_SERVICES, key)
+
+    def test_newly_added_services_are_present(self):
+        for key in ("watchit", "yango_play", "tod", "xbox", "epic_games", "playstation"):
+            self.assertIn(key, SHAPER.STREAMING_SERVICES, key)
+
     def test_no_catalogued_service_rides_shared_infrastructure(self):
         # The catalog is the safety boundary; if an entry ever gains a shared
         # suffix, capping it would throttle unrelated traffic.
