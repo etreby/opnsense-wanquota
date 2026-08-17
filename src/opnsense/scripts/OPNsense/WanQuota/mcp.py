@@ -30,6 +30,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 import consumers
+import explain as explain_module
 import health
 import sessions
 import intelligence
@@ -154,6 +155,11 @@ def tool_categories(arguments):
     breakdown["period"] = period
     breakdown["status"] = payload.get("status")
     return breakdown
+
+
+def tool_explain_domain(arguments):
+    """What a domain is, which service owns it, and the rule behind each answer."""
+    return explain_module.explain(_require(arguments, "domain"), _period(arguments))
 
 
 def tool_apps(arguments):
@@ -524,6 +530,26 @@ TOOLS = (
         "inputSchema": _PERIOD_SCHEMA,
         "outputSchema": CATEGORY_OUTPUT_SCHEMA,
         "handler": tool_categories,
+    },
+    {
+        "name": "wanquota_explain_domain",
+        "title": "Explain a domain",
+        "description": (
+            "Identify a domain: which limitable service owns it (Netflix, YouTube, "
+            "Windows Update and so on), which application and category it is reported "
+            "under, how much it moved, which devices used it, and whether its addresses "
+            "are exclusive enough to be capped. Every conclusion names the rule that "
+            "produced it. Use this to answer 'what is this domain and is it Netflix?'."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string", "description": "Domain name, e.g. ipv4-c001.ix.nflxvideo.net."},
+                "period": _PERIOD_SCHEMA["properties"]["period"],
+            },
+            "required": ["domain"],
+        },
+        "handler": tool_explain_domain,
     },
     {
         "name": "wanquota_apps",

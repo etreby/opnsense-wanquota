@@ -415,6 +415,148 @@ def app_breakdown(domains, transports=None, definitions=None, top_n=CATEGORY_TOP
         ),
     }
 
+
+def match_suffix(name, suffixes):
+    """The most specific configured suffix a name falls under, or None.
+
+    Longest match wins so a specific entry beats a broader one covering it.
+    """
+    best = None
+    for suffix in suffixes or ():
+        value = (suffix or "").strip().lower().rstrip(".")
+        if not value:
+            continue
+        if name == value or name.endswith("." + value):
+            if best is None or len(value) > len(best):
+                best = value
+    return best
+
+
+def explain_domain(domain, domains=None, device_domains=None, categories=None,
+                   definitions=None, services=None, mappings=None):
+    """Explain what a domain is and how the plugin classified it.
+
+    Answers the question a breakdown raises but cannot: *why* is this domain here,
+    and does it belong to a service I recognise. Every conclusion carries the rule
+    that produced it, so the reasoning can be checked rather than trusted.
+
+    This is deterministic suffix matching over the plugin's own catalogs, not a
+    model guessing. The explanation is transparent precisely because it is derived.
+    """
+    name = (domain or "").strip().lower().rstrip(".")
+    categories = categories or BUILTIN_CATEGORIES
+    definitions = definitions or APP_DEFINITIONS
+    reasoning = []
+    if not name:
+        return {"domain": "", "found": False,
+                "reasoning": ["No domain was given."]}
+
+    # Which limitable service, if any, owns this hostname.
+    service = None
+    if services:
+        for key, entry in services.items():
+            hit = match_suffix(name, entry.get("suffixes"))
+            if hit:
+                service = {"service": key, "label": entry["label"], "matched_suffix": hit}
+                break
+    if service:
+        reasoning.append(
+            f"Belongs to {service['label']}: the name falls under "
+            f"'{service['matched_suffix']}', which is registered to that service.")
+    else:
+        reasoning.append(
+            "No limitable service claims this name, so it cannot be capped as a service.")
+
+    # Application and category, from the reporting taxonomies.
+    app = None
+    for candidate, suffixes in definitions.items():
+        hit = match_suffix(name, suffixes)
+        if hit:
+            app = {"name": candidate, "matched_suffix": hit}
+            break
+    if app:
+        reasoning.append(
+            f"Reported as the application '{app['name']}' because it matches "
+            f"'{app['matched_suffix']}'.")
+    else:
+        parts = name.split(".")
+        fallback = ".".join(parts[-2:]) if len(parts) >= 2 else name
+        reasoning.append(
+            f"No application rule matches, so it is reported under its own name "
+            f"'{fallback}' rather than being folded into a bucket.")
+
+    category = suffix_category(name, categories)
+    if category == "Other":
+        category = UNCATEGORISED_LABEL
+        reasoning.append(
+            "No category rule matches either, so it counts as Uncategorised rather "
+            "than being guessed into the nearest category.")
+    else:
+        reasoning.append(f"Counted in the '{category}' category.")
+
+    # What it actually moved, and who moved it.
+    row = next((d for d in (domains or [])
+                if (d.get("domain") or "").strip().lower().rstrip(".") == name), None)
+    total = float(row.get("total") or 0) if row else 0
+    devices = sorted(
+        ({"device": r.get("device"), "name": r.get("name"), "total": r.get("total") or 0}
+         for r in (device_domains or [])
+         if (r.get("domain") or "").strip().lower().rstrip(".") == name),
+        key=lambda item: item["total"], reverse=True)
+    if row:
+        reasoning.append(
+            f"Attributed {total / 1e9:.3f} GB in this period"
+            + (f", led by {devices[0]['name']}." if devices else "."))
+    else:
+        reasoning.append("No attributed traffic for this domain in this period.")
+
+    # Addresses, and whether capping them would hit anything else.
+    addresses, shared = [], {}
+    if mappings:
+        per_address = {}
+        for mapped_domain, address in mappings:
+            per_address.setdefault(address, set()).add(
+                (mapped_domain or "").strip().lower().rstrip("."))
+        own = {a for a, names in per_address.items() if name in names}
+        for address in sorted(own):
+            strangers = sorted({n for n in per_address[address] if n != name})
+            if strangers:
+                shared[address] = strangers[:4]
+            else:
+                addresses.append(address)
+        if shared:
+            reasoning.append(
+                f"{len(shared)} of its {len(own)} observed address(es) also serve other "
+                f"names, so those are excluded from any limit: capping them would "
+                f"throttle unrelated traffic.")
+        elif own:
+            reasoning.append(
+                f"All {len(own)} observed address(es) serve only this name, so a limit "
+                f"can target them safely.")
+
+    shapeable = bool(service and addresses)
+    if service and not addresses:
+        reasoning.append(
+            "It cannot be limited right now: no address is exclusively its own.")
+    return {
+        "domain": name,
+        "found": True,
+        "service": service,
+        "application": app,
+        "category": category,
+        "total": total,
+        "devices": devices,
+        "exclusive_addresses": addresses,
+        "shared_addresses": shared,
+        "shapeable": shapeable,
+        "reasoning": reasoning,
+        "method": (
+            "Deterministic suffix matching against the plugin's service, application "
+            "and category catalogs. Each conclusion names the rule that produced it; "
+            "nothing here is inferred by a model."
+        ),
+    }
+
 def category_detail(name, domains, device_domains, categories, top_n=None):
     """Everything behind one category: its domains, and the devices that used them.
 

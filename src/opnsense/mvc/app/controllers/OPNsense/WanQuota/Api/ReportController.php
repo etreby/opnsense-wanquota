@@ -82,6 +82,19 @@ class ReportController extends ApiControllerBase
         return $this->runReport('sessions 500');
     }
 
+    /**
+     * Explain one domain. Read-only, so it sits with the reporting endpoints and is
+     * reachable by the read-only privilege.
+     */
+    public function explainAction(): array
+    {
+        $domain = preg_replace('/[^a-zA-Z0-9._-]/', '', (string)$this->request->get('domain'));
+        if ($domain === '') {
+            return ['status' => 'failed', 'error' => 'A domain is required'];
+        }
+        return $this->runReport('explain ' . escapeshellarg($domain) . ' thirty');
+    }
+
     public function metricsAction(): array
     {
         $raw = (new Backend())->configdRun('wanquota metrics');

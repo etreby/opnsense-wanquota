@@ -96,6 +96,30 @@ STREAMING_SERVICES = {
         "label": "OSN+",
         "suffixes": ("osn.com", "osnplus.com"),
     },
+    # Bulk background downloads. Capping these is usually more welcome than capping
+    # streaming: nobody is watching them, and they saturate a link for hours.
+    "windows_update": {
+        "label": "Windows Update",
+        "suffixes": ("windowsupdate.com", "update.microsoft.com",
+                     "delivery.mp.microsoft.com", "dl.delivery.mp.microsoft.com",
+                     "tlu.dl.delivery.mp.microsoft.com"),
+    },
+    "apple_update": {
+        "label": "Apple software update",
+        "suffixes": ("swcdn.apple.com", "updates.cdn-apple.com", "mesu.apple.com",
+                     "gdmf.apple.com", "appldnld.apple.com"),
+    },
+    "linux_update": {
+        "label": "Linux distribution updates",
+        "suffixes": ("archive.ubuntu.com", "security.ubuntu.com", "ports.ubuntu.com",
+                     "deb.debian.org", "security.debian.org", "pop-os.org",
+                     "archlinux.org", "fedoraproject.org", "rpmfusion.org",
+                     "download.opensuse.org", "packages.microsoft.com"),
+    },
+    "steam_downloads": {
+        "label": "Steam downloads",
+        "suffixes": ("steamcontent.com", "steamstatic.com"),
+    },
 }
 
 # Suffixes that must never be shaped, whatever a user configures: an address here
@@ -134,20 +158,45 @@ def resolve_rate(limit):
     )
 
 
+def registrable(domain):
+    parts = (domain or "").strip().lower().rstrip(".").split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else (parts[0] if parts else "")
+
+
 def service_addresses(suffixes, mappings):
-    """Addresses currently observed for a service's hostnames.
+    """Addresses observed for a service, excluding any it shares with others.
 
     `mappings` is the domain -> address relation already collected for attribution,
     so no new observation mechanism is introduced and expired entries age out with
     it.
+
+    An address is only used when every domain seen on it belongs to this service.
+    Checking the suffix list alone is not enough: on real data a third of Netflix's
+    addresses also served amazonaws.com, and several of YouTube's also served
+    google.com and analytics hosts. Shaping those would have throttled unrelated
+    traffic that merely shares an address, which is a worse failure than capping
+    less than asked. Returns (exclusive, shared) so the caller can report the cost.
     """
     wanted = [s.strip().lower().rstrip(".") for s in suffixes if s and s.strip()]
-    found = set()
+
+    def belongs(name):
+        return any(name == suffix or name.endswith("." + suffix) for suffix in wanted)
+
+    per_address = {}
     for domain, address in mappings:
         name = (domain or "").strip().lower().rstrip(".")
-        if any(name == suffix or name.endswith("." + suffix) for suffix in wanted):
-            found.add(address)
-    return sorted(found)
+        per_address.setdefault(address, set()).add(name)
+
+    exclusive, shared = set(), {}
+    for address, names in per_address.items():
+        if not any(belongs(name) for name in names):
+            continue
+        strangers = sorted({registrable(name) for name in names if not belongs(name)})
+        if strangers:
+            shared[address] = strangers
+        else:
+            exclusive.add(address)
+    return sorted(exclusive), shared
 
 
 def load_mappings(database=None):
@@ -193,13 +242,15 @@ def build_plan(limits, mappings, catalog=None):
         except ValueError as error:
             rejected.append({"service": key, "reason": str(error)})
             continue
-        addresses = service_addresses(service["suffixes"], mappings)
+        addresses, shared = service_addresses(service["suffixes"], mappings)
         if not addresses:
-            rejected.append({
-                "service": key,
-                "reason": "no addresses observed yet for this service; nothing to match. "
-                          "The list fills in as devices resolve its hostnames.",
-            })
+            reason = ("no addresses observed yet for this service; nothing to match. "
+                      "The list fills in as devices resolve its hostnames.")
+            if shared:
+                reason = (f"every observed address is shared with other services "
+                          f"({len(shared)} of them), so capping any would throttle "
+                          f"unrelated traffic. Nothing safe to match.")
+            rejected.append({"service": key, "reason": reason})
             continue
         entries.append({
             "service": key,
@@ -209,6 +260,8 @@ def build_plan(limits, mappings, catalog=None):
             "pipe": number,
             "addresses": addresses,
             "address_count": len(addresses),
+            "shared_excluded": len(shared),
+            "shared_examples": {a: s[:3] for a, s in list(shared.items())[:3]},
         })
         number += 1
     return {
@@ -217,8 +270,10 @@ def build_plan(limits, mappings, catalog=None):
         "note": (
             "Addresses come from recently observed DNS answers, so coverage is partial: "
             "a device using encrypted DNS, a VPN or ECH is not matched and streams "
-            "uncapped. A cap bounds the rate a player can sustain rather than selecting "
-            "a resolution."
+            "uncapped. Addresses shared with other services are excluded as well, since "
+            "capping them would throttle unrelated traffic; shared_excluded reports how "
+            "many. A cap bounds the rate a player can sustain rather than selecting a "
+            "resolution."
         ),
     }
 

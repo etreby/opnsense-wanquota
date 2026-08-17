@@ -124,9 +124,6 @@ class TaxonomyTests(unittest.TestCase):
                 self.assertIn(".", suffix, suffix)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class CategoryDetailTests(unittest.TestCase):
     DOMAINS = [
@@ -209,3 +206,81 @@ class CategoryDetailTests(unittest.TestCase):
 
     def test_device_note_explains_the_denominator(self):
         self.assertIn("only this category", self.detail("Media Streaming")["device_note"])
+
+
+class ExplainDomainTests(unittest.TestCase):
+    SERVICES = {
+        "netflix": {"label": "Netflix", "suffixes": ("nflxvideo.net", "netflix.com")},
+        "youtube": {"label": "YouTube", "suffixes": ("googlevideo.com", "youtube.com")},
+    }
+    DOMAINS = [{"domain": "ipv4-c001.ix.nflxvideo.net", "total": 2_500_000_000}]
+    MATRIX = [{"device": "192.168.1.113", "name": "LGwebOSTV",
+               "domain": "ipv4-c001.ix.nflxvideo.net", "total": 2_500_000_000}]
+
+    def explain(self, domain, mappings=None):
+        return INTEL.explain_domain(domain, self.DOMAINS, self.MATRIX, CATS, None,
+                                    self.SERVICES, mappings)
+
+    def test_names_the_owning_service_and_the_rule(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net")
+        self.assertEqual(got["service"]["label"], "Netflix")
+        self.assertEqual(got["service"]["matched_suffix"], "nflxvideo.net")
+        self.assertTrue(any("Netflix" in r for r in got["reasoning"]))
+
+    def test_reports_application_and_category(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net")
+        self.assertEqual(got["application"]["name"], "Netflix")
+        self.assertEqual(got["category"], "Media Streaming")
+
+    def test_traffic_and_devices_are_included(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net")
+        self.assertEqual(got["total"], 2_500_000_000)
+        self.assertEqual(got["devices"][0]["name"], "LGwebOSTV")
+
+    def test_unknown_domain_says_no_service_claims_it(self):
+        got = self.explain("something.unknown.invalid")
+        self.assertIsNone(got["service"])
+        self.assertFalse(got["shapeable"])
+        self.assertTrue(any("No limitable service" in r for r in got["reasoning"]))
+
+    def test_uncategorised_is_stated_rather_than_guessed(self):
+        got = self.explain("something.unknown.invalid")
+        self.assertEqual(got["category"], INTEL.UNCATEGORISED_LABEL)
+        self.assertTrue(any("guessed" in r for r in got["reasoning"]))
+
+    def test_exclusive_address_makes_it_shapeable(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net",
+                           [("ipv4-c001.ix.nflxvideo.net", "45.57.1.1")])
+        self.assertEqual(got["exclusive_addresses"], ["45.57.1.1"])
+        self.assertTrue(got["shapeable"])
+
+    def test_shared_address_is_excluded_and_explained(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net",
+                           [("ipv4-c001.ix.nflxvideo.net", "45.57.1.1"),
+                            ("amazonaws.com", "45.57.1.1")])
+        self.assertEqual(got["exclusive_addresses"], [])
+        self.assertIn("45.57.1.1", got["shared_addresses"])
+        self.assertFalse(got["shapeable"])
+        self.assertTrue(any("throttle unrelated" in r for r in got["reasoning"]))
+
+    def test_longest_suffix_wins(self):
+        services = {"a": {"label": "Broad", "suffixes": ("example.com",)},
+                    "b": {"label": "Specific", "suffixes": ("cdn.example.com",)}}
+        got = INTEL.explain_domain("x.cdn.example.com", [], [], CATS, None, services)
+        # Both match; the more specific rule is the meaningful answer.
+        self.assertEqual(INTEL.match_suffix("x.cdn.example.com",
+                                            ("example.com", "cdn.example.com")),
+                         "cdn.example.com")
+        self.assertIsNotNone(got["service"])
+
+    def test_empty_domain_is_handled(self):
+        got = INTEL.explain_domain("", [], [], CATS)
+        self.assertFalse(got["found"])
+
+    def test_method_states_it_is_rule_based(self):
+        got = self.explain("ipv4-c001.ix.nflxvideo.net")
+        self.assertIn("nothing here is inferred by a model", got["method"])
+
+
+if __name__ == "__main__":
+    unittest.main()

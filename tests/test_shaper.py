@@ -75,20 +75,61 @@ class SharedCdnTests(unittest.TestCase):
 
 class AddressTests(unittest.TestCase):
     def test_matches_subdomains_of_a_service_suffix(self):
-        got = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
+        got, _ = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
         self.assertEqual(got, ["198.51.100.10", "198.51.100.11"])
 
     def test_unrelated_domains_are_not_matched(self):
-        got = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
+        got, _ = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
         self.assertNotIn("203.0.113.99", got)
 
     def test_result_is_sorted_and_deduplicated(self):
         pairs = MAPPINGS + [("a.nflxvideo.net", "198.51.100.10")]
-        got = SHAPER.service_addresses(("nflxvideo.net",), pairs)
+        got, _ = SHAPER.service_addresses(("nflxvideo.net",), pairs)
         self.assertEqual(got, sorted(set(got)))
 
     def test_no_mappings_yields_nothing(self):
-        self.assertEqual(SHAPER.service_addresses(("nflxvideo.net",), []), [])
+        self.assertEqual(SHAPER.service_addresses(("nflxvideo.net",), []), ([], {}))
+
+    def test_address_shared_with_another_service_is_excluded(self):
+        # Observed on real data: a third of Netflix's addresses also served
+        # amazonaws.com. Capping those throttles unrelated traffic.
+        pairs = [("nflxvideo.net", "198.51.100.10"),
+                 ("netflix.com", "198.51.100.50"),
+                 ("amazonaws.com", "198.51.100.50")]
+        exclusive, shared = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
+        self.assertEqual(exclusive, ["198.51.100.10"])
+        self.assertIn("198.51.100.50", shared)
+        self.assertIn("amazonaws.com", shared["198.51.100.50"])
+
+    def test_two_hostnames_of_the_same_service_do_not_count_as_sharing(self):
+        pairs = [("nflxvideo.net", "198.51.100.10"), ("netflix.com", "198.51.100.10")]
+        exclusive, shared = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
+        self.assertEqual(exclusive, ["198.51.100.10"])
+        self.assertEqual(shared, {})
+
+    def test_service_whose_every_address_is_shared_is_refused(self):
+        pairs = [("netflix.com", "198.51.100.50"), ("amazonaws.com", "198.51.100.50")]
+        plan = SHAPER.build_plan([{"service": "netflix", "resolution": "1080p"}], pairs)
+        self.assertEqual(plan["pipes"], [])
+        self.assertIn("shared with other services", plan["rejected"][0]["reason"])
+
+    def test_plan_reports_how_many_addresses_were_excluded(self):
+        pairs = [("nflxvideo.net", "198.51.100.10"),
+                 ("netflix.com", "198.51.100.50"), ("amazonaws.com", "198.51.100.50")]
+        plan = SHAPER.build_plan([{"service": "netflix", "mbit": 5}], pairs)
+        self.assertEqual(plan["pipes"][0]["address_count"], 1)
+        self.assertEqual(plan["pipes"][0]["shared_excluded"], 1)
+
+
+class UpdateServiceTests(unittest.TestCase):
+    def test_bulk_download_services_are_available(self):
+        for key in ("windows_update", "apple_update", "linux_update", "steam_downloads"):
+            self.assertIn(key, SHAPER.STREAMING_SERVICES, key)
+
+    def test_update_services_are_not_on_shared_infrastructure_by_suffix(self):
+        for key in ("windows_update", "apple_update", "linux_update", "steam_downloads"):
+            for suffix in SHAPER.STREAMING_SERVICES[key]["suffixes"]:
+                self.assertFalse(SHAPER.is_shared_cdn(suffix), f"{key}: {suffix}")
 
 
 class PlanTests(unittest.TestCase):
@@ -98,6 +139,7 @@ class PlanTests(unittest.TestCase):
         entry = plan["pipes"][0]
         self.assertEqual(entry["mbit"], 5.0)
         self.assertEqual(entry["address_count"], 3)
+        self.assertEqual(entry["shared_excluded"], 0)
         self.assertEqual(entry["pipe"], SHAPER.PIPE_BASE)
 
     def test_pipe_numbers_do_not_collide(self):
