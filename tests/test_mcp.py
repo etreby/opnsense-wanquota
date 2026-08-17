@@ -22,10 +22,17 @@ def request(method, params=None, request_id=1):
 
 
 class HandshakeTests(unittest.TestCase):
-    def test_initialize_echoes_client_protocol_version(self):
+    def test_initialize_agrees_to_a_supported_protocol_version(self):
         response = MCP.handle(request("initialize", {"protocolVersion": "2025-06-18"}))
         self.assertEqual(response["result"]["protocolVersion"], "2025-06-18")
         self.assertEqual(response["result"]["serverInfo"]["name"], "wanquota")
+
+    def test_initialize_does_not_claim_an_unsupported_protocol_version(self):
+        # Echoing whatever the client asked for advertised revisions that were
+        # never implemented, and a client would negotiate on that false premise.
+        response = MCP.handle(request("initialize", {"protocolVersion": "1999-01-01"}))
+        self.assertEqual(response["result"]["protocolVersion"], MCP.PROTOCOL_VERSION)
+        self.assertIn(response["result"]["protocolVersion"], MCP.SUPPORTED_PROTOCOL_VERSIONS)
 
     def test_initialize_falls_back_to_default_version(self):
         response = MCP.handle(request("initialize", {}))
@@ -59,6 +66,20 @@ class ToolSurfaceTests(unittest.TestCase):
             self.assertIn("name", tool)
             self.assertIn("description", tool)
             self.assertEqual(tool["inputSchema"]["type"], "object")
+
+    def test_every_tool_declares_itself_read_only(self):
+        # Without the hint a cautious client prompts before each call, which
+        # wastes the guarantee the whole surface was designed around.
+        for tool in MCP.handle(request("tools/list"))["result"]["tools"]:
+            self.assertTrue(tool["annotations"]["readOnlyHint"], tool["name"])
+            self.assertFalse(tool["annotations"]["destructiveHint"], tool["name"])
+            self.assertTrue(tool["annotations"]["title"], tool["name"])
+
+    def test_no_argument_schemas_survive_as_objects(self):
+        # These serialise to {} and a transport that turns them into [] breaks
+        # every client; keep the shape asserted at the source.
+        for tool in MCP.handle(request("tools/list"))["result"]["tools"]:
+            self.assertIsInstance(tool["inputSchema"]["properties"], dict, tool["name"])
 
     def test_tool_surface_is_read_only(self):
         names = {tool["name"] for tool in MCP.tool_descriptors()}
@@ -216,9 +237,46 @@ class DrillToolTests(unittest.TestCase):
         body = self.payload(self.call("wanquota_site", {"site": "CDN.Example."}))
         self.assertEqual(body["site"], "cdn.example")
 
-    def test_unknown_site_is_invalid_params(self):
-        response = self.call("wanquota_site", {"site": "nowhere.example"})
+    def test_unknown_site_returns_an_empty_result_not_an_error(self):
+        # Mirrors wanquota_device, which returns a result for a device with no
+        # attributable flow. "Nobody visited it" is an answer, and the server
+        # cannot tell a typo from a real but unvisited domain.
+        body = self.payload(self.call("wanquota_site", {"site": "nowhere.example"}))
+        self.assertFalse(body["found"])
+        self.assertEqual(body["devices"], [])
+        self.assertIn("misspelled", body["empty_reason"])
+
+    def test_known_site_is_marked_found(self):
+        body = self.payload(self.call("wanquota_site", {"site": "cdn.example"}))
+        self.assertTrue(body["found"])
+        self.assertIsNone(body["empty_reason"])
+
+    def test_wrong_argument_type_is_not_reported_as_missing(self):
+        response = self.call("wanquota_device", {"device": 123})
         self.assertEqual(response["error"]["code"], MCP.INVALID_PARAMS)
+        self.assertIn("must be a string", response["error"]["message"])
+
+    def test_empty_argument_is_distinguished_from_missing(self):
+        self.assertIn("must not be empty",
+                      self.call("wanquota_device", {"device": "  "})["error"]["message"])
+        self.assertIn("is required",
+                      self.call("wanquota_device", {})["error"]["message"])
+
+    def test_unknown_device_names_the_busiest_not_the_alphabetical_first(self):
+        response = self.call("wanquota_device", {"device": "nosuchbox"})
+        message = response["error"]["message"]
+        # TRUENAS is the largest consumer; an alphabetical cut would drop it.
+        self.assertIn("TRUENAS", message)
+        self.assertIn("Busiest known devices", message)
+
+    def test_device_note_covers_both_directions(self):
+        body = self.payload(self.call("wanquota_device", {"device": "TRUENAS"}))
+        self.assertIn("either can be the larger", body["note"])
+
+    def test_device_with_no_sites_explains_why(self):
+        body = self.payload(self.call("wanquota_device", {"device": "Quiet Box"}))
+        self.assertEqual(body["sites"], [])
+        self.assertIn("daily buckets", body["empty_reason"])
 
     def test_drill_tools_are_still_read_only(self):
         for tool in ("wanquota_device", "wanquota_site"):

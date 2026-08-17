@@ -73,14 +73,29 @@ def document():
     checks.append(domain_database_health(now, settings["domain_enabled"]))
 
     enabled, providers = report.configuration()
+    today = dt.date.today()
     for provider in providers:
         rows, error = report.vnstat_rows(provider["interface"], "d")
-        checks.append(status(
-            f"vnStat: {provider['name']}",
-            error is None,
-            f"{len(rows)} daily records on {provider['interface']}" if error is None else error,
-            required=enabled,
-        ))
+        if error is not None:
+            checks.append(status(f"vnStat: {provider['name']}", False, error, required=enabled))
+            continue
+        # Record count alone says nothing: the question is whether the records
+        # cover the billing cycle being reported on. A source with three fresh
+        # days against a seventeen-day cycle produces a confident, wrong total,
+        # which is exactly what this tab exists to catch.
+        summary = report.provider_summary(provider, today)
+        detail = f"{len(rows)} daily records on {provider['interface']}"
+        if summary["missing_days"]:
+            detail += (
+                f" — but {summary['missing_days']} of {summary['elapsed_days']} cycle days "
+                f"since {summary['start']} have no data, so the cycle total is a floor"
+            )
+        check = status(f"vnStat: {provider['name']}", True, detail, required=enabled)
+        if summary["missing_days"]:
+            check["status"] = "stale"
+        check["cycle_days_missing"] = summary["missing_days"]
+        check["cycle_days_measured"] = summary["measured_days"]
+        checks.append(check)
 
     alert_state_age = age_seconds(report.ALERT_STATE, now)
     alert_options = report.alert_configuration()

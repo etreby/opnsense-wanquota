@@ -267,6 +267,7 @@ def attribution_rows(external, attributed, names):
     for device, total in external.items():
         covered = attributed.get(device, 0)
         percent = covered / total * 100 if total else 0
+        flagged = total >= UNATTRIBUTABLE_MIN_BYTES and percent < UNATTRIBUTABLE_MAX_PERCENT
         rows.append({
             "device": device,
             "name": names.get(device, device),
@@ -274,9 +275,20 @@ def attribution_rows(external, attributed, names):
             "attributed": covered,
             "unattributed": max(0, total - covered),
             "coverage_percent": percent,
-            "likely_unattributable": (
-                total >= UNATTRIBUTABLE_MIN_BYTES and percent < UNATTRIBUTABLE_MAX_PERCENT
-            ),
+            "likely_unattributable": flagged,
+            # A bare boolean tells a reader nothing about why, or what would have
+            # to change for it to clear. Ship the reason and the thresholds with
+            # it, so an API consumer sees what the interface explains in words.
+            "unattributable_reason": (
+                "Most of this device's external traffic could not be matched to a domain. "
+                "That is what encrypted DNS (DoH/DoT), a VPN tunnel, or ECH looks like from "
+                "the firewall: the traffic is real and counts against the quota, only the "
+                "destination names are hidden."
+            ) if flagged else None,
+            "unattributable_thresholds": {
+                "min_bytes": UNATTRIBUTABLE_MIN_BYTES,
+                "max_coverage_percent": UNATTRIBUTABLE_MAX_PERCENT,
+            },
         })
     rows.sort(key=lambda item: item["external"], reverse=True)
     return rows
@@ -380,6 +392,11 @@ def report(period):
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "hosts": host_rows,
         "domains": domain_rows[: settings["top_limit"]],
+        "hosts_note": (
+            "hosts totals come from ntopng and include LAN-to-LAN traffic, so this ranking "
+            "is not the same as 'who used the WAN quota'. Use device_attribution[].external "
+            "for that; the two orders can differ."
+        ),
         "device_domains": matrix_rows,
         "device_attribution": attribution_rows(device_external, device_attributed, names),
         "providers": provider_rows,

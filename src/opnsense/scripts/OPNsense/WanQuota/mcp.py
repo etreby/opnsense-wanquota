@@ -35,6 +35,10 @@ import intelligence
 import report
 
 PROTOCOL_VERSION = "2024-11-05"
+# Revisions this server can actually speak. Anything else is answered with
+# PROTOCOL_VERSION so the client can decide whether to proceed; claiming a
+# version we do not implement would be a false statement of capability.
+SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SERVER_NAME = "wanquota"
 SERVER_VERSION = "0.10"
 
@@ -140,9 +144,15 @@ def tool_metrics(_arguments):
 
 
 def _require(arguments, key):
-    value = arguments.get(key)
-    if not isinstance(value, str) or not value.strip():
+    if key not in arguments or arguments[key] is None:
         raise InvalidParams(f"{key} is required")
+    value = arguments[key]
+    if not isinstance(value, str):
+        # Distinguish absent from wrong type: reporting a supplied integer as
+        # "required" sends the caller looking for a missing argument it did pass.
+        raise InvalidParams(f"{key} must be a string, received {type(value).__name__}")
+    if not value.strip():
+        raise InvalidParams(f"{key} must not be empty")
     return value.strip()
 
 
@@ -171,13 +181,21 @@ def tool_device(arguments):
             None,
         )
         if host is None:
-            known = sorted(
-                {row["name"] for row in attribution}
-                | {row["name"] for row in payload.get("hosts", [])}
-            )
+            # Name the busiest devices, not the alphabetically first. Truncating a
+            # sorted list silently omitted the largest consumers, so the error
+            # implied they were unknown when they were the likeliest thing meant.
+            ranked = [row["name"] for row in attribution]
+            ranked += [
+                row["name"] for row in sorted(
+                    payload.get("hosts", []), key=lambda row: row["total"], reverse=True
+                ) if row["name"] not in ranked
+            ]
             message = f"Unknown device: {wanted}"
-            if known:
-                message += ". Known devices: " + ", ".join(known[:25])
+            if ranked:
+                shown = ranked[:15]
+                message += ". Busiest known devices: " + ", ".join(shown)
+                if len(ranked) > len(shown):
+                    message += f", and {len(ranked) - len(shown)} more"
             raise InvalidParams(message)
         address = host["ip"]
     sites = sorted(
@@ -200,8 +218,16 @@ def tool_device(arguments):
             for entry in provider.get("devices", []) if entry["ip"] == address
         ],
         "note": (
-            "Site totals come from external flows correlated with recent DNS answers. "
-            "device_total comes from ntopng and counts all traffic, so the two differ."
+            "device_total comes from ntopng and counts all this device's traffic, including "
+            "LAN-to-LAN. external and the site totals come from firewall flow records and count "
+            "only traffic leaving the network. Neither is a subset of the other, so either can "
+            "be the larger number: use external, not device_total, to reason about quota."
+        ),
+        "empty_reason": None if sites else (
+            "No site could be attributed for this period. Either the device sent nothing "
+            "outbound, or its destinations had no recent DNS answer to match against. Shorter "
+            "periods are the common case: flow records are collected in daily buckets, so "
+            "period='today' can be empty until the current bucket rolls over."
         ),
     }
 
@@ -224,12 +250,19 @@ def tool_site(arguments):
         for provider in payload.get("providers", [])
         for entry in provider.get("domains", []) if entry["domain"].lower() == wanted
     ]
-    if not devices and summary is None and not providers:
-        raise InvalidParams(f"No attributed traffic for site: {wanted}")
+    # Deliberately not an error. wanquota_device returns a result for a device
+    # with no attributable flow, and the reciprocal tool should behave the same:
+    # "no traffic" is an answer, not a malformed request, and the server cannot
+    # tell a mistyped domain from a real one nobody visited.
     return {
         "status": payload.get("status"),
         "period": payload.get("period"),
         "site": wanted,
+        "found": bool(devices or summary or providers),
+        "empty_reason": None if (devices or summary or providers) else (
+            "No attributed traffic for this site in this period. The domain may be misspelled, "
+            "may not have been visited, or its traffic may not have been attributable."
+        ),
         "total": summary["total"] if summary else sum(row["total"] for row in devices),
         "observed_ip_count": summary["ip_count"] if summary else None,
         "devices": [
@@ -257,6 +290,7 @@ _NO_ARGUMENTS = {"type": "object", "properties": {}}
 TOOLS = (
     {
         "name": "wanquota_summary",
+        "title": "WAN quota summary",
         "description": (
             "Current billing-cycle quota status for every enabled WAN provider: used and "
             "remaining GB, percent of allowance, daily budget, and projected cycle total."
@@ -266,18 +300,21 @@ TOOLS = (
     },
     {
         "name": "wanquota_daily",
+        "title": "Daily history",
         "description": "Per-day download and upload history for each enabled WAN provider.",
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_daily,
     },
     {
         "name": "wanquota_monthly",
+        "title": "Monthly history",
         "description": "Per-month download and upload history for each enabled WAN provider.",
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_monthly,
     },
     {
         "name": "wanquota_health",
+        "title": "Data source health",
         "description": (
             "Freshness and availability of every data source the reports depend on "
             "(vnStat, ntopng, Insight/NetFlow, DNS attribution, alert monitor). Check this "
@@ -288,6 +325,7 @@ TOOLS = (
     },
     {
         "name": "wanquota_consumers",
+        "title": "Top consumers and domains",
         "description": (
             "Top LAN devices and attributed domains by bytes. Domain attribution is an "
             "estimate correlating flow bytes with recent DNS answers; read the coverage "
@@ -298,6 +336,7 @@ TOOLS = (
     },
     {
         "name": "wanquota_intelligence",
+        "title": "Forecasts and guardrails",
         "description": (
             "Quota forecasts, gateway quality, device-group budgets, anomalies and the "
             "current guardrail recommendation per provider. Recommendations are advisory "
@@ -308,12 +347,14 @@ TOOLS = (
     },
     {
         "name": "wanquota_metrics",
+        "title": "Prometheus metrics",
         "description": "WAN quota metrics in Prometheus text exposition format.",
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_metrics,
     },
     {
         "name": "wanquota_device",
+        "title": "One device's sites",
         "description": (
             "What one device exchanged traffic with: its sites ranked by bytes, its "
             "attributed share, and which providers carried it. Prefer this over "
@@ -335,6 +376,7 @@ TOOLS = (
     },
     {
         "name": "wanquota_site",
+        "title": "One site's devices",
         "description": (
             "Which devices used one site, ranked by bytes, and which providers carried "
             "it. The reciprocal of wanquota_device; prefer it over wanquota_consumers "
@@ -355,8 +397,25 @@ TOOLS = (
 TOOLS_BY_NAME = {tool["name"]: tool for tool in TOOLS}
 
 
+# Every tool only reads. Declaring it lets a cautious client call them without
+# asking the user to approve each one, which is the whole point of a read-only
+# surface: the guarantee is worth nothing if clients cannot see it.
+READ_ONLY_ANNOTATIONS = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+
 def tool_descriptors():
-    return [{key: tool[key] for key in ("name", "description", "inputSchema")} for tool in TOOLS]
+    return [
+        {
+            **{key: tool[key] for key in ("name", "description", "inputSchema")},
+            "annotations": {"title": tool["title"], **READ_ONLY_ANNOTATIONS},
+        }
+        for tool in TOOLS
+    ]
 
 
 def call_tool(name, arguments):
@@ -387,11 +446,15 @@ def handle(request):
     is_notification = "id" not in request
 
     if method == "initialize":
-        # Echo the client's protocol revision when it offers one; clients reject a
-        # server that answers with a version they did not ask for.
+        # Answer with the requested revision only when it is one this server
+        # actually speaks. Echoing anything the client asked for claimed support
+        # for revisions that were never implemented; a client negotiating on that
+        # answer would proceed on a false premise. Otherwise name our own version
+        # and let the client decide whether it can continue.
         requested = params.get("protocolVersion") if isinstance(params, dict) else None
+        agreed = requested if requested in SUPPORTED_PROTOCOL_VERSIONS else PROTOCOL_VERSION
         return _result(request_id, {
-            "protocolVersion": requested or PROTOCOL_VERSION,
+            "protocolVersion": agreed,
             "capabilities": {"tools": {"listChanged": False}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
         })

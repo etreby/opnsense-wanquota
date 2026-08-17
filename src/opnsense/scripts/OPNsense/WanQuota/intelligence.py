@@ -186,8 +186,12 @@ def record_anomaly(db, ts, kind, subject, observed, mean, deviation, sigma):
 def forecasts(item):
     end = dt.date.fromisoformat(item["end"])
     start = dt.date.fromisoformat(item["start"])
-    elapsed = max(1, (dt.date.today() - start).days + 1)
-    rate = item["used"] / elapsed
+    # Same measured-days basis as report.provider_summary: dividing by elapsed days
+    # would understate the rate whenever vnStat has no history for part of the cycle.
+    rate = item.get("daily_average")
+    if rate is None:
+        elapsed = max(1, (dt.date.today() - start).days + 1)
+        rate = item["used"] / elapsed
     exhaustion = start + dt.timedelta(days=math.ceil(item["quota"] / rate)) if rate > 0 else None
     previous = None
     with database() as db:
@@ -195,6 +199,8 @@ def forecasts(item):
         previous = row["used"] if row else None
     return {
         "daily_average": rate,
+        "basis": item.get("projection_basis", "measured"),
+        "basis_note": item.get("projection_note"),
         "exhaustion_date": exhaustion.isoformat() if exhaustion and exhaustion < end else None,
         "risk": "exceeded" if item["percent"] >= 100 else "high" if item["projected"] > item["quota"] else "watch" if item["percent"] >= item["warning_percent"] else "on_track",
         "previous_cycle": previous,
@@ -407,7 +413,24 @@ def dashboard(period="thirty"):
         item["forecast"] = forecasts(item); item["quality"] = quality.get(item["logical_interface"], {}); item["policy"] = policy_decision(item, cfg, overrides.get(item["name"]))
         old = prior.get(item["name"]); item["movement"] = {"period":"24h","used_delta":item["used"]-old["used"],"percent_delta":item["percent"]-old["percent"]} if old else None
     accent = cfg["accent"] if len(cfg["accent"]) == 7 and cfg["accent"].startswith("#") else "#3b82f6"
-    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
+    # summary is per billing cycle and each provider's cycle can start on a
+    # different day; consumers is one fixed window. Comparing their totals without
+    # knowing that reads as missing traffic, so state the windows in the payload.
+    windows = {
+        "consumers_period": period,
+        "consumers_start": consumer.get("start"),
+        "consumers_end": consumer.get("end"),
+        "summary_cycles": [
+            {"provider": item["name"], "start": item["start"], "end": item["end"]}
+            for item in summary.get("providers", [])
+        ],
+        "note": (
+            "summary totals cover each provider's own billing cycle; consumers totals cover "
+            "the requested period. The windows differ, so the two sets of totals are not "
+            "expected to reconcile."
+        ),
+    }
+    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"windows":windows,"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
 
 
 def prometheus():

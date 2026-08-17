@@ -258,6 +258,52 @@ class SummaryTests(unittest.TestCase):
         document = REPORT.summary(*REPORT.configuration())
         self.assertFalse(document["providers"][0]["available"])
 
+    def rows_for(self, dates_and_bytes):
+        def rows(interface, period):
+            return ([
+                {"date": {"year": d.year, "month": d.month, "day": d.day}, "rx": rx, "tx": 0}
+                for d, rx in dates_and_bytes
+            ], None)
+        return rows
+
+    def test_projection_uses_measured_days_not_elapsed_days(self):
+        import datetime as dt
+        today = dt.date.today()
+        start = today.replace(day=1)
+        # Three measured days late in a cycle that began on the 1st: the earlier
+        # days were never collected, and must not dilute the observed rate.
+        measured = [(today - dt.timedelta(days=n), 2_000_000_000) for n in range(3)]
+        if any(d < start for d, _ in measured):
+            self.skipTest("run near the start of a month")
+        REPORT.vnstat_rows = self.rows_for(measured)
+        item = REPORT.summary(*REPORT.configuration())["providers"][0]
+        self.assertEqual(item["measured_days"], 3)
+        self.assertEqual(item["daily_average"], item["used"] / 3)
+        self.assertEqual(item["projection_basis"], "partial" if item["missing_days"] else "measured")
+        if item["missing_days"]:
+            self.assertIn("no vnStat data", item["projection_note"])
+            # The old formula divided by elapsed days, understating the rate.
+            self.assertGreater(item["daily_average"], item["used"] / item["elapsed_days"])
+
+    def test_complete_cycle_reports_measured_basis_and_no_note(self):
+        import datetime as dt
+        today = dt.date.today()
+        start = today.replace(day=1)
+        every_day = [(start + dt.timedelta(days=n), 1_000_000_000)
+                     for n in range((today - start).days + 1)]
+        REPORT.vnstat_rows = self.rows_for(every_day)
+        item = REPORT.summary(*REPORT.configuration())["providers"][0]
+        self.assertEqual(item["missing_days"], 0)
+        self.assertEqual(item["projection_basis"], "measured")
+        self.assertIsNone(item["projection_note"])
+
+    def test_projection_is_never_below_what_was_already_used(self):
+        import datetime as dt
+        today = dt.date.today()
+        REPORT.vnstat_rows = self.rows_for([(today, 5_000_000_000)])
+        item = REPORT.summary(*REPORT.configuration())["providers"][0]
+        self.assertGreaterEqual(item["projected"], item["used"])
+
 
 if __name__ == "__main__":
     unittest.main()

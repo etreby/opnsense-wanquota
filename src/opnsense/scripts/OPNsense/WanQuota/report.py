@@ -177,6 +177,15 @@ def provider_summary(provider, today):
     days_left = max(0, (end - today).days)
     percent = used / quota * 100
     first_seen = min((date for date, _ in relevant), default=None)
+    # Project from the days actually measured, not from the days elapsed. vnStat
+    # only holds history from when it started collecting, so a cycle that began
+    # before that has days with no data at all. Dividing the total by elapsed days
+    # spreads real traffic across days that were never observed and reports a rate
+    # several times lower than the measured one.
+    measured_days = len({date for date, _ in relevant})
+    missing_days = max(0, elapsed - measured_days)
+    rate = used / measured_days if measured_days else 0
+    projected = used + rate * days_left
     return {
         **provider,
         "quota": quota,
@@ -190,9 +199,20 @@ def provider_summary(provider, today):
         "percent": percent,
         "days_left": days_left,
         "daily_budget": remaining / days_left if days_left else 0,
-        "projected": used / elapsed * (end - start).days,
+        "projected": projected,
+        "daily_average": rate,
+        "elapsed_days": elapsed,
+        "measured_days": measured_days,
+        "missing_days": missing_days,
         "first_seen": first_seen.isoformat() if first_seen else None,
         "complete": first_seen == start,
+        "projection_basis": "measured" if not missing_days else "partial",
+        "projection_note": (
+            None if not missing_days else
+            f"{missing_days} of {elapsed} elapsed cycle days have no vnStat data, so "
+            f"'used' is a floor and the projection is a lower bound. The rate comes from "
+            f"the {measured_days} measured day(s)."
+        ),
         "warning": percent >= provider["warning_percent"],
         "available": error is None,
         "error": error,
