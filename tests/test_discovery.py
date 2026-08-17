@@ -268,3 +268,35 @@ class InfrastructureTests(unittest.TestCase):
         found = DISCOVERY.candidates(pairs, totals, minimum_bytes=5 * MB, now=1)
         self.assertFalse(found[0]["infrastructure"])
         self.assertTrue(found[0]["cappable"])
+
+
+class ListingOrderTests(unittest.TestCase):
+    """The stored listing is what the interface shows, so it carries the ordering.
+
+    Sorting only the freshly computed candidates had no visible effect: the panel reads
+    the stored rows, which came back ordered by traffic alone, so the CDNs still led the
+    list on a live firewall.
+    """
+
+    def setUp(self):
+        self.connection, self.path = fresh_db()
+
+    def tearDown(self):
+        self.connection.close()
+        os.unlink(self.path)
+
+    def test_infrastructure_is_listed_last_despite_more_traffic(self):
+        DISCOVERY.record([
+            {"domain": "cloudflare.net", "label": "cloudflare.net", "category": "x",
+             "named_from": "y", "hostnames": [], "hostname_count": 0, "addresses": 2,
+             "shared": 0, "cappable": False, "infrastructure": True, "belongs_to": "",
+             "bytes_seen": 2_400_000_000, "first_seen": 1, "last_seen": 1},
+            {"domain": "viber.com", "label": "Viber", "category": "Messaging",
+             "named_from": "known domain", "hostnames": [], "hostname_count": 0,
+             "addresses": 2, "shared": 0, "cappable": True, "infrastructure": False,
+             "belongs_to": "", "bytes_seen": 100_000_000, "first_seen": 1, "last_seen": 1},
+        ], self.connection)
+        order = [row["domain"] for row in DISCOVERY.listing(connection=self.connection)]
+        self.assertEqual(order, ["viber.com", "cloudflare.net"])
+        filtered = [row["domain"] for row in DISCOVERY.listing("new", self.connection)]
+        self.assertEqual(filtered, ["viber.com", "cloudflare.net"])

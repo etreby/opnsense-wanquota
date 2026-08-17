@@ -332,11 +332,13 @@ def listing(status=None, connection=None):
     try:
         if status:
             rows = owned.execute(
-                "SELECT * FROM discovered_services WHERE status=? ORDER BY bytes_seen DESC",
+                """SELECT * FROM discovered_services WHERE status=?
+                   ORDER BY infrastructure ASC, bytes_seen DESC""",
                 (status,)).fetchall()
         else:
             rows = owned.execute(
-                "SELECT * FROM discovered_services ORDER BY bytes_seen DESC").fetchall()
+                """SELECT * FROM discovered_services
+                   ORDER BY infrastructure ASC, bytes_seen DESC""").fetchall()
     finally:
         if connection is None:
             owned.close()
