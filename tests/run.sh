@@ -93,6 +93,27 @@ if grep -q 'uploadOk ? row.upload_mbit' \
     echo "the disabled upload field must keep showing the configured rate" >&2
     exit 1
 fi
+# Limits and Settings write the same fields, so a change on one page must refresh
+# the other. Enabling limits and clearing dry-run from the Limits page once left
+# Settings still showing them off, which reads as the save having been lost.
+grep -q 'function loadSettings' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+grep -q 'shown.bs.tab., loadSettings' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+def handler_after(marker):
+    """The callback body only: stop at the next top-level function definition."""
+    start = source.index(marker)
+    rest = source[start:]
+    end = rest.find("\nfunction ")
+    return rest[:end if end > 0 else 2000]
+
+for endpoint in ("/api/wanquota/limits/set'", "/api/wanquota/limits/setDevices'"):
+    assert "loadSettings()" in handler_after(endpoint), \
+        f"saving via {endpoint} must refresh the settings form"
+assert "refreshLimitViews()" in handler_after("/api/wanquota/settings/set'"), \
+    "saving settings must refresh the limits views"
+PYCHECK
 grep -q '^\[shaperverify\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q '^\[shapercapability\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'WanQuota/setup.php' "$repository/+POST_INSTALL.post"

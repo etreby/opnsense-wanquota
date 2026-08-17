@@ -633,7 +633,27 @@ function saveLimits() {
             : '{{ lang._("Saved and applied.") }}';
         $('#limitStatus').html('<div class="alert alert-success">' + esc(mode) + '</div>');
         refreshLimits();
+        loadSettings();
+        if (deviceLimitData) refreshDeviceLimits();
     });
+}
+/*
+ * Reload the settings form from the model.
+ *
+ * Limits and Settings write the same fields — shaper_enabled and shaper_dry_run
+ * among them — so whichever page did not make the change was showing a stale value
+ * until the page was reloaded. Enabling limits and turning dry-run off from the
+ * Limits page left Settings still showing them off, which reads as the save having
+ * been lost. Every writer now refreshes the others.
+ */
+function loadSettings() {
+    return mapDataToFormUI({'frm_wanquota_settings':'/api/wanquota/settings/get'})
+        .done(function() { formatTokenizersUI(); $('.selectpicker').selectpicker('refresh'); });
+}
+/* Refresh whichever limits view has been opened, after a change made elsewhere. */
+function refreshLimitViews() {
+    if (limitData) refreshLimits();
+    if (deviceLimitData) refreshDeviceLimits();
 }
 function refreshLimits() { ajaxCall('/api/wanquota/limits/get', {}, renderLimits); }
 
@@ -800,6 +820,7 @@ function saveDeviceLimits() {
             ? '{{ lang._("Saved. Dry run is on, so nothing is being shaped yet.") }}'
             : '{{ lang._("Saved and applied.") }}') + '</div>');
         refreshDeviceLimits();
+        loadSettings();
     });
 }
 function refreshDeviceLimits() { ajaxCall('/api/wanquota/limits/devices', {}, renderDeviceLimits); }
@@ -1017,7 +1038,7 @@ function refreshReports() {
     ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
 }
 $(document).ready(function() {
-    mapDataToFormUI({'frm_wanquota_settings':'/api/wanquota/settings/get'}).done(function() { formatTokenizersUI(); $('.selectpicker').selectpicker('refresh'); });
+    loadSettings();
     refreshReports();
     refreshConsumers();
     refreshIntelligence();
@@ -1045,6 +1066,13 @@ $(document).ready(function() {
     $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
+    /*
+     * Reload on tab entry as well as after a save. A change can also arrive from
+     * outside this page — the MCP server can set limits and settings — so the form
+     * is refreshed when it is opened rather than trusted to be current.
+     */
+    $('a[href="#settings"]').on('shown.bs.tab', loadSettings);
+    $('a[href="#limitsService"]').on('shown.bs.tab', refreshLimits);
     $('#deviceLimitTable').on('change', '.dev-on', filterDeviceLimits);
     $('a[href="#limitsDevice"]').on('shown.bs.tab', function() {
         if (!deviceLimitData) refreshDeviceLimits();
@@ -1121,6 +1149,7 @@ $(document).ready(function() {
         saveFormToEndpoint('/api/wanquota/settings/set', 'frm_wanquota_settings', function() {
             $('#saveAct_progress').removeClass('fa fa-spinner fa-pulse');
             refreshReports();
+            refreshLimitViews();
         });
     });
 });
