@@ -700,10 +700,32 @@ function decideService(domain, decision) {
             if (decision === 'accept') refreshLimits();
         });
 }
+/*
+ * The effective state, in words, taken from the configuration rather than from the
+ * checkboxes.
+ *
+ * A checkbox shows what the page last rendered; this shows what the firewall will
+ * actually do. Those disagreed once — the tab only reloaded on its first visit, so a
+ * change made in Settings left the switches contradicting the configuration — and
+ * "am I live or in dry run?" is the one question here that must not be ambiguous.
+ */
+function renderLimitState(data) {
+    if (!data.enabled) {
+        $('#limitState').html('<span class="wq-pill">' + esc('limits off') + '</span>');
+    } else if (data.dry_run) {
+        $('#limitState').html('<span class="wq-pill wq-pill-warn" title="'
+            + esc('Pipes and rules are recorded but nothing is shaped.') + '">'
+            + esc('DRY RUN — nothing is being shaped') + '</span>');
+    } else {
+        $('#limitState').html('<span class="wq-pill wq-pill-ok">'
+            + esc('live — limits are being enforced') + '</span>');
+    }
+}
 function renderLimits(data) {
     limitData = data;
     $('#limitEnabled').prop('checked', !!data.enabled);
     $('#limitDryRun').prop('checked', !!data.dry_run);
+    renderLimitState(data);
     const presets = Object.keys(data.resolutions || {});
     let html = '';
     for (const service of data.services || []) {
@@ -872,6 +894,7 @@ function renderDeviceLimits(data) {
     deviceLimitData = data;
     $('#limitEnabled').prop('checked', !!data.enabled);
     $('#limitDryRun').prop('checked', !!data.dry_run);
+    renderLimitState(data);
     /*
      * Say up front when this firewall cannot shape uploads. A capture engine using
      * netmap takes packets off the kernel path before ipfw sees them leaving a LAN
@@ -1377,7 +1400,17 @@ $(document).ready(function() {
     $('#limitCards').on('input', '.limit-mbit', function() {
         if ($(this).val()) $(this).closest('.wq-limit').find('.limit-res').val('');
     });
-    $('#maintabs a[href="#limits"]').on('shown.bs.tab', function() { if (!limitData) refreshLimits(); });
+    /*
+     * Always refresh, not only on the first visit. This previously reloaded only when
+     * nothing had been loaded yet, which left the shared enable and dry-run switches
+     * showing whatever they showed the first time the tab was opened — so changing
+     * them in Settings left Limits contradicting the configuration, and the state a
+     * user read here could be stale in either direction.
+     */
+    $('#maintabs a[href="#limits"]').on('shown.bs.tab', function() {
+        refreshLimits();
+        refreshDiscovered(false);
+    });
     $('#refreshSessions').on('click', refreshSessions);
     $('#sessionSearch').on('keyup', filterSessions);
     $('#apps,#sessions').on('click', 'a.wq-drill', function(event) {

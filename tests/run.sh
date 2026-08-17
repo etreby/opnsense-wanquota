@@ -170,6 +170,18 @@ source = open(sys.argv[1], encoding="utf-8").read()
 assert "shaper_enabled = $this->request->getPost('enabled')" not in source, \
     "absent must not read as off: use applyState"
 PYCHECK
+# Opening the Limits tab must always reload it. Refreshing only when nothing had
+# loaded yet left the shared enable and dry-run switches showing whatever they showed
+# on the first visit, so a change made in Settings left Limits contradicting the
+# configuration — and "am I live or in dry run?" must not be ambiguous.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+assert 'if (!limitData) refreshLimits()' not in source, \
+    "the Limits tab must reload every time it is opened, not only the first time"
+assert "function renderLimitState" in source, \
+    "the effective limit state must be stated from the configuration, not the checkboxes"
+PYCHECK
 # Limits and Settings write the same fields, so a change on one page must refresh
 # the other. Enabling limits and clearing dry-run from the Limits page once left
 # Settings still showing them off, which reads as the save having been lost.
