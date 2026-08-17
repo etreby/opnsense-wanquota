@@ -142,6 +142,15 @@
             <device_enforcement_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></device_enforcement_dry_run>
             <shaper_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></shaper_enabled>
             <shaper_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></shaper_dry_run>
+            <!--
+                Upload shaping through ipfw's layer2 hook. Off by default and
+                labelled experimental because it cannot go through the traffic
+                shaper model: the model has no layer2 field, so the rules are raw
+                ipfw and any ipfw reload removes them until the collector puts
+                them back. Only useful where a netmap capture engine hides LAN
+                ingress from the normal hook, which is the only case it is offered.
+            -->
+            <shaper_upload_experimental type="BooleanField"><Default>0</Default><Required>Y</Required></shaper_upload_experimental>
             <service_limits_json type="TextField"><Default>[]</Default><Required>N</Required></service_limits_json>
             <device_limits_json type="TextField"><Default>[]</Default><Required>N</Required></device_limits_json>
             <enforcement_policy type="OptionField"><Default>observe</Default><Required>Y</Required><OptionValues><observe>Observe only</observe><deprioritize>Deprioritize</deprioritize><failover>Failover only</failover><cutoff>Cut off at quota</cutoff></OptionValues></enforcement_policy>

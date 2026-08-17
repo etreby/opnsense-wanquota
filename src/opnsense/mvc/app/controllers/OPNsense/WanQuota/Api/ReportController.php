@@ -95,6 +95,19 @@ class ReportController extends ApiControllerBase
         return $this->runReport('explain ' . escapeshellarg($domain) . ' thirty');
     }
 
+    /**
+     * Live throughput per WAN.
+     *
+     * Read-only and cheap, but it samples the interface counters over a second, so it
+     * is a poll rather than part of the summary: a report that blocks for a second
+     * every time it loads would be worse than a separate call the interface makes only
+     * while someone is watching.
+     */
+    public function throughputAction(): array
+    {
+        return $this->runReport('throughput 1');
+    }
+
     public function metricsAction(): array
     {
         $raw = (new Backend())->configdRun('wanquota metrics');

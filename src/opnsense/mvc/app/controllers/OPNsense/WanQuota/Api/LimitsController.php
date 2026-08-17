@@ -119,7 +119,10 @@ class LimitsController extends ApiControllerBase
              * limits are off, so the interface can say so next to the upload field
              * rather than letting the user configure a cap and wait for nothing.
              */
-            'upload_supported' => empty($interception['active']),
+            'upload_supported' => empty($interception['active'])
+                || !empty($plan['upload_via_layer2']),
+            /* True when uploads are shaped through the experimental layer2 path. */
+            'upload_via_layer2' => !empty($plan['upload_via_layer2']),
             'interception' => $interception,
             'devices' => $rows,
         ];

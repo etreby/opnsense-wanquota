@@ -20,6 +20,26 @@ test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/explain.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/addresses.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/layer2.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/throughput.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/configure.php"
+# Experimental upload shaping installs raw ipfw rules and flips a global sysctl, so
+# the permit-everything rule must exist and must be numbered after the pipe rules:
+# ahead of them it would end layer2 processing before a pipe could match, and absent
+# altogether the system's stock layer2 deny becomes reachable for every frame.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/layer2.py" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+first = int(re.search(r"^RULE_FIRST = (\d+)", source, re.M).group(1))
+safety = int(re.search(r"^SAFETY_RULE = (\d+)", source, re.M).group(1))
+assert first < safety, "the permit rule must come after the pipe rules"
+assert safety < 110, "our layer2 rules must sit below the system's, which start at 110"
+assert "allow" in source and "layer2" in source, "the permit rule is missing"
+PYCHECK
+grep -q "^\[layer2sync\]" "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q "^\[throughput\]" "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q "layer2.sync()" "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
 grep -q '^\[mcp\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q '^\[deviceflush\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'devices.py' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"

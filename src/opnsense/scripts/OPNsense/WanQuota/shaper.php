@@ -356,7 +356,13 @@ foreach ($plan['device_pipes'] ?? [] as $entry) {
         $rule->description = sprintf('WAN quota: %s download', $entry['name']);
         $rule->origin = ORIGIN;
     }
-    if (!empty($entry['upload_pipe'])) {
+    /*
+     * An upload cap taking the layer2 path gets no shaper rule: the model has no
+     * layer2 field, so a rule written here would match at the IP hook, which is
+     * exactly the hook that cannot see the traffic. The pipe is still created above;
+     * layer2.py installs the rule that feeds it.
+     */
+    if (!empty($entry['upload_pipe']) && empty($entry['upload_layer2'])) {
         $upUuid = $pipeUuids[(string)$entry['upload_pipe']] ?? null;
         if ($upUuid !== null) {
             $rule = $model->rules->rule->Add();
@@ -412,6 +418,20 @@ reload_shaper();
  */
 @touch(INSTALLED_MARKER);
 
+/*
+ * Bring the experimental layer2 upload rules in line with what was just installed.
+ * They are raw ipfw and this reload has flushed them, so this is also the moment they
+ * have to be put back.
+ */
+$layer2 = ['status' => 'skipped'];
+exec(escapeshellarg(__DIR__ . '/layer2.py') . ' sync 2>&1', $layer2Output, $layer2Status);
+if ($layer2Status === 0 && $layer2Output) {
+    $decoded = json_decode((string)end($layer2Output), true);
+    if (is_array($decoded)) {
+        $layer2 = $decoded;
+    }
+}
+
 echo json_encode([
     'status' => 'ok',
     'applied' => $applied,
@@ -419,4 +439,5 @@ echo json_encode([
     'removed' => $removed,
     'rejected' => $plan['rejected'] ?? [],
     'device_rejected' => $plan['device_rejected'] ?? [],
+    'layer2' => $layer2,
 ]) . PHP_EOL;

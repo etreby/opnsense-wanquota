@@ -48,6 +48,16 @@ def main():
     except Exception as error:
         result["shaper"] = {"status": "failed", "error": str(error)}
         result["status"] = "degraded"
+    # After the shaper, never before it. Raw layer2 rules do not survive an ipfw
+    # reload, and a re-apply in the step above performs one, so asserting them first
+    # would flush what had just been put in place. Re-asserting them at all is what
+    # keeps an experimental upload cap from working and then silently stopping.
+    try:
+        import layer2
+        result["layer2"] = layer2.sync()
+    except Exception as error:
+        result["layer2"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
     try:
         result["intelligence"] = intelligence.snapshot()
     except Exception as error:

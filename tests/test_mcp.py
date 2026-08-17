@@ -720,6 +720,7 @@ class WritableFieldTests(unittest.TestCase):
         "device_enforcement_dry_run",
         "shaper_enabled",             # limits begin shaping traffic
         "shaper_dry_run",
+        "shaper_upload_experimental",  # installs raw ipfw rules and flips a global sysctl
     }
 
     def writable(self):

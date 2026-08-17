@@ -650,7 +650,8 @@ def netmap_interception(fstat_output=None, device_present=None):
     }
 
 
-def build_device_plan(limits, devices, router=None, interception=None):
+def build_device_plan(limits, devices, router=None, interception=None,
+                      upload_experimental=False):
     """Turn per-device limits into pipes, with every refusal explained.
 
     A device cap is gentler than blocking, but the firewall itself is still never
@@ -662,7 +663,14 @@ def build_device_plan(limits, devices, router=None, interception=None):
     upload_rejected = []
     seen = {}
     number = DEVICE_PIPE_BASE
-    blocked = bool((interception or {}).get("active"))
+    intercepted = bool((interception or {}).get("active"))
+    # With the experimental switch on, an intercepted firewall shapes uploads through
+    # ipfw's layer2 hook instead of refusing them. Measured on hardware: a layer2 rule
+    # counted 3,005 packets / 4.07 MB of a device's uploads in a window where the same
+    # match at layer 3 counted 3 packets, because netmap diverts the traffic before the
+    # IP hook but not before the ethernet hook.
+    via_layer2 = intercepted and bool(upload_experimental)
+    blocked = intercepted and not via_layer2
     for limit in limits or []:
         if not limit.get("enabled", True):
             continue
@@ -735,6 +743,9 @@ def build_device_plan(limits, devices, router=None, interception=None):
             "basis": "explicit" if limit.get("mbit") else str(limit.get("resolution", "")).lower(),
             "pipe": number,
             "upload_pipe": number + 500 if upload_rate is not None else None,
+            # True when the upload cap needs the raw layer2 rule rather than a shaper
+            # rule. shaper.php still creates the pipe; the rule comes from layer2.py.
+            "upload_layer2": bool(via_layer2 and upload_rate is not None),
         })
         number += 1
     return {
@@ -742,6 +753,7 @@ def build_device_plan(limits, devices, router=None, interception=None):
         "device_rejected": rejected,
         "upload_rejected": upload_rejected,
         "interception": interception or {"active": False, "engine": "", "processes": [], "reason": ""},
+        "upload_via_layer2": via_layer2,
         "device_note": (
             "A device limit caps the rate to and from one device, matched on its current "
             "address. Because the address is resolved at apply time, a limit keyed to a "
@@ -994,6 +1006,8 @@ def options():
     return {
         "enabled": consumers.node_text(general, "shaper_enabled", "0") == "1",
         "dry_run": consumers.node_text(general, "shaper_dry_run", "1") == "1",
+        "upload_experimental": consumers.node_text(
+            general, "shaper_upload_experimental", "0") == "1",
         "limits": limits,
         "device_limits": device_limits,
     }
@@ -1026,7 +1040,8 @@ def run():
     except (OSError, ValueError, KeyError):
         pass
     plan.update(build_device_plan(cfg["device_limits"], device_identities(), router,
-                                  interception=netmap_interception()))
+                                  interception=netmap_interception(),
+                                  upload_experimental=cfg.get("upload_experimental")))
     plan["status"] = "ok"
     plan["dry_run"] = cfg["dry_run"]
     if cfg["dry_run"]:
