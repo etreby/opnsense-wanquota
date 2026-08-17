@@ -81,10 +81,15 @@ The plugin ships a read-only MCP server so an AI agent can answer questions abou
 the link ("is either provider going to blow its cap this cycle?", "which device
 drove yesterday's spike?") without being handed shell access to the firewall.
 
-Seven tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
-`wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`, and
-`wanquota_metrics`. The three period-aware tools accept `today`, `week`, `thirty`,
-or `month`.
+Nine tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
+`wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`,
+`wanquota_metrics`, plus `wanquota_device` and `wanquota_site` for drilling into
+one device or one domain without pulling the whole report. Period-aware tools
+accept `today`, `week`, `thirty`, or `month`.
+
+The summary and health reports are also exposed as resources at
+`wanquota://summary` and `wanquota://health`. Every tool declares
+`readOnlyHint`, so a client need not ask before each call.
 
 Guardrail overrides are deliberately **not** exposed. The tool surface cannot
 change routing, set an override, or write any state, so connecting an agent
