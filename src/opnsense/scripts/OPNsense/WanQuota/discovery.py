@@ -121,6 +121,7 @@ def database(path=None):
             status      TEXT NOT NULL DEFAULT 'new',
             belongs_to  TEXT NOT NULL DEFAULT '',
             cappable    INTEGER NOT NULL DEFAULT 0,
+            infrastructure INTEGER NOT NULL DEFAULT 0,
             addresses   INTEGER NOT NULL DEFAULT 0,
             shared      INTEGER NOT NULL DEFAULT 0,
             hostnames   TEXT NOT NULL DEFAULT '[]',
@@ -257,6 +258,10 @@ def candidates(mappings, domain_totals, catalog=None, apps=None, custom=None,
         exclusive, shared, _incidental = shaper.service_addresses(
             (key,), mappings, ())
         belongs = owning_service(addresses, mappings, catalog)
+        # A CDN is not a service anyone means to limit, and it will always be near the
+        # top by traffic, so it is flagged and sorted below real candidates rather than
+        # dominating the list.
+        infrastructure = shaper.is_shared_cdn(key)
         found.append({
             "domain": key,
             "label": label,
@@ -267,13 +272,14 @@ def candidates(mappings, domain_totals, catalog=None, apps=None, custom=None,
             "addresses": len(exclusive),
             "shared": len(shared),
             # Whether accepting it would produce a limit that can actually match.
-            "cappable": bool(exclusive) and not shaper.is_shared_cdn(key),
+            "cappable": bool(exclusive) and not infrastructure,
+            "infrastructure": infrastructure,
             "belongs_to": belongs,
             "bytes_seen": int(moved),
             "first_seen": now,
             "last_seen": now,
         })
-    found.sort(key=lambda item: item["bytes_seen"], reverse=True)
+    found.sort(key=lambda item: (item["infrastructure"], -item["bytes_seen"]))
     return found
 
 
@@ -292,10 +298,12 @@ def record(found, connection=None, now=None):
                     owned.execute(
                         """INSERT INTO discovered_services
                            (domain,label,category,named_from,status,belongs_to,cappable,
-                            addresses,shared,hostnames,bytes_seen,first_seen,last_seen)
-                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?)""",
+                            infrastructure,addresses,shared,hostnames,bytes_seen,
+                            first_seen,last_seen)
+                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?,?)""",
                         (item["domain"], item["label"], item["category"], item["named_from"],
-                         item["belongs_to"], int(item["cappable"]), item["addresses"],
+                         item["belongs_to"], int(item["cappable"]),
+                         int(item.get("infrastructure", False)), item["addresses"],
                          item["shared"], json.dumps(item["hostnames"]), item["bytes_seen"],
                          now, now))
                     added += 1
@@ -304,10 +312,12 @@ def record(found, connection=None, now=None):
                     # ignored candidate stays ignored instead of returning every run.
                     owned.execute(
                         """UPDATE discovered_services SET label=?,category=?,named_from=?,
-                               belongs_to=?,cappable=?,addresses=?,shared=?,hostnames=?,
-                               bytes_seen=?,last_seen=? WHERE domain=?""",
+                               belongs_to=?,cappable=?,infrastructure=?,addresses=?,
+                               shared=?,hostnames=?,bytes_seen=?,last_seen=?
+                           WHERE domain=?""",
                         (item["label"], item["category"], item["named_from"],
-                         item["belongs_to"], int(item["cappable"]), item["addresses"],
+                         item["belongs_to"], int(item["cappable"]),
+                         int(item.get("infrastructure", False)), item["addresses"],
                          item["shared"], json.dumps(item["hostnames"]), item["bytes_seen"],
                          now, item["domain"]))
                     updated += 1
@@ -334,6 +344,7 @@ def listing(status=None, connection=None):
     for row in rows:
         item = dict(row)
         item["cappable"] = bool(item["cappable"])
+        item["infrastructure"] = bool(item.get("infrastructure"))
         try:
             item["hostnames"] = json.loads(item["hostnames"])
         except ValueError:

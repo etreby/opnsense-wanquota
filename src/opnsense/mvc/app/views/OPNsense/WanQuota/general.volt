@@ -655,7 +655,11 @@ function renderDiscovered(data) {
               + esc('Most of its addresses already serve that service, so this is likely one of its delivery domains rather than a new service.')
               + '">' + esc('likely part of ' + row.belongs_to) + '</small>'
             : '';
-        html += '<tr><td><b>' + esc(row.label) + '</b>'
+        html += '<tr' + (row.infrastructure ? ' class="wq-limit-off"' : '') + '>'
+             +  '<td><b>' + esc(row.label) + '</b>'
+             +  (row.infrastructure ? ' <span class="wq-pill" title="'
+                  + esc('A shared CDN, not a service anyone means to limit.') + '">'
+                  + esc('infrastructure') + '</span>' : '')
              +  '<br><small class="wq-muted">' + esc(row.domain) + ' · ' + esc(row.category)
              +  '</small>' + belongs + '</td>'
              +  '<td>' + esc(bytesLabel(row.bytes_seen)) + '</td>'

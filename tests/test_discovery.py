@@ -223,3 +223,48 @@ class SeedTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InfrastructureTests(unittest.TestCase):
+    """CDNs must never be offered as cappable services.
+
+    The first live run of discovery on a real network proposed cloudflare.net as a
+    service moving 2.4 GB that could safely be capped. cloudflare.com was in the
+    shared-infrastructure list and cloudflare.net — the domain that actually serves the
+    content — was not. Capping it would have throttled a large share of the internet.
+    These are the domains that run surfaced, ranked by traffic.
+    """
+
+    OBSERVED = ("fastly.net", "cloudflare.net", "akamai.net", "cloudfront.net",
+                "edgesuite.net", "mcr-msedge.net")
+
+    def test_every_cdn_the_live_run_surfaced_is_recognised(self):
+        import shaper
+        for domain in self.OBSERVED:
+            self.assertTrue(shaper.is_shared_cdn(domain),
+                            f"{domain} would be offered as a cappable service")
+
+    def test_a_cdn_candidate_is_flagged_and_not_cappable(self):
+        pairs = [("a.cloudflare.net", "198.51.100.1"), ("b.cloudflare.net", "198.51.100.2")]
+        totals = [{"domain": "a.cloudflare.net", "total": 2400 * MB}]
+        found = DISCOVERY.candidates(pairs, totals, minimum_bytes=5 * MB, now=1)
+        item = next(i for i in found if i["domain"] == "cloudflare.net")
+        self.assertTrue(item["infrastructure"])
+        self.assertFalse(item["cappable"])
+
+    def test_infrastructure_sorts_below_real_candidates_despite_more_traffic(self):
+        """A CDN always leads on volume, so volume must not decide the order."""
+        pairs = [("a.cloudflare.net", "198.51.100.1"), ("b.cloudflare.net", "198.51.100.2"),
+                 ("media.viber.com", "203.0.113.1"), ("cdn.viber.com", "203.0.113.2")]
+        totals = [{"domain": "a.cloudflare.net", "total": 2400 * MB},
+                  {"domain": "media.viber.com", "total": 100 * MB}]
+        found = DISCOVERY.candidates(pairs, totals, minimum_bytes=5 * MB, now=1)
+        self.assertEqual(found[0]["domain"], "viber.com")
+        self.assertEqual(found[-1]["domain"], "cloudflare.net")
+
+    def test_a_real_service_is_not_flagged_as_infrastructure(self):
+        pairs = [("media.viber.com", "203.0.113.1"), ("cdn.viber.com", "203.0.113.2")]
+        totals = [{"domain": "media.viber.com", "total": 100 * MB}]
+        found = DISCOVERY.candidates(pairs, totals, minimum_bytes=5 * MB, now=1)
+        self.assertFalse(found[0]["infrastructure"])
+        self.assertTrue(found[0]["cappable"])

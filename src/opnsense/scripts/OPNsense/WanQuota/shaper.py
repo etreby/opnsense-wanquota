@@ -206,6 +206,16 @@ SHARED_CDN_SUFFIXES = (
     "akamaihd.net", "akadns.net", "fastly.net", "fastlylb.net", "edgekey.net",
     "edgesuite.net", "cloudfront.net", "gstatic.com", "googleusercontent.com",
     "googleapis.com", "amazonaws.com", "azureedge.net", "windows.net",
+    # Added after service discovery offered these as cappable services on a live
+    # network. cloudflare.net was the dangerous one: cloudflare.com was listed but
+    # cloudflare.net is the CDN domain that actually serves content, and it was
+    # presented as a service moving 2.4 GB that could safely be capped. Capping it
+    # would have throttled a large share of the internet.
+    "cloudflare.net", "cloudflarestorage.com", "msedge.net", "mcr-msedge.net",
+    "azurefd.net", "trafficmanager.net", "llnwd.net", "cachefly.net",
+    "edgecastcdn.net", "stackpathdns.com", "b-cdn.net", "cdn77.org",
+    "incapdns.net", "impervadns.net", "digitaloceanspaces.com", "wasabisys.com",
+    "googlehosted.com", "1e100.net", "oraclecloud.com", "awsglobalaccelerator.com",
 )
 
 
