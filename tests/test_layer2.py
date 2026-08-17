@@ -186,3 +186,64 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SwitchReleaseTests(unittest.TestCase):
+    """Turning the feature off must turn the global switch off.
+
+    Found on a live firewall: after removing the last upload cap, the rules were gone
+    but net.link.ether.ipfw was still 1. An ipfw reload had already flushed the rules,
+    so sync saw none present and returned without touching the switch — leaving layer2
+    filtering enabled with no permit rule, which makes the system's stock layer2 deny
+    reachable for every frame. That is the exact state the install ordering exists to
+    prevent, reached by the release path instead.
+    """
+
+    def runner_with_switch(self, value, listing=""):
+        calls = []
+
+        def runner(command):
+            calls.append(command)
+            if command[:2] == ["/sbin/sysctl", "-n"]:
+                return 0, f"{value}\n"
+            if command[:3] == ["/sbin/ipfw", "-a", "list"]:
+                return 0, listing
+            return 0, ""
+
+        return calls, runner
+
+    def test_the_switch_is_turned_off_even_when_no_rules_remain(self):
+        calls, runner = self.runner_with_switch("1")
+        original = LAYER2._listing
+        LAYER2._listing = lambda runner=None: ""
+        try:
+            result = LAYER2.sync({"status": "disabled"}, runner)
+        finally:
+            LAYER2._listing = original
+        self.assertEqual(result["action"], "removed")
+        joined = [" ".join(call) for call in calls]
+        self.assertTrue(any("net.link.ether.ipfw=0" in c for c in joined),
+                        "a flushed rule set must not leave the switch on")
+
+    def test_an_already_clean_firewall_is_left_untouched(self):
+        calls, runner = self.runner_with_switch("0")
+        original = LAYER2._listing
+        LAYER2._listing = lambda runner=None: ""
+        try:
+            result = LAYER2.sync({"status": "disabled"}, runner)
+        finally:
+            LAYER2._listing = original
+        self.assertEqual(result["action"], "none")
+        self.assertFalse(any("delete" in call for call in calls),
+                         "nothing to do means no work every five minutes")
+
+    def test_the_switch_state_is_read_not_assumed(self):
+        _calls, runner = self.runner_with_switch("1")
+        self.assertTrue(LAYER2.switch_enabled(runner))
+        _calls, runner = self.runner_with_switch("0")
+        self.assertFalse(LAYER2.switch_enabled(runner))
+
+    def test_an_unreadable_sysctl_does_not_claim_it_is_on(self):
+        def broken(command):
+            return 1, "sysctl: unknown oid"
+        self.assertFalse(LAYER2.switch_enabled(broken))

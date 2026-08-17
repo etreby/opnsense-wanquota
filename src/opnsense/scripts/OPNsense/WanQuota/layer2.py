@@ -110,6 +110,18 @@ def _listing(runner=None):
     return output if status == 0 else ""
 
 
+def switch_enabled(runner=None):
+    """Whether layer2 filtering is currently on.
+
+    Read rather than assumed, because the switch outlives our rules: an ipfw reload
+    removes them and leaves it set.
+    """
+    status, output = _run(["/sbin/sysctl", "-n", SYSCTL], runner)
+    if status != 0:
+        return False
+    return (output or "").strip().endswith("1")
+
+
 def remove(runner=None):
     """Take the rules out and put the global switch back."""
     for number in range(RULE_FIRST, RULE_LAST + 1):
@@ -174,9 +186,17 @@ def sync(plan=None, runner=None):
             return {"status": "ok", "action": "none", "reason": "no plan to act on"}
     wanted = desired_rules(document)
     if (document.get("status") != "ok" or document.get("dry_run")) or not wanted:
-        # Nothing should be installed: releasing is as important as installing.
+        # Nothing should be installed, and releasing matters more than installing.
+        #
+        # Gating this on our rules still being present was wrong and left the firewall
+        # in the one state the ordering exists to prevent. An ipfw reload flushes the
+        # rules, so after turning the feature off there was nothing left to notice:
+        # sync saw none present, returned early, and left the global switch on with no
+        # permit rule — which makes the system's stock layer2 deny reachable for every
+        # frame. The switch is now read directly, so it is turned off whether or not
+        # anything of ours survived.
         present = installed_rules(_listing(runner))
-        if present:
+        if present or switch_enabled(runner):
             remove(runner)
             return {"status": "ok", "action": "removed", "rules": []}
         return {"status": "ok", "action": "none"}
