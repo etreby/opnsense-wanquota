@@ -84,11 +84,11 @@ The plugin ships a read-only MCP server so an AI agent can answer questions abou
 the link ("is either provider going to blow its cap this cycle?", "which device
 drove yesterday's spike?") without being handed shell access to the firewall.
 
-Ten tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
+Eleven tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
 `wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`,
 `wanquota_metrics`, plus `wanquota_device`, `wanquota_site` and
-`wanquota_categories` for drilling into one device, one domain, or the app
-category split without pulling the whole report. Period-aware tools
+`wanquota_categories` and `wanquota_category` for drilling into one device, one
+domain, or one app category without pulling the whole report. Period-aware tools
 accept `today`, `week`, `thirty`, or `month`.
 
 The summary and health reports are also exposed as resources at
@@ -209,7 +209,18 @@ Only the top ten categories are listed; the rest are folded into one `Others` ro
 that says how many categories it covers, so the chart stays readable without
 hiding the tail. Add your own suffixes with `domain_categories_json` in Settings.
 
-Agents can read the same breakdown through the `wanquota_categories` MCP tool.
+Click a slice or a share row to see what the category is made of: its sites ranked
+by bytes, and the devices that used them. Both lists link onward, so a site opens
+its device breakdown and a device opens its site list. `Others` is a rollup rather
+than a category, so it is not clickable.
+
+Device totals in that panel count only the category's sites, and can sum to less
+than the category total: the device/site matrix is capped independently of the
+domain list, so a site counted in the category may have no matrix row. The panel
+reports both figures rather than implying they agree.
+
+Agents can read the same data through `wanquota_categories` and drill in with
+`wanquota_category`.
 
 ## Per-device budget enforcement
 
