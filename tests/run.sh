@@ -75,6 +75,14 @@ if grep -qE '(bandwidth|bandwidthMetric) = .*\$entry\[.(upload_)?mbit' \
 fi
 grep -q 'function bandwidth_of' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
 grep -q 'def bandwidth_fields' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+# The running rule matches a snapshot of addresses from apply time. A service cap
+# whose CDN moves then holds none of the addresses in use, so the collector must
+# re-apply when the shaped set changes; without this the feature works only until
+# the CDN rotates.
+grep -q 'shaper.sync()' "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
+grep -q 'def plan_fingerprint' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+grep -q '^\[shapersync\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q 'co_delivery' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'def netmap_interception' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'upload_rejected' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 # A disabled upload field must still render the configured rate. Saving reads

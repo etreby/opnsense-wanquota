@@ -6,8 +6,11 @@ does nothing, so both are reported rather than quietly accepted.
 """
 
 import importlib.util
+import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 SOURCE_DIR = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota"
@@ -371,6 +374,85 @@ class BandwidthFieldTests(unittest.TestCase):
         entry = plan["device_pipes"][0]
         self.assertEqual((entry["bandwidth"], entry["bandwidth_metric"]), (6, "Mbit"))
         self.assertIsNone(entry["upload_bandwidth"])
+
+
+class SyncTests(unittest.TestCase):
+    """A cap must follow its addresses, and must not re-apply for no reason.
+
+    The running rule matches a snapshot taken when the plan was applied. Measured on
+    a live network, a 720p YouTube stream ran untouched past a 0.5 Mbit cap because
+    it used a cache node learned after the last apply. Applying rewrites the
+    configuration and reloads services, so it has to happen when the shaped set
+    changes and not otherwise.
+    """
+
+    def plan(self, addresses, mbit=3, status="ok"):
+        return {"status": status, "dry_run": False,
+                "pipes": [{"service": "youtube", "bandwidth": mbit,
+                           "bandwidth_metric": "Mbit", "addresses": list(addresses)}],
+                "device_pipes": []}
+
+    def test_a_new_address_requires_applying(self):
+        before = SHAPER.plan_fingerprint(self.plan(["1.1.1.1"]))
+        self.assertTrue(SHAPER.needs_apply(self.plan(["1.1.1.1", "2.2.2.2"]), before))
+
+    def test_an_unchanged_set_does_not(self):
+        before = SHAPER.plan_fingerprint(self.plan(["1.1.1.1", "2.2.2.2"]))
+        self.assertFalse(SHAPER.needs_apply(self.plan(["2.2.2.2", "1.1.1.1"]), before),
+                         "order must not count as a change")
+
+    def test_a_rate_change_requires_applying(self):
+        before = SHAPER.plan_fingerprint(self.plan(["1.1.1.1"], mbit=3))
+        self.assertTrue(SHAPER.needs_apply(self.plan(["1.1.1.1"], mbit=5), before))
+
+    def test_becoming_disabled_requires_applying_so_the_limit_is_released(self):
+        before = SHAPER.plan_fingerprint(self.plan(["1.1.1.1"]))
+        after = {"status": "disabled", "pipes": [], "device_pipes": []}
+        self.assertTrue(SHAPER.needs_apply(after, before))
+
+    def test_switching_to_dry_run_requires_applying(self):
+        before = SHAPER.plan_fingerprint(self.plan(["1.1.1.1"]))
+        after = self.plan(["1.1.1.1"])
+        after["dry_run"] = True
+        self.assertTrue(SHAPER.needs_apply(after, before))
+
+    def test_a_device_limit_change_requires_applying(self):
+        base = {"status": "ok", "dry_run": False, "pipes": [],
+                "device_pipes": [{"device": "192.168.1.32", "bandwidth": 3,
+                                  "bandwidth_metric": "Mbit", "upload_bandwidth": None,
+                                  "upload_bandwidth_metric": None}]}
+        before = SHAPER.plan_fingerprint(base)
+        changed = json.loads(json.dumps(base))
+        changed["device_pipes"][0]["bandwidth"] = 6
+        self.assertTrue(SHAPER.needs_apply(changed, before))
+
+    def test_a_failed_apply_is_not_recorded_so_it_is_retried(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "applied.json")
+            SHAPER.write_applied("something-old", path)
+            SHAPER.run = lambda: self.plan(["9.9.9.9"])
+            result = SHAPER.sync(applied_path=path,
+                                 runner=lambda: {"ok": False, "detail": "boom"})
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(SHAPER.read_applied(path), "something-old",
+                             "a failed apply must not be recorded as applied")
+
+    def test_a_successful_apply_is_recorded_and_not_repeated(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "applied.json")
+            document = self.plan(["9.9.9.9"])
+            SHAPER.run = lambda: document
+            calls = []
+            first = SHAPER.sync(applied_path=path,
+                                runner=lambda: (calls.append(1), {"ok": True})[1])
+            self.assertTrue(first["applied"])
+            second = SHAPER.sync(applied_path=path,
+                                 runner=lambda: (calls.append(1), {"ok": True})[1])
+            self.assertFalse(second["applied"], "an unchanged plan must not re-apply")
+            self.assertEqual(len(calls), 1)
+
+    def test_a_missing_record_reads_as_absent_not_as_a_crash(self):
+        self.assertIsNone(SHAPER.read_applied("/nonexistent/path/applied.json"))
 
 
 class InterceptionTests(unittest.TestCase):

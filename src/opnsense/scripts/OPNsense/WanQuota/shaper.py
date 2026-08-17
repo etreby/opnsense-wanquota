@@ -27,6 +27,7 @@ because pipes and rules live in the OPNsense TrafficShaper model, and the model 
 what makes ipfw load safely through the system's own rc scripts.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -712,6 +713,91 @@ def verify(listing=None, interception=None):
     }
 
 
+APPLIED_PATH = os.path.join(STATE_DIR, "shaper-applied.json")
+
+
+def plan_fingerprint(plan):
+    """A digest of everything about a plan that changes what gets shaped.
+
+    Addresses are included, not just rates: a service cap is only as good as the
+    address set behind it, and that set moves. YouTube hands out per-session cache
+    nodes, so a cap applied an hour ago can hold none of the addresses a new stream
+    uses — measured exactly that way, a 720p stream ran untouched past a 0.5 Mbit
+    cap until the plan was applied again with the node it was using.
+    """
+    material = {
+        "status": plan.get("status"),
+        "dry_run": bool(plan.get("dry_run")),
+        "services": sorted(
+            [entry["service"], entry["bandwidth"], entry["bandwidth_metric"],
+             sorted(entry.get("addresses") or ())]
+            for entry in plan.get("pipes") or ()),
+        "devices": sorted(
+            [entry["device"], entry["bandwidth"], entry["bandwidth_metric"],
+             entry.get("upload_bandwidth"), entry.get("upload_bandwidth_metric")]
+            for entry in plan.get("device_pipes") or ()),
+    }
+    return hashlib.sha256(
+        json.dumps(material, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def read_applied(path=None):
+    try:
+        with open(path or APPLIED_PATH, encoding="utf-8") as handle:
+            return json.load(handle).get("fingerprint")
+    except (OSError, ValueError):
+        return None
+
+
+def write_applied(fingerprint, path=None):
+    target = path or APPLIED_PATH
+    os.makedirs(os.path.dirname(target), mode=0o750, exist_ok=True)
+    with open(target, "w", encoding="utf-8") as handle:
+        json.dump({"fingerprint": fingerprint}, handle)
+
+
+def needs_apply(plan, previous):
+    """Whether the running shaper no longer matches the plan.
+
+    Applying rewrites the configuration and reloads services, so it is done only
+    when something that affects shaping actually changed. A change to 'disabled' or
+    to dry-run counts, because that is how a limit gets released.
+    """
+    return plan_fingerprint(plan) != previous
+
+
+def sync(applied_path=None, runner=None):
+    """Recompute the plan and apply it if what should be shaped has changed.
+
+    Called from the five-minute collector, so a service cap follows its addresses
+    instead of decaying into a rule that matches nothing. Without this the feature
+    only works until the CDN moves.
+    """
+    plan = run()
+    fingerprint = plan_fingerprint(plan)
+    previous = read_applied(applied_path)
+    if fingerprint == previous:
+        return {"status": "ok", "applied": False, "reason": "nothing that affects shaping changed"}
+    invoke = runner or _apply_now
+    result = invoke()
+    if result.get("ok"):
+        write_applied(fingerprint, applied_path)
+    return {"status": "ok" if result.get("ok") else "failed", "applied": bool(result.get("ok")),
+            "addresses": sum(len(e.get("addresses") or ()) for e in plan.get("pipes") or ()),
+            "detail": result.get("detail", "")}
+
+
+def _apply_now():
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "shaper.php")
+    try:
+        done = subprocess.run(["/usr/local/bin/php", script, "apply"],
+                              capture_output=True, text=True, timeout=180)
+    except Exception as error:
+        return {"ok": False, "detail": str(error)}
+    return {"ok": done.returncode == 0,
+            "detail": (done.stdout or done.stderr or "").strip()[-400:]}
+
+
 def write_plan(document):
     os.makedirs(STATE_DIR, mode=0o750, exist_ok=True)
     with open(PLAN_PATH, "w", encoding="utf-8") as handle:
@@ -786,6 +872,9 @@ def main():
     if mode == "devices":
         print(json.dumps({"status": "ok", "devices": device_identities()},
                          separators=(",", ":")))
+        return
+    if mode == "sync":
+        print(json.dumps(sync(), separators=(",", ":")))
         return
     if mode == "verify":
         print(json.dumps(verify(), separators=(",", ":")))

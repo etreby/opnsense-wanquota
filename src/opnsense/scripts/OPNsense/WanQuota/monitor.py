@@ -37,6 +37,17 @@ def main():
     except Exception as error:
         result["addresses"] = {"status": "failed", "error": str(error)}
         result["status"] = "degraded"
+    # Refreshing the address book is not enough on its own: the running rule matches a
+    # snapshot of addresses taken when the plan was applied. Measured on a live
+    # network, a 720p YouTube stream ran untouched past a 0.5 Mbit cap because it used
+    # a cache node learned after the last apply — the cap was correct and simply did
+    # not contain the address. Re-applying when, and only when, the shaped set has
+    # changed keeps a service cap tracking its CDN instead of decaying.
+    try:
+        result["shaper"] = shaper.sync()
+    except Exception as error:
+        result["shaper"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
     try:
         result["intelligence"] = intelligence.snapshot()
     except Exception as error:
