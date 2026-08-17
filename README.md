@@ -47,6 +47,10 @@ quota reporting and top-consumer visibility.
   firewalls where a netmap capture engine makes upload caps otherwise impossible.
 - Live per-WAN download and upload rates, and a per-WAN ranking of the devices using
   it most.
+- Service discovery: proposes services the catalogue does not know yet from observed
+  DNS and attributed traffic, says whether each could actually be capped, spots new
+  delivery domains for services already known, and makes an accepted candidate
+  limitable.
 - Apps breakdown: share per application as a pie chart and table, with unnamed
   traffic grouped by transport rather than hidden in one remainder.
 - Live sessions tab showing conversations open right now, read from the firewall
@@ -581,6 +585,52 @@ A WAN name is a link — in the Summary cards, the Intelligence cards and the pe
 table — and opens a ranking of every device attributed to that WAN with its share.
 Ranking uses attributed flow totals, so a device on encrypted DNS or a VPN is
 under-represented.
+
+## Service discovery
+
+The catalogue used to be hand-written, so a service nobody had added was invisible to
+limits however much traffic it moved. Worse, the app classifier that *does* name
+WhatsApp and Telegram feeds reporting only — neither could ever be capped.
+
+**Limits → By service → Discovered services** proposes services the network is using
+that nothing in the catalogue accounts for. This is not a language model and nothing
+leaves the firewall: it is inference over two things already collected — the domains
+devices resolved through Unbound, and the bytes the flow database attributes to them.
+
+Each candidate carries the evidence behind it: how it was named, how many hostnames
+and addresses were seen, how much traffic it moved, and **whether it could actually be
+capped**. A recognised domain gets its proper name and category from a seed table
+(WhatsApp, Viber, Telegram, Snapchat, Signal, Zoom, Reddit, Roblox and others).
+Anything unrecognised is named after its own domain and says so, because guessing a
+friendly name from an unknown domain produces confident nonsense.
+
+Address overlap answers a second question. If most of a candidate's addresses are
+already served by a catalogued service, it is far more likely a new delivery domain for
+that service than a service of its own, and it is reported that way. On the first live
+run this correctly identified `nflxso.net` as *likely part of netflix* — a Netflix
+domain nobody had listed. That comparison uses observed addresses rather than cappable
+ones on purpose: the cappable set excludes any address shared with another name, and
+the new domain being investigated is exactly such a name, so using it found no owner
+ever.
+
+**Accepting is what makes a service limitable.** An accepted candidate joins the
+shaper catalogue, so it appears in the service list with the built-ins and can be
+capped; verified end to end, the catalogue went from 23 services to 24. Nothing is
+applied on its own, because shaping the wrong thing throttles traffic the household
+needs. An ignored candidate stays ignored while its evidence keeps refreshing — a
+discovery feature that nags is one that gets switched off.
+
+### CDNs are not services
+
+The first live run proposed `cloudflare.net` as a service moving 2.4 GB that could
+safely be capped. `cloudflare.com` was in the shared-infrastructure list and
+`cloudflare.net` — the domain that actually serves content — was not. Capping it would
+have throttled a large share of the internet, and `mcr-msedge.net` was offered the same
+way.
+
+Both are now recognised, with a test asserting every CDN that run surfaced. Discovery
+also flags infrastructure and lists it last: the top four candidates by traffic were
+all CDNs, so volume must not decide the order or the list is useless for its purpose.
 
 ### Verify
 
