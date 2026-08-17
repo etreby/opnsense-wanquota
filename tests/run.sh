@@ -21,6 +21,12 @@ test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/explain.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/addresses.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/layer2.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/discovery.py"
+# A discovered service is only worth finding if accepting it makes it cappable, so the
+# shaper catalog must be the union of the built-ins and what was accepted.
+grep -q "def full_catalog" "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+grep -q "discovery.accepted_services" "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+grep -q "^\[discoveryaccept\]" "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/throughput.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/configure.php"
 # Experimental upload shaping installs raw ipfw rules and flips a global sysctl, so

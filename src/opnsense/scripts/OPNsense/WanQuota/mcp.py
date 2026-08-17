@@ -783,6 +783,43 @@ def _run_configure(script, instruction):
         return {"status": "failed", "error": text[:400] or "unreadable result"}
 
 
+def tool_discovered(arguments):
+    """Services the network uses that the catalog does not know yet."""
+    import discovery
+    if arguments.get("rescan"):
+        return discovery.run(_period(arguments))
+    return {"status": "ok", "services": discovery.listing(arguments.get("status") or None),
+            "note": (
+                "Inferred from observed DNS answers and attributed flow bytes on this "
+                "firewall. A candidate with cappable=false cannot be limited even if "
+                "accepted, because its addresses are shared with unrelated traffic. A "
+                "belongs_to value means most of its addresses already serve that "
+                "service, so it is likely a new delivery domain rather than a new "
+                "service."
+            )}
+
+
+def tool_decide_service(arguments):
+    """Accept a discovered service so it can be limited, or ignore it."""
+    import discovery
+    domain = str(arguments.get("domain") or "").strip().lower()
+    decision = str(arguments.get("decision") or "").strip().lower()
+    if not domain:
+        raise InvalidParams("domain is required")
+    if decision not in ("accept", "ignore", "reset"):
+        raise InvalidParams("decision must be accept, ignore or reset")
+    state = {"accept": "accepted", "ignore": "ignored", "reset": "new"}[decision]
+    try:
+        result = discovery.set_status(domain, state)
+    except ValueError as error:
+        raise InvalidParams(str(error))
+    # Accepting changes the catalog, so the plan has to be recomputed for the new
+    # service to cap anything.
+    if state == "accepted":
+        result["shaper"] = shaper.sync()
+    return result
+
+
 def tool_settings(_arguments):
     """Current plugin settings, with credentials withheld."""
     try:
@@ -874,6 +911,54 @@ _STATE_PROPERTIES = {
 }
 
 WRITE_TOOLS = (
+    {
+        "name": "wanquota_discovered_services",
+        "title": "Discovered services",
+        "description": (
+            "Services seen on this network that the catalogue does not know yet, "
+            "inferred from observed DNS answers and attributed traffic — this is how a "
+            "messenger or regional streaming service turns up without anyone adding it "
+            "by hand. Each candidate reports how it was named, how much traffic it "
+            "moved, whether it could actually be capped, and whether its addresses "
+            "belong to a service already known. Pass rescan to look again before "
+            "reading. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "status": {"type": "string", "enum": ["new", "accepted", "ignored"],
+                           "description": "Filter by decision. Omit for all."},
+                "rescan": {"type": "boolean",
+                           "description": "Scan for new candidates first."},
+                "period": _PERIOD_SCHEMA["properties"]["period"],
+            },
+            "additionalProperties": False,
+        },
+        "handler": tool_discovered,
+    },
+    {
+        "name": "wanquota_decide_service",
+        "title": "Accept or ignore a discovered service",
+        "description": (
+            "Accept a discovered service, which adds it to the catalogue so a limit can "
+            "be set on it and applies the plan, or ignore it so it stops being offered. "
+            "Accepting something whose addresses are shared with unrelated traffic will "
+            "produce a limit that is then refused, so check cappable first. Use reset to "
+            "undo a decision."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "domain": {"type": "string",
+                           "description": "The registrable domain as discovered, e.g. viber.com."},
+                "decision": {"type": "string", "enum": ["accept", "ignore", "reset"]},
+            },
+            "required": ["domain", "decision"],
+            "additionalProperties": False,
+        },
+        "annotations": WRITE_ANNOTATIONS,
+        "handler": tool_decide_service,
+    },
     {
         "name": "wanquota_settings",
         "title": "Read plugin settings",

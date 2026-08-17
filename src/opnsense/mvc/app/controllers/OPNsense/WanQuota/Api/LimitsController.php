@@ -146,6 +146,58 @@ class LimitsController extends ApiControllerBase
         return $result;
     }
 
+    /**
+     * Services seen on the network that the catalog does not know yet.
+     *
+     * Read-only. Accepting one is a separate call, because accepting makes it
+     * shapeable and shaping the wrong thing throttles traffic the household needs.
+     */
+    public function discoveredAction(): array
+    {
+        $backend = new Backend();
+        if ($this->request->isPost() && $this->request->getPost('rescan')) {
+            $backend->configdRun('wanquota discoveryscan thirty');
+        }
+        $result = json_decode($backend->configdRun('wanquota discoverylist'), true);
+        if (!is_array($result)) {
+            return ['status' => 'failed', 'services' => [],
+                    'error' => 'Discovery data is unavailable'];
+        }
+        return $result;
+    }
+
+    /** Accept or ignore a discovered service. */
+    public function decideAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $domain = preg_replace('/[^a-z0-9.\-]/', '', strtolower((string)$this->request->getPost('domain')));
+        $decision = (string)$this->request->getPost('decision');
+        if ($domain === '') {
+            return ['status' => 'failed', 'error' => 'A domain is required'];
+        }
+        if (!in_array($decision, ['accept', 'ignore'], true)) {
+            return ['status' => 'failed', 'error' => 'Decision must be accept or ignore'];
+        }
+        $backend = new Backend();
+        $raw = $backend->configdRun('wanquota discovery' . $decision . ' ' . escapeshellarg($domain));
+        $result = json_decode($raw, true);
+        if (!is_array($result) || ($result['status'] ?? '') !== 'ok') {
+            return ['status' => 'failed',
+                    'error' => $result['error'] ?? 'The decision could not be recorded'];
+        }
+        /*
+         * An accepted service joins the catalog, which changes what the plan matches,
+         * so the plan is recomputed and applied. Without this the new service would sit
+         * in the catalog capping nothing until something else triggered an apply.
+         */
+        if ($decision === 'accept') {
+            $result['shaper'] = trim((string)$backend->configdRun('wanquota shapersync'));
+        }
+        return $result;
+    }
+
     /** Save per-device limits and apply. */
     public function setDevicesAction(): array
     {

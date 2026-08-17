@@ -326,6 +326,25 @@ def collapse_into_prefixes(addresses, prefixes):
     return sorted(prefixes) + kept
 
 
+def full_catalog():
+    """The built-in services plus any discovered service the user accepted.
+
+    Discovery is only worth having if an accepted candidate becomes something the
+    Limits tab can cap, so the catalog is the union rather than the hard-coded list.
+    A discovery failure must not take the built-in services with it, so it fails soft.
+    """
+    catalog = dict(STREAMING_SERVICES)
+    try:
+        import discovery
+        for key, entry in discovery.accepted_services().items():
+            # A built-in definition always wins: it carries co-delivery domains and
+            # curated suffixes that a single discovered domain does not.
+            catalog.setdefault(key, entry)
+    except Exception:
+        pass
+    return catalog
+
+
 def bandwidth_fields(mbit):
     """An integral bandwidth and its metric, for the shaper model.
 
@@ -451,7 +470,7 @@ def build_plan(limits, mappings, catalog=None, stored=None):
     lets a service be capped before any device happens to resolve it. Addresses
     shared with other names are still excluded, whichever source produced them.
     """
-    catalog = catalog or STREAMING_SERVICES
+    catalog = catalog if catalog is not None else full_catalog()
     entries = []
     rejected = []
     number = PIPE_BASE
@@ -1069,8 +1088,9 @@ def main():
     if mode == "catalog":
         print(json.dumps({
             "services": [{"service": key, "label": item["label"],
-                          "suffixes": list(item["suffixes"])}
-                         for key, item in sorted(STREAMING_SERVICES.items())],
+                          "suffixes": list(item["suffixes"]),
+                          "discovered": bool(item.get("discovered"))}
+                         for key, item in sorted(full_catalog().items())],
             "resolutions": RESOLUTION_PRESETS,
         }, separators=(",", ":")))
         return

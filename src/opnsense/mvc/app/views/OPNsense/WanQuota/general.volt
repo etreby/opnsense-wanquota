@@ -94,6 +94,12 @@
           <button id="saveLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
         </div>
         <div id="limitStatus"></div>
+        <div class="wq-action-box" style="margin-bottom:12px">
+          <b>{{ lang._('Discovered services') }}</b>
+          <span class="wq-muted">{{ lang._('Found from observed DNS answers and attributed traffic on this firewall. Accepting one adds it to the catalogue so it can be limited.') }}</span>
+          <button id="rescanDiscovery" class="btn btn-default" style="margin-left:auto"><i class="fa fa-search"></i> {{ lang._('Look again') }}</button>
+        </div>
+        <div id="discoveredServices" class="wq-table-wrap" style="margin-bottom:16px"></div>
         <div id="limitCards" class="wq-grid"></div>
         <p class="wq-muted">{{ lang._('A cap bounds what a player can sustain; it does not select a resolution. Coverage is partial: a device using encrypted DNS, a VPN or ECH is not matched and runs uncapped.') }}</p>
         </div>
@@ -614,6 +620,82 @@ function filterSessions() {
 function refreshSessions() { ajaxCall('/api/wanquota/report/sessions', {}, renderSessions); }
 
 let limitData = null;
+/*
+ * Services the catalogue does not know yet.
+ *
+ * Deliberately a proposal with its evidence rather than something applied: accepting a
+ * candidate makes it shapeable, and shaping the wrong thing throttles traffic the
+ * household needs. A candidate that cannot be capped says so before anyone accepts it,
+ * because accepting it would produce a limit the planner then refuses.
+ */
+function renderDiscovered(data) {
+    $('#rescanDiscovery').prop('disabled', false);
+    const rows = (data.services || []).filter(item => item.status === 'new');
+    if (data.status !== 'ok') {
+        $('#discoveredServices').html('<div class="alert alert-danger">'
+            + esc(data.error || 'Discovery data is unavailable') + '</div>');
+        return;
+    }
+    if (!rows.length) {
+        $('#discoveredServices').html('<div class="alert alert-info">'
+            + esc('Nothing new. Every service moving real traffic is already known.')
+            + '</div>');
+        return;
+    }
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th>{{ lang._("Service") }}</th><th>{{ lang._("Traffic") }}</th>'
+             + '<th>{{ lang._("Evidence") }}</th><th>{{ lang._("Can be limited") }}</th>'
+             + '<th></th></tr></thead><tbody>';
+    for (const row of rows) {
+        const named = row.named_from === 'known domain'
+            ? '<span class="wq-pill wq-pill-ok">' + esc('recognised') + '</span>'
+            : '<span class="wq-pill">' + esc('named after its domain') + '</span>';
+        const belongs = row.belongs_to
+            ? '<br><small class="wq-pill wq-pill-warn" title="'
+              + esc('Most of its addresses already serve that service, so this is likely one of its delivery domains rather than a new service.')
+              + '">' + esc('likely part of ' + row.belongs_to) + '</small>'
+            : '';
+        html += '<tr><td><b>' + esc(row.label) + '</b>'
+             +  '<br><small class="wq-muted">' + esc(row.domain) + ' · ' + esc(row.category)
+             +  '</small>' + belongs + '</td>'
+             +  '<td>' + esc(bytesLabel(row.bytes_seen)) + '</td>'
+             +  '<td>' + named + '<br><small class="wq-muted">'
+             +  esc(row.hostname_count + ' hostname(s), ' + row.addresses + ' address(es)'
+                    + (row.shared ? ', ' + row.shared + ' shared' : ''))
+             +  '</small></td>'
+             +  '<td>' + (row.cappable
+                    ? '<span class="wq-pill wq-pill-ok">' + esc('yes') + '</span>'
+                    : '<span class="wq-pill wq-pill-warn" title="'
+                      + esc('Its addresses are shared with unrelated traffic, so a limit would be refused.')
+                      + '">' + esc('no') + '</span>') + '</td>'
+             +  '<td><button class="btn btn-xs btn-primary wq-accept" data-domain=\'' + esc(row.domain) + '\'>'
+             +  esc('Accept') + '</button> '
+             +  '<button class="btn btn-xs btn-default wq-ignore" data-domain=\'' + esc(row.domain) + '\'>'
+             +  esc('Ignore') + '</button></td></tr>';
+    }
+    $('#discoveredServices').html(html + '</tbody></table>');
+}
+function refreshDiscovered(rescan) {
+    if (rescan) {
+        $('#rescanDiscovery').prop('disabled', true);
+        $('#discoveredServices').html('<div class="alert alert-info">'
+            + esc('Looking at what the network has been resolving…') + '</div>');
+    }
+    ajaxCall('/api/wanquota/limits/discovered', rescan ? {rescan: 1} : {}, renderDiscovered);
+}
+function decideService(domain, decision) {
+    ajaxCall('/api/wanquota/limits/decide', {domain: domain, decision: decision},
+        function(result) {
+            if (result.status !== 'ok') {
+                $('#limitStatus').html('<div class="alert alert-danger">'
+                    + esc(result.error || 'The decision could not be recorded') + '</div>');
+                return;
+            }
+            // An accepted service joins the catalogue, so the service list is rebuilt.
+            refreshDiscovered(false);
+            if (decision === 'accept') refreshLimits();
+        });
+}
 function renderLimits(data) {
     limitData = data;
     $('#limitEnabled').prop('checked', !!data.enabled);
@@ -1246,6 +1328,14 @@ $(document).ready(function() {
     $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
+    $('#rescanDiscovery').on('click', function() { refreshDiscovered(true); });
+    $('#discoveredServices').on('click', '.wq-accept', function() {
+        decideService($(this).data('domain'), 'accept');
+    });
+    $('#discoveredServices').on('click', '.wq-ignore', function() {
+        decideService($(this).data('domain'), 'ignore');
+    });
+    $('a[href="#limitsService"]').on('shown.bs.tab', function() { refreshDiscovered(false); });
     startThroughput();
     $('a[href="#summary"]').on('shown.bs.tab', startThroughput);
     $('a[data-toggle="tab"]').not('a[href="#summary"]').on('shown.bs.tab', stopThroughput);

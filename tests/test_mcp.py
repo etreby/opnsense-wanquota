@@ -80,6 +80,7 @@ class ToolSurfaceTests(unittest.TestCase):
         "wanquota_remove_service_limit",
         "wanquota_set_device_limit",
         "wanquota_remove_device_limit",
+        "wanquota_decide_service",
     }
     REMOVERS = {"wanquota_remove_service_limit", "wanquota_remove_device_limit"}
 
