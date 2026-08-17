@@ -1,15 +1,17 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
-<div class="wq-hero"><div class="wq-hero-tools"><button id="unitToggle" class="btn btn-sm" type="button">GB</button><button id="contrastToggle" class="btn btn-sm" type="button"><i class="fa fa-adjust"></i></button><button id="wallboardToggle" class="btn btn-sm" type="button"><i class="fa fa-television"></i></button></div><h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2><p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p></div>
+<div class="wq-hero"><div class="wq-hero-tools"><button id="unitToggle" class="btn btn-sm" type="button">GB</button><button id="contrastToggle" class="btn btn-sm" type="button"><i class="fa fa-adjust"></i></button><button id="wallboardToggle" class="btn btn-sm" type="button"><i class="fa fa-television"></i></button></div><h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2><p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p><div class="wq-version" id="pluginVersion"></div></div>
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
     <li class="active"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
     <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
     <li><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
     <li><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
+    <li><a data-toggle="tab" href="#apps">{{ lang._('Apps') }}</a></li>
+    <li><a data-toggle="tab" href="#sessions">{{ lang._('Live sessions') }}</a></li>
     <li><a data-toggle="tab" href="#intelligence">{{ lang._('Intelligence') }}</a></li>
     <li><a data-toggle="tab" href="#health">{{ lang._('Data health') }}</a></li>
     <li><a data-toggle="tab" href="#settings">{{ lang._('Settings') }}</a></li>
@@ -46,6 +48,23 @@
     </div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Monthly traffic trend') }}</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="apps" class="tab-pane fade"><div style="padding:16px">
+        <div class="wq-grid">
+          <div class="wq-card"><h3>{{ lang._('Apps breakdown') }}</h3><div class="wq-chart"><canvas id="appChart"></canvas></div></div>
+          <div class="wq-card"><h3>{{ lang._('Top apps') }}</h3><div id="appShares" class="wq-shares"></div></div>
+        </div>
+        <div class="wq-section wq-table-wrap"><div id="appTable"></div></div>
+        <div id="appDrill" class="wq-section wq-table-wrap"></div>
+    </div></div>
+    <div id="sessions" class="tab-pane fade"><div style="padding:16px">
+        <div class="wq-toolbar" style="margin-bottom:12px">
+          <button id="refreshSessions" class="btn btn-primary" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
+          <input id="sessionSearch" class="form-control" placeholder="{{ lang._('Filter device, destination or service') }}">
+          <span id="sessionSummary" class="wq-muted"></span>
+        </div>
+        <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Busiest devices right now') }}</h3><div class="wq-chart-sm"><canvas id="sessionChart"></canvas></div></div></div>
+        <div class="wq-section wq-table-wrap"><div id="sessionTable"></div></div>
+    </div></div>
     <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="categoryDrill" class="wq-section wq-table-wrap"></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade">
@@ -66,7 +85,8 @@ const wqColors = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#ef4444','#
 function makeChart(id, config) { if (wqCharts[id]) wqCharts[id].destroy(); const canvas=document.getElementById(id); if(canvas) wqCharts[id]=new Chart(canvas,config); }
 function chartOptions(horizontal=false) { return {responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:true,position:'bottom'}},scales:{x:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}}}}; }
 function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3>${esc(p.name)}</h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
-function renderSummaryCharts(data){const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
+function renderPluginVersion(data){const v=data&&data.plugin_version;$('#pluginVersion').text(v?('os-wanquota '+v):'');}
+function renderSummaryCharts(data){renderPluginVersion(data);const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
 function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10),hostOptions=chartOptions(true),domainOptions=chartOptions(true);hostOptions.onClick=(event,elements)=>{if(elements.length)drillTo('device',hosts[elements[0].index].ip);};domainOptions.onClick=(event,elements)=>{if(elements.length)drillTo('domain',domains[elements[0].index].domain);};makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:hostOptions});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:domainOptions});}
 function renderHistoryChart(id,data){const dates=[...new Set((data.providers||[]).flatMap(p=>p.rows.map(r=>r.date)))].sort();makeChart(id,{type:'line',data:{labels:dates,datasets:(data.providers||[]).map((p,i)=>({label:p.name+' total GB',data:dates.map(d=>{const r=p.rows.find(x=>x.date===d);return r?r.total/1e9:null}),borderColor:wqColors[i%wqColors.length],backgroundColor:wqColors[i%wqColors.length]+'33',fill:true,tension:.3,pointRadius:2}))},options:chartOptions(false)});}
 function downloadReport(filename, content, type) {
@@ -237,7 +257,131 @@ function showCategory(name) {
     document.getElementById('categoryDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
-function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
+function renderApps(data) {
+    const breakdown = data && data.app_breakdown;
+    const rows = (breakdown && breakdown.apps) || [];
+    if (!rows.length) {
+        $('#appShares').html('<div class="wq-muted">' + esc('No attributed traffic to break down for this period.') + '</div>');
+        $('#appTable').empty();
+        return;
+    }
+    const colors = categoryPalette(rows.length);
+    makeChart('appChart', {
+        type: 'pie',
+        data: {labels: rows.map(r => r.name), datasets: [{data: rows.map(r => r.total), backgroundColor: colors, borderWidth: 0}]},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {legend: {display: false}, tooltip: {callbacks: {label: ctx => {
+                const row = rows[ctx.dataIndex];
+                return ' ' + row.name + ' — ' + row.percent.toFixed(1) + '% (' + gb(row.total) + ')';
+            }}}},
+            onClick: (event, elements) => { if (elements.length) showApp(rows[elements[0].index].name); }
+        }
+    });
+    let shares = '<div class="wq-muted" style="margin-bottom:6px">' + esc('Top ' + (breakdown.top_n || 10)) + '</div>';
+    rows.forEach((row, index) => {
+        const rollup = row.name === 'Others';
+        const folded = row.apps_folded ? ' (' + row.apps_folded + ')' : '';
+        shares += '<div class="wq-share-row' + (rollup ? ' wq-share-others' : '') + '">'
+               +  '<span class="wq-share-dot" style="background:' + colors[index] + '"></span>'
+               +  '<span class="wq-share-name">'
+               +  (rollup ? esc(row.name + folded)
+                          : '<a href="#" class="wq-drill" data-drill="app" data-value=\'' + esc(row.name) + '\'>' + esc(row.name) + '</a>')
+               +  '</span><span class="wq-muted">' + gb(row.total) + '</span>'
+               +  '<span class="wq-share-pct">' + row.percent.toFixed(1) + '%</span></div>';
+    });
+    if (breakdown.note) shares += '<div class="wq-muted" style="margin-top:8px">' + esc(breakdown.note) + '</div>';
+    $('#appShares').html(shares);
+
+    let table = '<table class="table table-striped"><thead><tr><th>{{ lang._("App") }}</th>'
+              + '<th style="width:32%">{{ lang._("Share") }}</th><th>{{ lang._("Traffic") }}</th>'
+              + '<th>{{ lang._("Percent") }}</th></tr></thead><tbody>';
+    const top = rows[0].total || 1;
+    rows.forEach((row, index) => {
+        const rollup = row.name === 'Others';
+        table += '<tr><td>' + (rollup ? '<i>' + esc(row.name) + '</i>'
+                    : '<a href="#" class="wq-drill" data-drill="app" data-value=\'' + esc(row.name) + '\'><b>' + esc(row.name) + '</b></a>')
+              +  '</td><td>' + shareBar(row.total / top, colors[index]) + '</td><td><b>' + gb(row.total)
+              +  '</b></td><td>' + row.percent.toFixed(1) + '%</td></tr>';
+    });
+    $('#appTable').html(table + '</tbody></table>');
+}
+function showApp(name) {
+    // An app is a set of domains. Show which domains carried it and which devices
+    // used them, reusing the same drill targets as everywhere else.
+    if (!name || name === 'Others') return;
+    const consumer = (currentIntelligenceData && currentIntelligenceData.consumers) || {};
+    const wanted = String(name).toLowerCase();
+    const domains = (consumer.domains || []).filter(d => {
+        const dn = String(d.domain || '').toLowerCase();
+        return dn === wanted || dn.endsWith('.' + wanted) || wanted.indexOf(dn) >= 0;
+    }).sort((a, b) => b.total - a.total);
+    let html = drillHeader(name, '{{ lang._("domains carrying this app") }}',
+        gb(domains.reduce((s, d) => s + d.total, 0)), domains.length + ' {{ lang._("domain(s)") }}');
+    if (!domains.length) {
+        return $('#appDrill').html(html + '<div class="alert alert-info">'
+            + esc('This entry groups traffic by transport rather than by domain, so it has no domain list. Unnamed traffic cannot be attributed to specific sites.')
+            + '</div>');
+    }
+    const top = domains[0].total || 1;
+    html += '<table class="table table-condensed table-striped"><thead><tr><th>{{ lang._("Site") }}</th>'
+         +  '<th style="width:30%">{{ lang._("Share") }}</th><th>{{ lang._("Traffic") }}</th></tr></thead><tbody>';
+    for (const d of domains) {
+        html += '<tr><td><a href="#" class="wq-drill" data-drill="domain" data-value=\'' + esc(d.domain) + '\'>'
+             +  esc(d.domain) + '</a></td><td>' + shareBar(d.total / top, '#8b5cf6') + '</td><td><b>'
+             +  gb(d.total) + '</b></td></tr>';
+    }
+    $('#appDrill').html(html + '</tbody></table>');
+    document.getElementById('appDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+let currentSessionData = null;
+function sessionTable(data) {
+    const rows = (data && data.sessions) || [];
+    if (!rows.length) return '<div class="alert alert-info">' + esc('No live WAN sessions from LAN devices right now.') + '</div>';
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th>{{ lang._("Device") }}</th><th>{{ lang._("Destination") }}</th>'
+             + '<th>{{ lang._("Service") }}</th><th>{{ lang._("State") }}</th>'
+             + '<th>{{ lang._("Age") }}</th><th>{{ lang._("Bytes") }}</th></tr></thead><tbody>';
+    for (const row of rows) {
+        const dest = row.remote_domain
+            ? '<a href="#" class="wq-drill" data-drill="domain" data-value=\'' + esc(row.remote_domain) + '\'>' + esc(row.remote_domain) + '</a><br><small class="wq-muted">' + esc(row.remote) + '</small>'
+            : esc(row.remote) + '<br><small class="wq-muted">' + esc('no DNS name observed') + '</small>';
+        const mins = Math.floor(row.age_seconds / 60), secs = row.age_seconds % 60;
+        html += '<tr data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service).toLowerCase()) + '">'
+             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.device) + '\'><b>' + esc(row.name) + '</b></a>'
+             +  '<br><small class="wq-muted">' + esc(row.device) + (row.device_port ? ':' + row.device_port : '') + '</small></td>'
+             +  '<td>' + dest + '</td><td>' + esc(row.service) + '</td>'
+             +  '<td><small>' + esc(row.state) + '</small></td>'
+             +  '<td>' + (mins ? mins + 'm ' : '') + secs + 's</td>'
+             +  '<td><b>' + gb(row.bytes) + '</b></td></tr>';
+    }
+    return html + '</tbody></table>';
+}
+function renderSessions(data) {
+    currentSessionData = data;
+    if (data.status !== 'ok') {
+        $('#sessionTable').html('<div class="alert alert-danger">' + esc(data.error || 'Live sessions unavailable') + '</div>');
+        return;
+    }
+    $('#sessionSummary').text(data.shown + ' of ' + data.total_states + ' states shown');
+    $('#sessionTable').html(sessionTable(data));
+    const devices = (data.devices || []).slice(0, 10);
+    makeChart('sessionChart', {
+        type: 'bar',
+        data: {labels: devices.map(d => d.name), datasets: [{label: 'Session bytes', data: devices.map(d => d.bytes / 1e6), backgroundColor: '#06b6d4'}]},
+        options: chartOptions(true)
+    });
+    filterSessions();
+}
+function filterSessions() {
+    const query = String($('#sessionSearch').val() || '').toLowerCase();
+    $('#sessionTable tr[data-filter]').each(function() {
+        $(this).toggle(!query || String($(this).data('filter')).includes(query));
+    });
+}
+function refreshSessions() { ajaxCall('/api/wanquota/report/sessions', {}, renderSessions); }
+
+function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));renderApps(data);$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
 function refreshIntelligence(){const period=$('#intelligencePeriod').val();ajaxCall('/api/wanquota/report/intelligence_'+period,{},renderIntelligence);}
 function filterIntelligence(){const query=String($('#intelligenceSearch').val()||'').toLowerCase();$('#intelligence [data-filter]').each(function(){$(this).toggle(!query||String($(this).data('filter')).includes(query));});}
 function wanTable(providers) {
@@ -349,11 +493,14 @@ function drillTo(kind, value) {
 }
 function healthTable(data) {
     if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';
+    const version = data.plugin_version ? '<div class="wq-muted" style="margin-bottom:10px">os-wanquota ' + esc(data.plugin_version) + '</div>' : '';
     const labels = {ok: 'success', stale: 'warning', failed: 'danger', disabled: 'default'};
     const color = data.status === 'ok' ? '#10b981' : data.status === 'failed' ? '#ef4444' : '#f59e0b';
+    // Version belongs where an operator looks when something is wrong.
     let html = `<div class="wq-hero" style="background:linear-gradient(135deg,#172033,${color})"><h2><span class="wq-health-dot" style="background:${color};box-shadow:0 0 12px ${color}"></span>Data health: ${esc(data.status).toUpperCase()}</h2><p>All reporting depends on fresh accounting sources · ${esc(data.generated_at)}</p></div><div class="wq-grid">`;
     for (const item of data.checks) { const c=item.status==='ok'?'#10b981':item.status==='failed'?'#ef4444':'#f59e0b'; html+=`<div class="wq-card"><h3><span class="wq-health-dot" style="background:${c}"></span>${esc(item.name)}</h3><div class="wq-metric" style="font-size:18px">${esc(item.status).toUpperCase()}</div><div class="wq-muted">${esc(item.detail)}</div></div>`; }
     html += '</div>';
+    html = version + html;
     html += '<table class="table table-striped"><thead><tr><th>{{ lang._('Source') }}</th><th>{{ lang._('Status') }}</th><th>{{ lang._('Detail') }}</th><th>{{ lang._('Freshness') }}</th></tr></thead><tbody>';
     for (const item of data.checks) {
         const freshness = item.age_seconds == null ? '—' : item.age_seconds < 120 ? item.age_seconds + ' seconds' : Math.round(item.age_seconds / 60) + ' minutes';
@@ -419,6 +566,18 @@ $(document).ready(function() {
     $('#consumers').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();
         drillTo($(this).data('drill'), $(this).data('value'));
+    });
+    $('#refreshSessions').on('click', refreshSessions);
+    $('#sessionSearch').on('keyup', filterSessions);
+    $('#apps,#sessions').on('click', 'a.wq-drill', function(event) {
+        event.preventDefault();
+        const kind = $(this).data('drill'), value = $(this).data('value');
+        if (kind === 'app') { showApp(value); return; }
+        $('a[href="#consumers"]').tab('show');
+        drillTo(kind, value);
+    });
+    $('#maintabs a[href="#sessions"]').on('shown.bs.tab', function() {
+        if (!currentSessionData) refreshSessions();
     });
     $('#intelligence').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();

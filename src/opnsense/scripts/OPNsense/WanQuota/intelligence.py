@@ -316,6 +316,105 @@ def category_breakdown(domains, categories, top_n=CATEGORY_TOP_N):
     }
 
 
+
+# Individual applications, a finer grain than the category breakdown: "GitHub"
+# rather than "Online Utility". Same suffix matching, same honesty about unknowns.
+APP_DEFINITIONS = {
+    "GitHub": ("github.com", "githubusercontent.com", "githubassets.com", "ghcr.io", "github.io"),
+    "ChatGPT": ("chatgpt.com", "openai.com", "oaistatic.com", "oaiusercontent.com"),
+    "Claude": ("claude.ai", "anthropic.com"),
+    "Apple iTunes": ("mzstatic.com", "itunes.apple.com", "aaplimg.com", "swcdn.apple.com",
+                     "updates.cdn-apple.com", "osxapps.itunes.apple.com"),
+    "Apple": ("apple.com", "apple-dns.net", "icloud.com", "icloud-content.com",
+              "push.apple.com", "aapl.com"),
+    "Google Services": ("google.com", "googleapis.com", "gstatic.com", "googleusercontent.com",
+                        "gvt1.com", "gvt2.com", "google-analytics.com", "doubleclick.net",
+                        "googlesyndication.com", "goog"),
+    "YouTube": ("youtube.com", "googlevideo.com", "ytimg.com", "youtu.be"),
+    "WhatsApp": ("whatsapp.com", "whatsapp.net"),
+    "Netflix": ("netflix.com", "nflxvideo.net", "nflximg.net", "nflxext.com"),
+    "Microsoft": ("microsoft.com", "windowsupdate.com", "office.com", "office365.com",
+                  "microsoftonline.com", "live.com", "msftconnecttest.com", "azureedge.net"),
+    "Telegram": ("telegram.org", "t.me", "telegram-cdn.org", "telegra.ph"),
+    "Spotify": ("spotify.com", "scdn.co", "spotifycdn.com"),
+    "Steam": ("steampowered.com", "steamcontent.com", "steamstatic.com"),
+    "Tailscale": ("tailscale.com", "tailscale.io"),
+    "Home Assistant": ("home-assistant.io", "nabucasa.com"),
+    "Plex": ("plex.tv", "plex.direct"),
+    "Storj": ("storjshare.io", "storj.io"),
+    "Cloudflare": ("cloudflare.com", "cloudflare-dns.com", "cloudflareinsights.com"),
+    "Docker": ("docker.io", "docker.com", "dockerhub.com"),
+    "LG": ("lgtvsdp.com", "lgeapi.com", "lgtvcommon.com"),
+    "Samsung": ("samsungcloudsolution.com", "samsungiotcloud.com", "samsungqbe.com"),
+    "Amazon Alexa": ("amazonalexa.com", "alexa.amazon.com", "avs-alexa-na.amazon.com"),
+    "Tuya": ("tuya.com", "tuyaus.com", "tuyaeu.com"),
+    "Zoom": ("zoom.us", "zoomgov.com"),
+    "Slack": ("slack.com", "slack-edge.com"),
+    "Discord": ("discord.com", "discordapp.net", "discord.gg"),
+}
+
+
+def app_breakdown(domains, transports=None, definitions=None, top_n=CATEGORY_TOP_N):
+    """Traffic share per application, with unnamed traffic labelled by transport.
+
+    Two sources are combined deliberately. Domains that match an application are
+    reported under its name. Bytes with no known domain cannot be named that way at
+    all, so they arrive already labelled by how they were carried — "Quic UDP
+    Connection", "Secure Web Browsing" — which keeps the largest slice meaningful
+    instead of collapsing every blind spot into one anonymous remainder.
+
+    A domain that matches no application is reported under its own registrable
+    name rather than being folded away, so the tail stays inspectable.
+    """
+    definitions = definitions or APP_DEFINITIONS
+    totals = {}
+    for domain in domains or []:
+        name = (domain.get("domain") or "").strip().lower().rstrip(".")
+        amount = float(domain.get("total") or 0)
+        if not name or amount <= 0:
+            continue
+        app = None
+        for candidate, suffixes in definitions.items():
+            if any(name == suffix or name.endswith("." + suffix) for suffix in suffixes):
+                app = candidate
+                break
+        if app is None:
+            parts = name.split(".")
+            app = ".".join(parts[-2:]) if len(parts) >= 2 else name
+        totals[app] = totals.get(app, 0) + amount
+
+    for entry in transports or []:
+        label = entry.get("name")
+        amount = float(entry.get("total") or 0)
+        if label and amount > 0:
+            totals[label] = totals.get(label, 0) + amount
+
+    grand_total = sum(totals.values())
+    ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)
+
+    def row(label, amount, folded=0):
+        entry = {"name": label, "total": amount,
+                 "percent": (amount / grand_total * 100) if grand_total else 0}
+        if folded:
+            entry["apps_folded"] = folded
+        return entry
+
+    rows = [row(name, amount) for name, amount in ordered[:top_n]]
+    tail = ordered[top_n:]
+    if tail:
+        rows.append(row(OTHERS_LABEL, sum(a for _, a in tail), folded=len(tail)))
+    return {
+        "total": grand_total,
+        "apps": rows,
+        "top_n": top_n,
+        "note": (
+            "Applications are matched from observed DNS answers. Traffic with no known "
+            "domain is named by how it was carried instead, so entries like 'Quic UDP "
+            "Connection' or 'Secure Web Browsing' are unnamed traffic grouped by "
+            "transport rather than a single application."
+        ),
+    }
+
 def category_detail(name, domains, device_domains, categories, top_n=None):
     """Everything behind one category: its domains, and the devices that used them.
 
@@ -688,7 +787,7 @@ def dashboard(period="thirty"):
             "expected to reconcile."
         ),
     }
-    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"windows":windows,"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"category_breakdown":category_breakdown((consumer.get("domains") or []),cfg["categories"]),"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
+    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"windows":windows,"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"category_breakdown":category_breakdown((consumer.get("domains") or []),cfg["categories"]),"app_breakdown":app_breakdown((consumer.get("domains") or []),consumer.get("transports")),"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
 
 
 def prometheus():

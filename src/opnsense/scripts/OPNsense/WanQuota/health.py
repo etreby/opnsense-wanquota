@@ -123,6 +123,7 @@ def document():
     return {
         "status": overall,
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "plugin_version": report.plugin_version(),
         "checks": checks,
     }
 

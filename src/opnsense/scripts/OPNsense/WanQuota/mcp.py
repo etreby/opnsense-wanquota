@@ -31,6 +31,7 @@ import xml.etree.ElementTree as ET
 
 import consumers
 import health
+import sessions
 import intelligence
 import report
 
@@ -153,6 +154,22 @@ def tool_categories(arguments):
     breakdown["period"] = period
     breakdown["status"] = payload.get("status")
     return breakdown
+
+
+def tool_apps(arguments):
+    """App-level shares, the finer grain below categories."""
+    period = _period(arguments)
+    payload = consumers.report(period)
+    breakdown = intelligence.app_breakdown(
+        payload.get("domains") or [], payload.get("transports") or [])
+    breakdown["period"] = period
+    breakdown["status"] = payload.get("status")
+    return breakdown
+
+
+def tool_sessions(_arguments):
+    """Conversations open right now, from the firewall's own state table."""
+    return sessions.document()
 
 
 def tool_category(arguments):
@@ -507,6 +524,30 @@ TOOLS = (
         "inputSchema": _PERIOD_SCHEMA,
         "outputSchema": CATEGORY_OUTPUT_SCHEMA,
         "handler": tool_categories,
+    },
+    {
+        "name": "wanquota_apps",
+        "title": "Apps breakdown",
+        "description": (
+            "Share of traffic per application (GitHub, ChatGPT, YouTube and so on), "
+            "largest first, with the tail rolled into Others. Traffic with no known "
+            "domain is grouped by transport instead, so entries like 'Quic UDP "
+            "Connection' are unnamed traffic rather than one application."
+        ),
+        "inputSchema": _PERIOD_SCHEMA,
+        "handler": tool_apps,
+    },
+    {
+        "name": "wanquota_sessions",
+        "title": "Live sessions",
+        "description": (
+            "Conversations open right now: which device, to what destination, over "
+            "which service, with age and per-state bytes. Read from the firewall state "
+            "table, so it shows traffic even when DNS never named the destination. "
+            "State byte counters are not quota accounting."
+        ),
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_sessions,
     },
     {
         "name": "wanquota_category",

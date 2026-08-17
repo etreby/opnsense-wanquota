@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 
 
 CONFIG_PATH = "/conf/config.xml"
+VERSION_PATH = "/usr/local/opnsense/version/wanquota"
 STATE_DIR = "/var/db/wanquota"
 ALERT_STATE = os.path.join(STATE_DIR, "alerts.json")
 DEFAULTS = tuple(
@@ -19,6 +20,20 @@ DEFAULTS = tuple(
      "quota_gb": 100, "cycle_day": 1, "warning_percent": 80}
     for index in range(1, 5)
 )
+
+
+
+def plugin_version(path=None):
+    """The installed package version, or None when it cannot be determined.
+
+    Read from the version file the package build writes rather than hardcoded, so
+    the interface cannot claim a version the running code is not.
+    """
+    try:
+        with open(path or VERSION_PATH, encoding="utf-8") as handle:
+            return (json.load(handle).get("product_version") or "").strip() or None
+    except (OSError, ValueError, AttributeError):
+        return None
 
 
 def text(node, path, default):
@@ -228,6 +243,7 @@ def summary(enabled, providers):
     return {
         "status": "ok" if enabled else "disabled",
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "plugin_version": plugin_version(),
         "providers": [provider_summary(provider, today) for provider in providers] if enabled else [],
     }
 

@@ -152,6 +152,13 @@ class CapabilityAndResourceTests(unittest.TestCase):
         self.assertEqual(declared, {"wanquota_health", "wanquota_device",
                                     "wanquota_site", "wanquota_categories"})
 
+    def test_apps_and_sessions_tools_exist_and_are_read_only(self):
+        for name in ("wanquota_apps", "wanquota_sessions"):
+            self.assertIn(name, MCP.TOOLS_BY_NAME)
+        annotations = {t["name"]: t["annotations"] for t in MCP.tool_descriptors()}
+        for name in ("wanquota_apps", "wanquota_sessions"):
+            self.assertTrue(annotations[name]["readOnlyHint"])
+
     def test_the_category_drill_tool_exists_and_requires_a_category(self):
         self.assertIn("wanquota_category", MCP.TOOLS_BY_NAME)
         schema = MCP.TOOLS_BY_NAME["wanquota_category"]["inputSchema"]

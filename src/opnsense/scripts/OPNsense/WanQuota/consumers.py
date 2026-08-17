@@ -238,7 +238,8 @@ def flow_rows(start):
     connection.row_factory = sqlite3.Row
     try:
         return connection.execute(
-            "SELECT mtime,if,direction,src_addr,dst_addr,octets FROM timeserie WHERE date(mtime) >= date(?)",
+            "SELECT mtime,if,direction,src_addr,dst_addr,octets,protocol,service_port "
+            "FROM timeserie WHERE date(mtime) >= date(?)",
             (start.isoformat(),),
         ).fetchall()
     finally:
@@ -299,17 +300,56 @@ def rrd_totals(path, start):
     return sent, received
 
 
+def _row_value(row, key):
+    """Read an optional column. Older flow databases lack protocol and port."""
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
 def classify_flow(row, settings):
     amount = float(row["octets"] or 0)
     if row["if"] == settings["lan_interface"] and row["direction"] == "out":
         if is_local(row["src_addr"], settings["network"]) and not is_local(row["dst_addr"], settings["network"]):
             if row["src_addr"] != settings["router"]:
-                return {"host": row["src_addr"], "remote": row["dst_addr"], "amount": amount, "scope": "lan", "provider": None}
+                return {"host": row["src_addr"], "remote": row["dst_addr"], "amount": amount,
+                        "scope": "lan", "provider": None,
+                        "protocol": _row_value(row, "protocol"), "port": _row_value(row, "service_port")}
     elif row["if"] in settings["providers"] and row["direction"] == "in":
         if not is_local(row["src_addr"], settings["network"]) and is_local(row["dst_addr"], settings["network"]):
             if row["dst_addr"] != settings["router"]:
-                return {"host": row["dst_addr"], "remote": row["src_addr"], "amount": amount, "scope": "provider", "provider": row["if"]}
+                return {"host": row["dst_addr"], "remote": row["src_addr"], "amount": amount,
+                        "scope": "provider", "provider": row["if"],
+                        "protocol": _row_value(row, "protocol"), "port": _row_value(row, "service_port")}
     return None
+
+
+QUIC_PORTS = {443, 80}
+
+
+def transport_label(protocol, port):
+    """Name traffic by how it was carried, when no domain is known for it.
+
+    Unattributed bytes are otherwise one anonymous lump. Naming the transport at
+    least distinguishes "a browser talking QUIC to something we could not name"
+    from "some other protocol entirely", which is the difference between an
+    expected blind spot and something worth investigating.
+    """
+    name = (protocol or "").strip().lower()
+    try:
+        number = int(port)
+    except (TypeError, ValueError):
+        number = None
+    if name == "udp" and number in QUIC_PORTS:
+        return "Quic UDP Connection"
+    if name == "tcp" and number == 443:
+        return "Secure Web Browsing"
+    if name == "tcp" and number == 80:
+        return "Web Browsing"
+    if not name:
+        return "Unknown transport"
+    return f"Other {name.upper()}"
 
 
 def cap_matrix(rows, limit):
@@ -436,12 +476,15 @@ def report(period):
     total_external = 0
     device_external = {}
     device_attributed = {}
+    transports = {}
     for flow in external_flows:
         remote, amount = flow["remote"], flow["amount"]
         total_external += amount
         device_external[flow["host"]] = device_external.get(flow["host"], 0) + amount
         domain = mappings.get(remote)
         if not domain:
+            key = transport_label(flow.get("protocol"), flow.get("port"))
+            transports[key] = transports.get(key, 0) + amount
             continue
         attributed += amount
         device_attributed[flow["host"]] = device_attributed.get(flow["host"], 0) + amount
@@ -504,6 +547,10 @@ def report(period):
         ),
         "device_domains": matrix_rows,
         "device_attribution": attribution_rows(device_external, device_attributed, names, ident),
+        "transports": [
+            {"name": key, "total": amount}
+            for key, amount in sorted(transports.items(), key=lambda item: item[1], reverse=True)
+        ],
         "providers": provider_rows,
         "domain_attribution": {
             "attributed_bytes": attributed,

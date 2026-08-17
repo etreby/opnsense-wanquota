@@ -77,6 +77,11 @@ class ReportController extends ApiControllerBase
         return $this->runReport('intelligence month');
     }
 
+    public function sessionsAction(): array
+    {
+        return $this->runReport('sessions 500');
+    }
+
     public function metricsAction(): array
     {
         $raw = (new Backend())->configdRun('wanquota metrics');
