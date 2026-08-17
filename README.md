@@ -311,11 +311,25 @@ them too.
 Pipes are masked on the destination address, so the cap is per device rather than
 shared: two televisions streaming get the configured rate each, not half of it.
 
+### Verified end to end
+
+The cap was measured against a controlled destination: **18.3 Mbit/s uncapped,
+1.6–1.8 Mbit/s against a 2 Mbit cap**, while a second host ran at 19.9 Mbit/s at the
+same moment to confirm the cap was selective rather than a general slowdown.
+
 Applying goes through the OPNsense shaper model rather than calling `ipfw` directly.
 That is a safety requirement, not a preference: `ipfw` is not loaded on a stock
 system and loading it by hand installs a default deny rule that would cut all
 traffic. OPNsense brings it up through the system's own rc scripts, which set the
 accept default and synchronise the pf/ipfw load order.
+
+Applying also re-renders two template namespaces before restarting the services.
+`OPNsense/IPFW` writes `firewall_enable` and `OPNsense/Shaper` writes
+`dnctl_enable`, and both are derived from the configuration. Writing pipes and
+rules is not enough on its own: until the templates are rendered, rc still believes
+the services are disabled, `ipfw` refuses to start and `dnctl` never loads
+dummynet, which leaves a rule pointing at a pipe the kernel does not have — a limit
+that appears configured and shapes nothing.
 
 ## Per-device budget enforcement
 
