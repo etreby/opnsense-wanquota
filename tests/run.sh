@@ -24,6 +24,20 @@ grep -q '^\[mcp\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanq
 grep -q '^\[deviceflush\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'devices.py' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
 grep -q 'shaper.php' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
+# mapDataToFormUI only populates <form> elements whose id, up to the first hyphen,
+# equals the key it was given. Step forms named anything else load no data at all
+# and every setting renders blank, which is exactly what happened once.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import re
+import sys
+
+source = open(sys.argv[1], encoding="utf-8").read()
+ids = re.findall(r"'id'\s*:\s*'([^']+)'", source)
+steps = [i for i in ids if i.startswith("frm_") and i != "frm_wanquota_settings"]
+assert steps, "no step forms found in the settings view"
+bad = [i for i in steps if i.split("-")[0] != "frm_wanquota_settings"]
+assert not bad, f"step form ids will not be populated by mapDataToFormUI: {bad}"
+PYCHECK
 grep -q '^\[shaperflush\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 # Invariants established by measuring a real cap on hardware. Each of these was
 # wrong once and produced a limit that appeared configured and shaped nothing.

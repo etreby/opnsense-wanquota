@@ -119,36 +119,44 @@
             <li data-step="4"><span>5</span> {{ lang._('Intelligence and devices') }}</li>
             <li data-step="5"><span>6</span> {{ lang._('Enforcement and limits') }}</li>
         </ol>
+        <!--
+          Each step is a real <form> whose id is the mapper key plus a suffix.
+          mapDataToFormUI iterates <form> elements and matches on the id up to the
+          first hyphen, so a wrapper div is invisible to it: naming the steps
+          frm_wanquota_settings-<step> is what makes one endpoint populate all six.
+          The wrapper keeps its id because saveFormToEndpoint collects fields by
+          descendant selector, so saving still gathers every step at once.
+        -->
         <div id="frm_wanquota_settings">
             <div class="wq-step" data-step="0">
                 <div class="wq-card"><h3>{{ lang._('Getting started') }}</h3>
                 <p class="wq-muted">{{ lang._('What the plugin collects at all. Start here.') }}</p>
-                {{ partial("layout_partials/base_form", ['fields':wizardBasics,'id':'frm_step_basics']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardBasics,'id':'frm_wanquota_settings-basics']) }}</div>
             </div>
             <div class="wq-step" data-step="1" style="display:none">
                 <div class="wq-card"><h3>{{ lang._('WAN providers') }}</h3>
                 <p class="wq-muted">{{ lang._('One entry per internet connection, with its allowance and billing day. Providers 3 and 4 are off by default.') }}</p>
-                {{ partial("layout_partials/base_form", ['fields':wizardProviders,'id':'frm_step_providers']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardProviders,'id':'frm_wanquota_settings-providers']) }}</div>
             </div>
             <div class="wq-step" data-step="2" style="display:none">
                 <div class="wq-card"><h3>{{ lang._('Reporting') }}</h3>
                 <p class="wq-muted">{{ lang._('How much detail the reports show, and how long observations are kept.') }}</p>
-                {{ partial("layout_partials/base_form", ['fields':wizardReporting,'id':'frm_step_reporting']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardReporting,'id':'frm_wanquota_settings-reporting']) }}</div>
             </div>
             <div class="wq-step" data-step="3" style="display:none">
                 <div class="wq-card"><h3>{{ lang._('Alerts and delivery') }}</h3>
                 <p class="wq-muted">{{ lang._('When to warn, and where to send it. Webhooks are HTTPS only; SMTP uses STARTTLS.') }}</p>
-                {{ partial("layout_partials/base_form", ['fields':wizardAlerts,'id':'frm_step_alerts']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardAlerts,'id':'frm_wanquota_settings-alerts']) }}</div>
             </div>
             <div class="wq-step" data-step="4" style="display:none">
                 <div class="wq-card"><h3>{{ lang._('Intelligence and devices') }}</h3>
                 <p class="wq-muted">{{ lang._('Forecasts, anomaly detection, and per-device grouping. A per-device policy may key on address, MAC or DHCP hostname; MAC survives a DHCP change.') }}</p>
-                {{ partial("layout_partials/base_form", ['fields':wizardIntelligence,'id':'frm_step_intelligence']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardIntelligence,'id':'frm_wanquota_settings-intelligence']) }}</div>
             </div>
             <div class="wq-step" data-step="5" style="display:none">
                 <div class="wq-card"><h3>{{ lang._('Enforcement and limits') }}</h3>
                 <div class="alert alert-warning">{{ lang._('These are the only settings that change how traffic flows. Every one defaults to off, and to dry-run when first enabled. Per-service rates are set in the Limits tab.') }}</div>
-                {{ partial("layout_partials/base_form", ['fields':wizardEnforcement,'id':'frm_step_enforcement']) }}</div>
+                {{ partial("layout_partials/base_form", ['fields':wizardEnforcement,'id':'frm_wanquota_settings-enforcement']) }}</div>
             </div>
         </div>
         <div class="wq-toolbar" style="margin-top:14px">
