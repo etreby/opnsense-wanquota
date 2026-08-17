@@ -167,16 +167,26 @@ def tool_limits(_arguments):
     """
     cfg = shaper.options()
     plan = shaper.run() if cfg["enabled"] else None
+    interception = shaper.netmap_interception()
     document = {
         "status": "ok",
         "enabled": cfg["enabled"],
         "dry_run": cfg["dry_run"],
         "service_limits": cfg["limits"],
         "device_limits": cfg.get("device_limits", []),
+        # Whether this firewall can shape uploads at all, so an agent asked why an
+        # upload cap is not working can answer from the capability rather than
+        # guessing at the configuration.
+        "upload_supported": not interception["active"],
+        "interception": interception,
+        # What the running rules have actually matched: the only direct evidence
+        # that a limit is doing something.
+        "observed_rules": shaper.verify(interception=interception).get("rules", []),
         "note": (
             "Reporting only. A limit shapes nothing while dry_run is true. Rates are "
             "in Mbit/s, and a cap bounds what a client can sustain rather than "
-            "selecting a quality level."
+            "selecting a quality level. A rule in observed_rules with zero bytes has "
+            "matched no traffic since it was installed and is limiting nothing."
         ),
     }
     if plan is not None:
@@ -192,6 +202,9 @@ def tool_limits(_arguments):
             for p in plan.get("device_pipes", [])
         ]
         document["refused"] = (plan.get("rejected") or []) + (plan.get("device_rejected") or [])
+        # A device whose download cap was applied but whose upload cap was declined
+        # is not a refused device, and reporting it as one would be misleading.
+        document["upload_refused"] = plan.get("upload_rejected") or []
     return document
 
 
@@ -576,7 +589,9 @@ TOOLS = (
             "What is currently capped, per service and per device, at what rate, and "
             "how many addresses each limit would actually match. Also reports whether "
             "limits are enabled and whether dry-run is on, since a limit shapes nothing "
-            "while dry-run is on. Read-only: this cannot set or clear a limit."
+            "while dry-run is on, whether this firewall can shape uploads at all, and "
+            "the bytes each running rule has matched. Use this to answer 'why is my "
+            "limit not working?'. Read-only: this cannot set or clear a limit."
         ),
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_limits,

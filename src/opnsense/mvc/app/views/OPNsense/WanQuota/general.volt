@@ -89,9 +89,12 @@
               <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="deviceLimitDryRun"> {{ lang._('Dry run') }}</label>
               <input id="deviceLimitSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search devices…') }}">
               <span id="deviceLimitCount" class="wq-muted"></span>
-              <button id="saveDeviceLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
+              <button id="verifyLimits" class="btn btn-default" style="margin-left:auto"><i class="fa fa-stethoscope"></i> {{ lang._('Verify') }}</button>
+              <button id="saveDeviceLimits" class="btn btn-primary"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
             </div>
+            <div id="deviceLimitCapability"></div>
             <div id="deviceLimitStatus"></div>
+            <div id="limitVerify"></div>
             <div class="wq-table-wrap"><div id="deviceLimitTable"></div></div>
             <p class="wq-muted">{{ lang._('A device limit caps the rate to and from one device. Keying it on the MAC keeps it applying after DHCP changes the address; keying it on the address alone does not. The firewall itself can never be limited.') }}</p>
         </div>
@@ -692,6 +695,23 @@ function renderDeviceLimits(data) {
     deviceLimitData = data;
     $('#deviceLimitEnabled').prop('checked', !!data.enabled);
     $('#deviceLimitDryRun').prop('checked', !!data.dry_run);
+    /*
+     * Say up front when this firewall cannot shape uploads. A capture engine using
+     * netmap takes packets off the kernel path before ipfw sees them leaving a LAN
+     * device, so an upload cap is accepted and then shapes nothing. Saying so here
+     * is the difference between a known limitation and a silent failure.
+     */
+    const uploadOk = data.upload_supported !== false;
+    if (uploadOk) {
+        $('#deviceLimitCapability').empty();
+    } else {
+        const why = (data.interception || {}).reason || '';
+        $('#deviceLimitCapability').html('<div class="alert alert-warning">'
+            + '<b>' + esc('Upload limits are not available on this firewall.') + '</b><br>'
+            + esc(why) + '<br><small>'
+            + esc('Download limits work normally. Use Verify below to see what each rule has actually matched.')
+            + '</small></div>');
+    }
     const rows = data.devices || [];
     if (!rows.length) {
         $('#deviceLimitTable').html('<div class="alert alert-info">'
@@ -720,7 +740,15 @@ function renderDeviceLimits(data) {
                     + esc('refused') + '</small>' : '')
              +  '</td><td>' + keyLabel + '</td>'
              +  '<td><input class="form-control dev-down" type="number" step="0.1" min="0.1" style="max-width:110px" value="' + esc(row.mbit) + '"></td>'
-             +  '<td><input class="form-control dev-up" type="number" step="0.1" min="0.1" style="max-width:110px" placeholder="{{ lang._("optional") }}" value="' + esc(row.upload_mbit) + '"></td>'
+             +  '<td><input class="form-control dev-up" type="number" step="0.1" min="0.1" style="max-width:110px"'
+             +  (uploadOk ? ' placeholder="{{ lang._("optional") }}"'
+                          : ' disabled title="' + esc((data.interception || {}).reason || '') + '"'
+                            + ' placeholder="{{ lang._("unavailable") }}"')
+             +  ' value="' + esc(uploadOk ? row.upload_mbit : '') + '">'
+             +  (row.upload_refused
+                    ? '<br><small class="wq-pill wq-pill-warn" title="' + esc(row.upload_refused) + '">'
+                      + esc('not applied') + '</small>' : '')
+             +  '</td>'
              +  '</tr>';
     }
     $('#deviceLimitTable').html(html + '</tbody></table>');
@@ -768,6 +796,53 @@ function saveDeviceLimits() {
     });
 }
 function refreshDeviceLimits() { ajaxCall('/api/wanquota/limits/devices', {}, renderDeviceLimits); }
+
+/*
+ * Show what the running rules have matched. A limit can be accepted, saved and
+ * reported as applied while shaping nothing, and the byte counters are the only
+ * direct evidence either way. Zero bytes on a rule whose traffic has been flowing
+ * means that limit is not working.
+ */
+function renderLimitVerify(data) {
+    $('#verifyLimits').prop('disabled', false);
+    if (data.status !== 'ok') {
+        $('#limitVerify').html('<div class="alert alert-danger">'
+            + esc(data.error || 'Could not read the running rules') + '</div>');
+        return;
+    }
+    const rules = data.rules || [];
+    if (!rules.length) {
+        $('#limitVerify').html('<div class="alert alert-info">'
+            + esc('No shaper rules are installed, so nothing is being limited.') + '</div>');
+        return;
+    }
+    const kinds = {
+        'service': '{{ lang._("service") }}',
+        'device-download': '{{ lang._("download") }}',
+        'device-upload': '{{ lang._("upload") }}',
+    };
+    let html = '<div class="wq-table-wrap"><table class="table table-condensed table-striped">'
+             + '<thead><tr><th>{{ lang._("Pipe") }}</th><th>{{ lang._("Kind") }}</th>'
+             + '<th>{{ lang._("Matches") }}</th><th>{{ lang._("Packets") }}</th>'
+             + '<th>{{ lang._("Matched") }}</th></tr></thead><tbody>';
+    for (const rule of rules) {
+        const idle = rule.bytes === 0;
+        html += '<tr' + (idle ? ' class="danger"' : '') + '><td>' + esc(rule.pipe) + '</td>'
+             +  '<td>' + esc(kinds[rule.kind] || rule.kind) + '</td>'
+             +  '<td><code>' + esc(rule.match) + '</code></td>'
+             +  '<td>' + esc(rule.packets) + '</td>'
+             +  '<td>' + (idle
+                    ? '<span class="wq-pill wq-pill-warn">' + esc('nothing') + '</span>'
+                    : esc(gb(rule.bytes))) + '</td></tr>';
+    }
+    html += '</tbody></table></div><p class="wq-muted">' + esc(data.note || '') + '</p>';
+    $('#limitVerify').html(html);
+}
+function verifyLimits() {
+    $('#verifyLimits').prop('disabled', true);
+    $('#limitVerify').html('<div class="alert alert-info">' + esc('Reading rules…') + '</div>');
+    ajaxCall('/api/wanquota/limits/verify', {}, renderLimitVerify);
+}
 
 function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));renderApps(data);$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
 function refreshIntelligence(){const period=$('#intelligencePeriod').val();ajaxCall('/api/wanquota/report/intelligence_'+period,{},renderIntelligence);}
@@ -962,6 +1037,7 @@ $(document).ready(function() {
     $('#limitSearch').on('keyup', filterLimits);
     $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
+    $('#verifyLimits').on('click', verifyLimits);
     $('#deviceLimitTable').on('change', '.dev-on', filterDeviceLimits);
     $('a[href="#limitsDevice"]').on('shown.bs.tab', function() {
         if (!deviceLimitData) refreshDeviceLimits();

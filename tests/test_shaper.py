@@ -212,5 +212,140 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(plan["rejected"], [])
 
 
+DEVICES = [
+    {"address": "192.168.1.32", "name": "ETREBY-DESKTOP WiFi",
+     "mac": "e0:8f:4c:8f:a8:d6", "hostname": "etreby-desktop"},
+    {"address": "192.168.1.40", "name": "TV", "mac": "aa:bb:cc:dd:ee:ff",
+     "hostname": "livingroom-tv"},
+]
+
+# Real output from the live firewall, which runs Zenarmor. The eastpect process is
+# the Zenarmor engine and holds two netmap descriptors.
+FSTAT_ZENARMOR = """\
+USER     CMD          PID   FD MOUNT      INUM MODE         SZ|DV R/W
+root     eastpect   28653   29 /dev         18 crw-------  netmap rw
+root     eastpect   28653   31 /dev         18 crw-------  netmap rw
+root     sshd       12345    3 /dev          6 crw-rw-rw-    ttyv rw
+"""
+
+FSTAT_CLEAN = """\
+USER     CMD          PID   FD MOUNT      INUM MODE         SZ|DV R/W
+root     sshd       12345    3 /dev          6 crw-rw-rw-    ttyv rw
+root     python3    23456    5 / 1234567 -rw-r--r--  /var/log/netmap.log rw
+"""
+
+# Real `ipfw -a list` output captured while a per-device limit was applied.
+IPFW_LISTING = """\
+00110      0        0 allow carp from any to any
+60000      0        0 return next-rulenum proto ip
+60001  37009 29096814 pipe 22000 ip from any to 192.168.1.32 out via em0 // 632dc30c-73af
+60002    867    71152 pipe 22500 ip from 192.168.1.32 to any in via em0 // e0806d3f-10b2
+60003   1200  4500000 pipe 21000 ip from 203.0.113.5 to any out via em0 // aaaa-bbbb
+65533 208390 83464228 allow ip from any to any
+"""
+
+
+class InterceptionTests(unittest.TestCase):
+    def test_zenarmor_holding_netmap_is_detected_and_named(self):
+        state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)
+        self.assertTrue(state["active"])
+        self.assertEqual(state["engine"], "Zenarmor")
+        self.assertEqual(state["processes"], ["eastpect"])
+        self.assertIn("upload", state["reason"].lower())
+
+    def test_a_log_path_containing_the_word_is_not_a_holder(self):
+        """The device must appear as its own field, not inside a filename."""
+        state = SHAPER.netmap_interception(FSTAT_CLEAN, device_present=True)
+        self.assertFalse(state["active"])
+
+    def test_absent_device_means_no_interception(self):
+        state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=False)
+        self.assertFalse(state["active"])
+
+    def test_detection_fails_open_when_fstat_is_unreadable(self):
+        state = SHAPER.netmap_interception("", device_present=True)
+        self.assertFalse(state["active"])
+
+
+class DeviceLimitTests(unittest.TestCase):
+    def test_without_interception_both_directions_are_planned(self):
+        plan = SHAPER.build_device_plan(
+            [{"device": "e0:8f:4c:8f:a8:d6", "mbit": 3, "upload_mbit": 1}], DEVICES)
+        entry = plan["device_pipes"][0]
+        self.assertEqual(entry["device"], "192.168.1.32")
+        self.assertEqual(entry["mbit"], 3)
+        self.assertEqual(entry["upload_mbit"], 1)
+        self.assertIsNotNone(entry["upload_pipe"])
+        self.assertEqual(plan["upload_rejected"], [])
+
+    def test_interception_refuses_only_the_upload_half(self):
+        """The download cap is measured to work; the upload cap cannot fire."""
+        state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)
+        plan = SHAPER.build_device_plan(
+            [{"device": "e0:8f:4c:8f:a8:d6", "mbit": 3, "upload_mbit": 1}],
+            DEVICES, interception=state)
+        entry = plan["device_pipes"][0]
+        self.assertEqual(entry["mbit"], 3, "download must still be capped")
+        self.assertIsNone(entry["upload_mbit"])
+        self.assertIsNone(entry["upload_pipe"], "no pipe that could never shape anything")
+        self.assertEqual(len(plan["upload_rejected"]), 1)
+        self.assertIn("Zenarmor", plan["upload_rejected"][0]["reason"])
+        self.assertEqual(plan["upload_rejected"][0]["upload_mbit"], 1)
+
+    def test_a_download_only_limit_is_untouched_by_interception(self):
+        state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)
+        plan = SHAPER.build_device_plan([{"device": "192.168.1.40", "mbit": 5}],
+                                        DEVICES, interception=state)
+        self.assertEqual(plan["device_pipes"][0]["mbit"], 5)
+        self.assertEqual(plan["upload_rejected"], [],
+                         "nothing was refused because nothing needed the upload path")
+
+    def test_the_firewall_itself_is_never_limited(self):
+        plan = SHAPER.build_device_plan([{"device": "192.168.1.32", "mbit": 3}],
+                                        DEVICES, router="192.168.1.32")
+        self.assertEqual(plan["device_pipes"], [])
+        self.assertIn("firewall itself", plan["device_rejected"][0]["reason"])
+
+    def test_one_device_named_twice_gets_one_limit(self):
+        plan = SHAPER.build_device_plan(
+            [{"device": "192.168.1.32", "mbit": 3},
+             {"device": "e0:8f:4c:8f:a8:d6", "mbit": 9}], DEVICES)
+        self.assertEqual(len(plan["device_pipes"]), 1)
+        self.assertEqual(plan["device_pipes"][0]["mbit"], 3)
+        self.assertIn("one device can carry one limit",
+                      plan["device_rejected"][0]["reason"])
+
+
+class VerifyTests(unittest.TestCase):
+    def test_counters_are_classified_by_pipe_range(self):
+        rows = SHAPER.parse_rule_counters(IPFW_LISTING)
+        kinds = {row["pipe"]: row["kind"] for row in rows}
+        self.assertEqual(kinds[21000], "service")
+        self.assertEqual(kinds[22000], "device-download")
+        self.assertEqual(kinds[22500], "device-upload")
+
+    def test_rules_outside_the_plugin_ranges_are_ignored(self):
+        rows = SHAPER.parse_rule_counters(IPFW_LISTING)
+        self.assertEqual(len(rows), 3, "allow/return rules are not shaper rules")
+
+    def test_byte_counters_are_reported(self):
+        rows = {row["pipe"]: row for row in SHAPER.parse_rule_counters(IPFW_LISTING)}
+        self.assertEqual(rows[22000]["bytes"], 29096814)
+        self.assertEqual(rows[22500]["bytes"], 71152)
+        self.assertEqual(rows[22000]["match"], "ip from any to 192.168.1.32 out via em0",
+                         "the uuid comment is noise for a reader")
+
+    def test_verify_flags_a_rule_that_has_matched_nothing(self):
+        listing = "60002 0 0 pipe 22500 ip from 192.168.1.32 to any in via em0 // x\n"
+        result = SHAPER.verify(listing, interception={"active": False})
+        self.assertEqual(result["idle"], [22500])
+
+    def test_verify_explains_that_an_idle_upload_rule_is_expected_here(self):
+        state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)
+        result = SHAPER.verify(IPFW_LISTING, interception=state)
+        self.assertEqual(result["status"], "ok")
+        self.assertIn("expected for upload rules", result["note"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -39,6 +39,15 @@ class LimitsController extends ApiControllerBase
         foreach (($plan['device_rejected'] ?? []) as $entry) {
             $refused[strtolower((string)$entry['device'])] = $entry['reason'];
         }
+        /*
+         * Upload refusals are separate from device refusals: the device is limited,
+         * only its upload half was declined. Keyed on the identifier the user typed
+         * so the message lands on the row they edited.
+         */
+        $uploadRefused = [];
+        foreach (($plan['upload_rejected'] ?? []) as $entry) {
+            $uploadRefused[strtolower((string)$entry['device'])] = $entry['reason'];
+        }
 
         $rows = [];
         foreach (($known['devices'] ?? []) as $device) {
@@ -69,14 +78,42 @@ class LimitsController extends ApiControllerBase
                 'mbit' => $choice['mbit'] ?? '',
                 'upload_mbit' => $choice['upload_mbit'] ?? '',
                 'refused' => $refused[strtolower((string)$device['address'])] ?? null,
+                'upload_refused' => $uploadRefused[strtolower((string)$matchedOn)]
+                    ?? ($uploadRefused[strtolower((string)$device['address'])] ?? null),
             ];
         }
+        $interception = $plan['interception'] ?? ['active' => false];
         return [
             'status' => 'ok',
             'enabled' => (string)$model->general->shaper_enabled === '1',
             'dry_run' => (string)$model->general->shaper_dry_run === '1',
+            /*
+             * Whether this firewall can shape uploads at all. Reported even when
+             * limits are off, so the interface can say so next to the upload field
+             * rather than letting the user configure a cap and wait for nothing.
+             */
+            'upload_supported' => empty($interception['active']),
+            'interception' => $interception,
             'devices' => $rows,
         ];
+    }
+
+    /**
+     * What the running shaper rules have actually matched.
+     *
+     * A limit that was accepted, saved and reported as applied can still shape
+     * nothing, and until this existed the only way to find out was to measure the
+     * traffic by hand. Read-only.
+     */
+    public function verifyAction(): array
+    {
+        $raw = (new Backend())->configdRun('wanquota shaperverify');
+        $result = json_decode($raw, true);
+        if (!is_array($result)) {
+            return ['status' => 'failed', 'rules' => [],
+                    'error' => 'Could not read the running shaper rules'];
+        }
+        return $result;
     }
 
     /** Save per-device limits and apply. */

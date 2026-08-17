@@ -46,6 +46,28 @@ grep -q 'template reload OPNsense/IPFW' "$repository/src/opnsense/scripts/OPNsen
 grep -q 'template reload OPNsense/Shaper' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
 grep -q 'shaper/start.sh' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
 grep -q 'function delete_pipes' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+# Turning limits off must also delete the pipes from the running kernel, not only
+# from the configuration. Measured: after disabling, the rules were gone but
+# `ipfw pipe list` still showed 22000 and 22500, so the release looked incomplete
+# to anyone checking. There must be a delete_pipes call in the release path, which
+# is the branch taken when the plan is disabled or a dry run.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+released = source.split("per-service limits released")
+assert len(released) == 2, "the release branch is no longer identifiable"
+following = released[1].split("exit(0);")[0]
+assert "delete_pipes(" in following, \
+    "disabling limits must delete the kernel pipes, not just the configuration"
+PYCHECK
+# Upload shaping is impossible while a capture engine holds packets away from
+# ipfw's inbound hook, so the plan must be able to refuse the upload half alone
+# rather than reporting a cap that shapes nothing.
+grep -q 'def netmap_interception' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+grep -q 'upload_rejected' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+grep -q '^\[shaperverify\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q '^\[shapercapability\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'WanQuota/setup.php' "$repository/+POST_INSTALL.post"
 grep -q 'WanQuota/teardown.php' "$repository/+PRE_DEINSTALL.post"
 grep -q 'general/index#consumers' "$repository/src/opnsense/www/js/widgets/WanConsumers.js"

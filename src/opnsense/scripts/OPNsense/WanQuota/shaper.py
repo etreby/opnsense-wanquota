@@ -29,7 +29,9 @@ what makes ipfw load safely through the system's own rc scripts.
 
 import json
 import os
+import re
 import sqlite3
+import subprocess
 import sys
 
 import addresses as address_book
@@ -37,6 +39,16 @@ import consumers
 
 STATE_DIR = "/var/db/wanquota"
 PLAN_PATH = os.path.join(STATE_DIR, "shaper-plan.json")
+
+# A packet-capture engine holding /dev/netmap takes traffic off the normal kernel
+# path before ipfw's inbound hook runs. Measured on a live firewall running
+# Zenarmor: during a 3 MB upload, an ipfw rule matching the device as source with
+# no direction and no interface qualifier counted 3 packets / 231 bytes, while a
+# download rule on the same device counted 29 MB. Egress from a LAN device is
+# therefore invisible to ipfw, so an upload pipe cannot fire no matter how it is
+# written. Download shaping is unaffected: it matches on the way out of the LAN
+# interface, which ipfw still sees.
+NETMAP_DEVICE = "/dev/netmap"
 
 # Pipe numbers the plugin owns. Kept high to stay clear of hand-made pipes.
 PIPE_BASE = 21000
@@ -417,7 +429,62 @@ def match_device(limit, devices):
     return None
 
 
-def build_device_plan(limits, devices, router=None):
+# Engines known to take packets off the kernel path via netmap, by the name of the
+# process that holds the device. Recognising the product lets the refusal name it
+# instead of describing a mechanism the user never configured directly.
+NETMAP_ENGINES = {
+    "eastpect": "Zenarmor",
+    "sensei": "Zenarmor",
+    "suricata": "Suricata (netmap mode)",
+}
+
+
+def netmap_interception(fstat_output=None, device_present=None):
+    """Report any capture engine holding packets away from ipfw's inbound hook.
+
+    Deliberately fails open. If the state cannot be determined the answer is "no
+    interception" and shaping behaves exactly as it did before: a wrong "clear"
+    costs an upload cap that does not fire, which `shaper.py verify` then shows as
+    zero bytes matched, whereas a wrong "intercepted" would withdraw a feature that
+    works on a firewall with no capture engine at all.
+    """
+    present = os.path.exists(NETMAP_DEVICE) if device_present is None else device_present
+    clear = {"active": False, "engine": "", "processes": [], "reason": ""}
+    if not present:
+        return clear
+    text = fstat_output
+    if text is None:
+        try:
+            text = subprocess.run(["/usr/bin/fstat"], capture_output=True, text=True,
+                                  timeout=15).stdout
+        except Exception:
+            return clear
+    holders = set()
+    for line in (text or "").splitlines():
+        fields = line.split()
+        # fstat prints USER CMD PID FD MOUNT INUM MODE SZ|DV R/W; the character
+        # device appears as its own field, so a path merely containing the word
+        # does not count as a holder.
+        if len(fields) >= 2 and "netmap" in fields[2:]:
+            holders.add(fields[1])
+    if not holders:
+        return clear
+    engines = sorted({NETMAP_ENGINES[name] for name in holders if name in NETMAP_ENGINES})
+    engine = engines[0] if engines else sorted(holders)[0]
+    return {
+        "active": True,
+        "engine": engine,
+        "processes": sorted(holders),
+        "reason": (
+            f"{engine} is capturing packets through netmap, which takes traffic off the "
+            "kernel path before ipfw sees it entering the LAN interface. Upload caps "
+            "cannot fire while it is bound; download caps are unaffected because they "
+            "match on the way out to the device."
+        ),
+    }
+
+
+def build_device_plan(limits, devices, router=None, interception=None):
     """Turn per-device limits into pipes, with every refusal explained.
 
     A device cap is gentler than blocking, but the firewall itself is still never
@@ -426,8 +493,10 @@ def build_device_plan(limits, devices, router=None):
     """
     entries = []
     rejected = []
+    upload_rejected = []
     seen = {}
     number = DEVICE_PIPE_BASE
+    blocked = bool((interception or {}).get("active"))
     for limit in limits or []:
         if not limit.get("enabled", True):
             continue
@@ -471,6 +540,18 @@ def build_device_plan(limits, devices, router=None):
             })
             continue
         seen[row["address"]] = key
+        # An upload pipe on a firewall whose LAN ingress is intercepted would be
+        # built, saved and reported as applied while shaping nothing. Refusing the
+        # upload half and keeping the download cap is the honest outcome: the user
+        # sees why, instead of a limit they believe in and cannot observe failing.
+        if blocked and upload_rate is not None:
+            upload_rejected.append({
+                "device": key,
+                "name": row.get("name") or row["address"],
+                "upload_mbit": upload_rate,
+                "reason": (interception or {}).get("reason", "LAN ingress is not visible to ipfw"),
+            })
+            upload_rate = None
         entries.append({
             "device": row["address"],
             "name": row.get("name") or row["address"],
@@ -486,6 +567,8 @@ def build_device_plan(limits, devices, router=None):
     return {
         "device_pipes": entries,
         "device_rejected": rejected,
+        "upload_rejected": upload_rejected,
+        "interception": interception or {"active": False, "engine": "", "processes": [], "reason": ""},
         "device_note": (
             "A device limit caps the rate to and from one device, matched on its current "
             "address. Because the address is resolved at apply time, a limit keyed to a "
@@ -493,6 +576,75 @@ def build_device_plan(limits, devices, router=None):
             "an address alone does not."
         ),
     }
+
+"""Rules ipfw is running for this plugin, with the bytes each has matched."""
+RULE_PATTERN = re.compile(
+    r"^\s*(\d+)\s+(\d+)\s+(\d+)\s+pipe\s+(\d+)\s+(.*)$")
+
+
+def parse_rule_counters(listing, service_base=PIPE_BASE, device_base=DEVICE_PIPE_BASE):
+    """Extract per-rule packet and byte counters from `ipfw -a list` output.
+
+    The counters are the only direct evidence that a limit is doing anything. A rule
+    that has matched no bytes while the device is active is a limit that is not
+    working, and saying so is more useful than reporting it as applied.
+    """
+    rows = []
+    for line in (listing or "").splitlines():
+        found = RULE_PATTERN.match(line)
+        if not found:
+            continue
+        rule, packets, octets, pipe, spec = found.groups()
+        pipe = int(pipe)
+        if service_base <= pipe < service_base + 1000:
+            kind = "service"
+        elif device_base <= pipe < device_base + 500:
+            kind = "device-download"
+        elif device_base + 500 <= pipe < device_base + 1000:
+            kind = "device-upload"
+        else:
+            continue
+        rows.append({
+            "rule": int(rule),
+            "pipe": pipe,
+            "kind": kind,
+            "packets": int(packets),
+            "bytes": int(octets),
+            # The trailing uuid comment is noise for a reader trying to see which
+            # traffic the rule describes.
+            "match": spec.split("//")[0].strip(),
+        })
+    return sorted(rows, key=lambda row: row["pipe"])
+
+
+def verify(listing=None, interception=None):
+    """Report what each of the plugin's shaper rules has actually matched."""
+    text = listing
+    if text is None:
+        try:
+            text = subprocess.run(["/sbin/ipfw", "-a", "list"], capture_output=True,
+                                  text=True, timeout=15).stdout
+        except Exception as error:
+            return {"status": "failed", "error": f"could not read ipfw rules: {error}",
+                    "rules": []}
+    rows = parse_rule_counters(text)
+    state = interception if interception is not None else netmap_interception()
+    idle = [row for row in rows if row["bytes"] == 0]
+    return {
+        "status": "ok",
+        "rules": rows,
+        "interception": state,
+        "idle": [row["pipe"] for row in idle],
+        "note": (
+            "Bytes are counted since the rule was installed. A rule that has matched "
+            "nothing while the device or service was in use is not limiting anything — "
+            "on this firewall that is expected for upload rules." if state.get("active")
+            else "Bytes are counted since the rule was installed. A rule that has "
+                 "matched nothing while the device or service was in use is not "
+                 "limiting anything."
+        ),
+    }
+
 
 def write_plan(document):
     os.makedirs(STATE_DIR, mode=0o750, exist_ok=True)
@@ -530,8 +682,12 @@ def options():
 def run():
     cfg = options()
     if not cfg["enabled"]:
+        # The interception state is reported even when limits are off, so the Limits
+        # tab can warn that upload caps will not work on this firewall *before* the
+        # user configures one and waits for it to take effect.
         document = {"status": "disabled", "pipes": [], "rejected": [],
-                    "device_pipes": [], "device_rejected": [],
+                    "device_pipes": [], "device_rejected": [], "upload_rejected": [],
+                    "interception": netmap_interception(),
                     "note": "Per-service and per-device limits are disabled."}
         write_plan(document)
         return document
@@ -549,7 +705,8 @@ def run():
         router = settings["router"]
     except (OSError, ValueError, KeyError):
         pass
-    plan.update(build_device_plan(cfg["device_limits"], device_identities(), router))
+    plan.update(build_device_plan(cfg["device_limits"], device_identities(), router,
+                                  interception=netmap_interception()))
     plan["status"] = "ok"
     plan["dry_run"] = cfg["dry_run"]
     if cfg["dry_run"]:
@@ -562,6 +719,13 @@ def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "plan"
     if mode == "devices":
         print(json.dumps({"status": "ok", "devices": device_identities()},
+                         separators=(",", ":")))
+        return
+    if mode == "verify":
+        print(json.dumps(verify(), separators=(",", ":")))
+        return
+    if mode == "capability":
+        print(json.dumps({"status": "ok", "interception": netmap_interception()},
                          separators=(",", ":")))
         return
     if mode == "catalog":

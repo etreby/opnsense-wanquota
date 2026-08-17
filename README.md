@@ -399,6 +399,53 @@ The cap was measured against a controlled destination: **18.3 Mbit/s uncapped,
 1.6–1.8 Mbit/s against a 2 Mbit cap**, while a second host ran at 19.9 Mbit/s at the
 same moment to confirm the cap was selective rather than a general slowdown.
 
+Per-device download caps were measured the same way: **30.4 Mbit/s uncapped,
+1.25–2.47 Mbit/s against a 3 Mbit cap**.
+
+### Upload caps do not work on every firewall
+
+A per-device upload cap needs `ipfw` to see traffic *entering* the LAN interface. A
+packet-capture engine using netmap — Zenarmor is the common one — takes packets off
+the kernel path before that hook runs, and then no upload rule can ever match.
+
+This is not a guess. On a firewall running Zenarmor, during a 3 MB upload:
+
+| Rule | Matched |
+| --- | --- |
+| `pipe 22000 ip from any to 192.168.1.32 out via em0` (download) | 29 MB |
+| `pipe 22500 ip from 192.168.1.32 to any in via em0` (upload) | 71 KB |
+| `count ip from 192.168.1.32 to any` — no direction, no interface | **3 packets / 231 bytes** |
+
+The last row is the decisive one: `ipfw` never sees the device's egress traffic
+anywhere, in any direction, on any interface, so no rule construction can shape it.
+`fstat` confirms the cause — Zenarmor's `eastpect` process holds two `/dev/netmap`
+descriptors, and the kernel log records `generic_netmap_register  Emulated adapter
+for em0 activated`.
+
+So the plugin detects the condition instead of pretending:
+
+- **No capture engine holding netmap** — upload caps are offered and applied
+  normally.
+- **A capture engine holding netmap** — the Limits tab says so, the upload field is
+  disabled with the reason, and the plan refuses the upload half while still
+  applying the download cap. Nothing is created that could not work.
+
+Detection fails open. If it cannot read the state it assumes upload shaping works,
+because a wrong "unavailable" would withdraw a feature that works on a firewall with
+no capture engine at all, while a wrong "available" costs an upload cap that does not
+fire — which **Verify** then shows as zero bytes matched.
+
+Whether removing Zenarmor from the LAN interface restores upload shaping has *not*
+been tested here, so the plugin does not claim it does.
+
+### Verify
+
+**Limits → By device → Verify** reports the bytes each running shaper rule has
+matched, and `configctl wanquota shaperverify` prints the same thing. A rule showing
+zero bytes while its traffic has been flowing is limiting nothing. This exists
+because a limit can be accepted, saved and reported as applied while shaping
+nothing, and byte counters are the only direct evidence either way.
+
 Applying goes through the OPNsense shaper model rather than calling `ipfw` directly.
 That is a safety requirement, not a preference: `ipfw` is not loaded on a stock
 system and loading it by hand installs a default deny rule that would cut all

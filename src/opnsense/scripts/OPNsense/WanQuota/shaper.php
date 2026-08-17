@@ -133,6 +133,14 @@ if (($plan['status'] ?? '') !== 'ok' || !empty($plan['dry_run'])) {
     $model->serializeToConfig();
     OPNsense\Core\Config::getInstance()->save('WAN quota per-service limits released');
     reload_shaper();
+    /*
+     * Deleting the pipes from the configuration does not remove them from the
+     * running kernel. Measured after turning limits off: the rules were gone but
+     * `ipfw pipe list` still showed 22000 and 22500, so anyone checking whether the
+     * limit had been released saw pipes that looked live. Nothing was being shaped —
+     * no rule pointed at them — but leaving them is misleading and they accumulate.
+     */
+    delete_pipes($ownedNumbers);
     echo json_encode([
         'status' => $plan['status'] ?? 'unknown',
         'applied' => 0,
