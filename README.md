@@ -34,8 +34,10 @@ quota reporting and top-consumer visibility.
   expiring overrides, reversible weight/tier changes and an optional quota cutoff.
 - HTTPS webhook alerts and scheduled summaries, native authenticated JSON API,
   Prometheus-compatible metrics, wallboard mode, high-contrast mode, and clickable charts.
-- Read-only Model Context Protocol server so AI agents can query quota status,
-  consumers, forecasts, and data-source health over stdio or the authenticated API.
+- Model Context Protocol server so AI agents can query quota status, consumers,
+  forecasts and data-source health, and can cap a service or a device, over stdio or
+  the authenticated API. Five named tools write; every other tool declares itself
+  read-only, and routing guardrails stay off the surface entirely.
 - Device names resolved from DHCP leases as well as static mappings, and device
   identity tracked by MAC so budgets and history survive an address change.
 - Optional per-device budget enforcement, disabled and dry-run by default.
@@ -101,40 +103,72 @@ use STARTTLS and can include a CSV provider summary.
 
 ## Model Context Protocol
 
-The plugin ships a read-only MCP server so an AI agent can answer questions about
-the link ("is either provider going to blow its cap this cycle?", "which device
-drove yesterday's spike?") without being handed shell access to the firewall.
+The plugin ships an MCP server so an AI agent can answer questions about the link
+("is either provider going to blow its cap this cycle?", "which device drove
+yesterday's spike?") and act on them — cap a service, cap a device, change a
+setting — without being handed shell access to the firewall.
 
-Eleven tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
-`wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`,
-`wanquota_metrics`, plus `wanquota_device`, `wanquota_site` and
-`wanquota_categories` and `wanquota_category` for drilling into one device, one
-domain, or one app category without pulling the whole report. Period-aware tools
-accept `today`, `week`, `thirty`, or `month`.
+Twenty-one tools are exposed. The reporting ones are `wanquota_summary`,
+`wanquota_daily`, `wanquota_monthly`, `wanquota_health`, `wanquota_consumers`,
+`wanquota_intelligence`, `wanquota_metrics`, `wanquota_apps`, `wanquota_sessions`,
+`wanquota_limits`, `wanquota_settings`, `wanquota_explain_domain`, plus
+`wanquota_device`, `wanquota_site`, `wanquota_categories` and `wanquota_category`
+for drilling into one device, domain or app category. Period-aware tools accept
+`today`, `week`, `thirty`, or `month`.
 
 The summary and health reports are also exposed as resources at
-`wanquota://summary` and `wanquota://health`. Every tool declares
-`readOnlyHint`, so a client need not ask before each call.
+`wanquota://summary` and `wanquota://health`.
 
-Guardrail overrides are deliberately **not** exposed. The tool surface cannot
-change routing, set an override, or write any state, so connecting an agent
-cannot alter how traffic leaves the network. Use the Intelligence tab or
-`POST /api/wanquota/override` for overrides.
+### What can change the firewall
 
-### Giving an agent a read-only credential
+Five tools write, and they are the only five:
 
-The tool surface being read-only is not enough on its own: a key is only as
-narrow as the privilege it is issued under, and a key holding the full
-**Services: WAN Quotas** privilege can also POST an override.
+| Tool | Effect |
+| --- | --- |
+| `wanquota_set_settings` | Change plugin settings by name |
+| `wanquota_set_service_limit` | Cap a catalogued service |
+| `wanquota_remove_service_limit` | Release a service cap |
+| `wanquota_set_device_limit` | Cap one device |
+| `wanquota_remove_device_limit` | Release a device cap |
 
-Grant **Services: WAN Quotas (read only)** instead. It covers the reporting and
-MCP endpoints and nothing else, so the credential cannot change routing even if
-something else on the box could. Overrides live on their own path precisely so
-this split is possible — ACL patterns match on the URL, so an override action
-sharing the reporting path could not have been excluded.
+Each tool carries its own annotations rather than the surface making one blanket
+claim, so a client can prompt before a change and stay quiet for a report. The two
+removals are flagged `destructiveHint`. The set of writers is asserted in the tests,
+so "which of these can change my firewall?" has an answer in one place instead of
+requiring a reading of the source.
 
-Create a group with only that privilege, add a user to it, and issue the API key
-under that user.
+Writes go through the same model the web interface uses. A value the interface would
+reject is rejected here, with the model's own message, and nothing is written
+half-way: `top_limit: "banana"` returns *validation failed; nothing was changed*. An
+unknown setting name is an error rather than a value written nowhere, and the
+writable set is an allowlist so adding a field to the model does not silently widen
+what a remote caller can reach. A limit edit applies immediately, because a limit
+that is saved and not applied shapes nothing and an agent has no way to notice.
+
+Two things stay off the surface deliberately:
+
+- **Guardrail overrides.** The tool surface cannot change routing. Shaping traffic is
+  recoverable; moving a household onto a different WAN has a bill attached. Use the
+  Intelligence tab or `POST /api/wanquota/override`.
+- **Credentials.** `smtp_password` can be set but is never returned — the settings
+  reader reports it as `(withheld)`, and a test asserts the value never appears in a
+  response.
+
+### Giving an agent a credential
+
+A key is only as narrow as the privilege it is issued under.
+
+**Services: WAN Quotas (read only)** covers the reporting endpoints and nothing
+else. It no longer covers MCP: it did while every MCP tool only read, and leaving it
+there once the server could write would have let a read-only account reconfigure the
+plugin. `run.sh` checks both halves of that.
+
+An agent that should only answer questions gets the read-only privilege and the
+reporting API. An agent that should also act needs the full **Services: WAN Quotas**
+privilege — which also lets it POST an override, so issue it deliberately.
+
+Create a group with only the privilege you intend, add a user to it, and issue the
+API key under that user.
 
 ### Exposure
 
@@ -404,6 +438,42 @@ same moment to confirm the cap was selective rather than a general slowdown.
 Per-device download caps were measured the same way: **30.4 Mbit/s uncapped,
 1.25–2.47 Mbit/s against a 3 Mbit cap**.
 
+### A service cap follows its addresses
+
+The running rule matches the addresses known when it was applied, and a CDN moves.
+Measured: a 720p YouTube stream ran untouched past a 0.5 Mbit cap because it used a
+cache node learned after the last apply — the cap was correct and simply did not
+contain the address. The five-minute collector now recomputes the plan and re-applies
+when, and only when, something that affects shaping has changed, so an unchanged plan
+never reloads the shaper.
+
+### Why a YouTube cap needs gvt1.com
+
+The shared-address guard excludes any address that also answers a name belonging to
+something else, because capping it would throttle unrelated traffic. On a live
+network that guard was excluding the very nodes that serve the video. The address
+carrying a 720p stream resolved from two names:
+
+    rr4.sn-vg5obxxb-j5pk.googlevideo.com
+    rr4.sn-vg5obxxb-j5pk.gvt1.com
+
+One Google cache node under two of Google's own names. That pattern held for 22 of
+the 49 observed video nodes, so what remained cappable was mostly page and API front
+ends: the pipe matched 7.8 KB of page traffic and none of the stream.
+
+A service may now declare **co-delivery** domains — names that ride the same delivery
+nodes and are therefore legitimate to cap with it. This narrows the guard rather than
+weakening it. `google.com`, `gstatic.com`, `googleapis.com`, `doubleclick.net` and the
+analytics hosts are still strangers and still exclude an address, because capping
+those would throttle ordinary browsing; tests assert each one.
+
+Because `gvt1.com` also delivers Chrome and Play Store downloads from those nodes, a
+YouTube cap limits those too. The plan reports this as `also_limits` rather than
+quietly widening the cap's reach.
+
+With that correction the cap measured **0.477 Mbit/s against a 0.50 Mbit ceiling**,
+having previously left the same stream untouched.
+
 ### Upload caps do not work on every firewall
 
 A per-device upload cap needs `ipfw` to see traffic *entering* the LAN interface. A
@@ -489,7 +559,8 @@ a budget releases the device on the next run. `configctl wanquota deviceflush`
 empties the table immediately, and uninstalling the plugin flushes it too — a
 rule owned by a plugin that no longer exists must not keep blocking anything.
 
-None of this is reachable from the MCP server. The tool surface stays read-only,
+The routing guardrail is not reachable from the MCP server. Its tool surface can
+change limits and settings but not routing,
 and a test asserts no tool or resource can touch enforcement.
 
 ## Device identity
