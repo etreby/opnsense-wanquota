@@ -229,6 +229,98 @@ def resolve_rate(limit):
     )
 
 
+# A prefix is only capped when this many of its addresses have been observed, all of
+# them belonging to the service. One lucky answer is not evidence that a whole /24
+# belongs to a CDN, and capping a /24 on that basis could throttle a neighbouring
+# service that happens to share the block.
+PREFIX_MIN_ADDRESSES = 2
+PREFIX_BITS = 24
+
+
+def _prefix_of(address):
+    """The /24 an IPv4 address sits in, or None for anything else."""
+    parts = address.split(".")
+    if len(parts) != 4 or not all(part.isdigit() for part in parts):
+        return None
+    return ".".join(parts[:3]) + ".0/24"
+
+
+def safe_prefixes(suffixes, co_delivery, mappings, minimum=PREFIX_MIN_ADDRESSES):
+    """Whole /24s that carry nothing but this service, with the evidence for each.
+
+    Capping individual addresses cannot keep up with YouTube. It hands out
+    per-session cache nodes, so the address serving the next video is often one that
+    has never been resolved through this firewall — and until it is, that video runs
+    uncapped. Measured: a cap held one node to 0.47 Mbit/s while the player simply
+    moved to another.
+
+    Where a provider keeps its delivery nodes in dedicated blocks, the block is the
+    stable thing to match. The ISP-hosted Google cache on one live network is exactly
+    that: every hostname ever seen in 41.91.253.0/24 was googlevideo.com or gvt1.com.
+    A new node appearing there is covered the moment it is used, with no observation
+    needed.
+
+    The test is strict and it has to be: a prefix is offered only when *every* name
+    observed anywhere in it belongs to the service or its co-delivery domains. On the
+    same network that rejects 142.251.27.0/24 and 192.178.194.0/24, which hold video
+    hostnames alongside google.com, googleapis.com, gstatic.com and doubleclick.net —
+    capping those would throttle Search and ordinary browsing.
+    """
+    wanted = [s.strip().lower().rstrip(".") for s in suffixes if s and s.strip()]
+    friendly = {d.strip().lower().rstrip(".") for d in (co_delivery or ()) if d and d.strip()}
+
+    def belongs(name):
+        if any(name == suffix or name.endswith("." + suffix) for suffix in wanted):
+            return True
+        return any(name == domain or name.endswith("." + domain) for domain in friendly)
+
+    names_by_prefix = {}
+    addresses_by_prefix = {}
+    for domain, address in mappings or ():
+        prefix = _prefix_of(address)
+        if prefix is None:
+            continue
+        name = (domain or "").strip().lower().rstrip(".")
+        names_by_prefix.setdefault(prefix, set()).add(name)
+        addresses_by_prefix.setdefault(prefix, set()).add(address)
+
+    safe = {}
+    for prefix, names in names_by_prefix.items():
+        addresses = addresses_by_prefix[prefix]
+        if len(addresses) < minimum:
+            continue
+        if not any(belongs(name) for name in names):
+            continue
+        strangers = sorted({registrable(name) for name in names if not belongs(name)})
+        if strangers:
+            continue
+        # A prefix on shared infrastructure is never offered, whatever its names say.
+        if any(is_shared_cdn(name) for name in names):
+            continue
+        safe[prefix] = {
+            "prefix": prefix,
+            "addresses": len(addresses),
+            "domains": sorted({registrable(name) for name in names}),
+        }
+    return safe
+
+
+def collapse_into_prefixes(addresses, prefixes):
+    """Replace addresses with the safe prefix that contains them.
+
+    Returns the match list to install. An address inside a capped prefix is dropped
+    from the list because the prefix already covers it, so the rule does not carry the
+    same traffic twice.
+    """
+    kept = []
+    for address in addresses:
+        prefix = _prefix_of(address)
+        if prefix is not None and prefix in prefixes:
+            continue
+        kept.append(address)
+    return sorted(prefixes) + kept
+
+
 def bandwidth_fields(mbit):
     """An integral bandwidth and its metric, for the shaper model.
 
@@ -409,16 +501,25 @@ def build_plan(limits, mappings, catalog=None, stored=None):
             rejected.append({"service": key, "reason": reason})
             continue
         bandwidth, metric = bandwidth_fields(rate)
+        # Prefer whole delivery blocks over individual addresses where the evidence
+        # supports it: a rotated cache node inside a capped block is covered without
+        # having to be observed first.
+        prefixes = safe_prefixes(service["suffixes"], service.get("co_delivery", ()), mappings)
+        matches = collapse_into_prefixes(addresses, prefixes)
         entries.append({
             "service": key,
             "label": service["label"],
             "mbit": rate,
             "bandwidth": bandwidth,
             "bandwidth_metric": metric,
+            "prefixes": sorted(prefixes),
+            "prefix_evidence": [prefixes[name] for name in sorted(prefixes)],
             "basis": "explicit" if limit.get("mbit") else str(limit.get("resolution", "")).lower(),
             "pipe": number,
-            "addresses": addresses,
+            "addresses": matches,
+            "observed_address_list": addresses,
             "address_count": len(addresses),
+            "match_count": len(matches),
             "shared_excluded": len(shared),
             # What else this cap unavoidably limits, because it shares delivery nodes
             # with the service. Reported so the reach is visible, not assumed.

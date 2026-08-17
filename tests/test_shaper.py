@@ -376,6 +376,152 @@ class BandwidthFieldTests(unittest.TestCase):
         self.assertIsNone(entry["upload_bandwidth"])
 
 
+class CombinedLimitTests(unittest.TestCase):
+    """Per-service and per-device limits are not a choice between two modes.
+
+    They occupy separate pipe ranges and separate rules, so both can be in force at
+    once. What they are not is additive: with ipfw's one_pass, a packet leaves the
+    ruleset at the first pipe it matches, and service rules are sequenced ahead of
+    device rules. So YouTube traffic to a capped device is held to the *service* rate,
+    and the device cap governs everything else that device does.
+    """
+
+    DEVICES = [{"address": "192.168.1.32", "name": "Desktop",
+                "mac": "e0:8f:4c:8f:a8:d6", "hostname": "desktop"}]
+
+    def combined(self):
+        plan = SHAPER.build_plan([{"service": "netflix", "mbit": 5}], MAPPINGS)
+        plan.update(SHAPER.build_device_plan(
+            [{"device": "e0:8f:4c:8f:a8:d6", "mbit": 20}], self.DEVICES))
+        return plan
+
+    def test_both_kinds_of_limit_survive_in_one_plan(self):
+        plan = self.combined()
+        self.assertEqual(len(plan["pipes"]), 1, "the service cap is still planned")
+        self.assertEqual(len(plan["device_pipes"]), 1, "the device cap is still planned")
+
+    def test_their_pipe_numbers_cannot_collide(self):
+        plan = self.combined()
+        service = {entry["pipe"] for entry in plan["pipes"]}
+        device = {entry["pipe"] for entry in plan["device_pipes"]}
+        self.assertEqual(service & device, set())
+        self.assertTrue(all(number < SHAPER.DEVICE_PIPE_BASE for number in service))
+        self.assertTrue(all(number >= SHAPER.DEVICE_PIPE_BASE for number in device))
+
+    def test_the_service_rule_is_sequenced_first(self):
+        """Precedence, not addition: the more specific limit governs its own traffic."""
+        plan = self.combined()
+        self.assertLess(max(entry["pipe"] for entry in plan["pipes"]),
+                        min(entry["pipe"] for entry in plan["device_pipes"]))
+
+    def test_the_fingerprint_covers_both_so_either_edit_re_applies(self):
+        plan = self.combined()
+        before = SHAPER.plan_fingerprint(plan)
+        widened = json.loads(json.dumps(plan))
+        widened["device_pipes"][0]["bandwidth"] = 30
+        self.assertTrue(SHAPER.needs_apply(widened, before))
+        retimed = json.loads(json.dumps(plan))
+        retimed["pipes"][0]["bandwidth"] = 9
+        self.assertTrue(SHAPER.needs_apply(retimed, before))
+
+
+class PrefixTests(unittest.TestCase):
+    """Capping a whole delivery block where the evidence supports it.
+
+    Individual addresses cannot keep up with YouTube: it hands out per-session cache
+    nodes, so a cap can hold one node while the player moves to another that has never
+    been resolved through this firewall. These fixtures are the real shape of a live
+    network — an ISP-hosted Google cache in a dedicated /24, and Google's general
+    front-ends sharing a /24 with Search, ads and analytics.
+    """
+
+    # 41.91.253.0/24 on the live network: nothing but Google video delivery.
+    DEDICATED = [
+        ("rr4.sn-vg5obxxb-j5pk.googlevideo.com", "41.91.253.47"),
+        ("rr4.sn-vg5obxxb-j5pk.gvt1.com", "41.91.253.47"),
+        ("rr3.sn-vg5obxxb-j5pk.googlevideo.com", "41.91.253.52"),
+        ("rr1.sn-vg5obxxb-j5pk.gvt1.com", "41.91.253.61"),
+    ]
+    # 142.251.27.0/24: video hostnames alongside Search, ads and analytics.
+    MIXED = [
+        ("rr1.googlevideo.com", "142.251.27.100"),
+        ("www.google.com", "142.251.27.101"),
+        ("doubleclick.net", "142.251.27.102"),
+        ("googleapis.com", "142.251.27.103"),
+    ]
+
+    def prefixes(self, mappings):
+        return SHAPER.safe_prefixes(("googlevideo.com", "youtube.com", "ytimg.com"),
+                                    ("gvt1.com",), mappings)
+
+    def test_a_dedicated_block_is_offered(self):
+        found = self.prefixes(self.DEDICATED)
+        self.assertIn("41.91.253.0/24", found)
+        self.assertEqual(found["41.91.253.0/24"]["addresses"], 3)
+        self.assertEqual(found["41.91.253.0/24"]["domains"], ["googlevideo.com", "gvt1.com"])
+
+    def test_a_block_shared_with_search_is_refused(self):
+        """Capping this would throttle Search and ordinary browsing."""
+        self.assertEqual(self.prefixes(self.MIXED), {})
+
+    def test_one_observation_is_not_evidence_of_a_whole_block(self):
+        single = [("rr1.googlevideo.com", "203.0.113.10")]
+        self.assertEqual(self.prefixes(single), {})
+
+    def test_a_prefix_replaces_the_addresses_inside_it(self):
+        """The rule must not carry the same traffic twice."""
+        matches = SHAPER.collapse_into_prefixes(
+            ["41.91.253.47", "41.91.253.52", "8.8.4.4"], {"41.91.253.0/24": {}})
+        self.assertEqual(matches, ["41.91.253.0/24", "8.8.4.4"])
+
+    def test_addresses_outside_any_safe_prefix_are_kept(self):
+        matches = SHAPER.collapse_into_prefixes(["198.51.100.7"], {})
+        self.assertEqual(matches, ["198.51.100.7"])
+
+    def test_shared_infrastructure_is_never_offered_as_a_prefix(self):
+        pairs = [("rr1.googlevideo.com", "203.0.113.10"),
+                 ("rr2.googlevideo.com", "203.0.113.11"),
+                 ("d1.cloudfront.net", "203.0.113.12")]
+        self.assertEqual(self.prefixes(pairs), {})
+
+    def test_the_plan_installs_the_prefix_and_reports_it(self):
+        plan = SHAPER.build_plan([{"service": "youtube", "resolution": "audio_only"}],
+                                 self.DEDICATED)
+        entry = plan["pipes"][0]
+        self.assertEqual(entry["prefixes"], ["41.91.253.0/24"])
+        self.assertEqual(entry["addresses"], ["41.91.253.0/24"],
+                         "the block replaces its individual addresses")
+        # Two different counts, both correct: 2 addresses were observed under a
+        # YouTube hostname, while the block itself holds 3 known addresses.
+        self.assertEqual(entry["address_count"], 2)
+        self.assertEqual(entry["prefix_evidence"][0]["addresses"], 3)
+
+    def test_a_co_delivery_only_address_is_not_a_video_address_but_is_covered(self):
+        """41.91.253.61 was seen only under gvt1.com.
+
+        Co-delivery stops such a name excluding an address; it does not make an
+        address that carries nothing else into a YouTube address. It is still inside
+        the capped block, which is the point of capping the block and is why
+        also_limits is reported.
+        """
+        exclusive, _shared, _incidental = SHAPER.service_addresses(
+            ("googlevideo.com",), self.DEDICATED, co_delivery=("gvt1.com",))
+        self.assertNotIn("41.91.253.61", exclusive)
+        found = self.prefixes(self.DEDICATED)
+        self.assertIn("41.91.253.0/24", found)
+
+    def test_a_mixed_block_leaves_individual_addresses_in_place(self):
+        plan = SHAPER.build_plan([{"service": "youtube", "mbit": 3}], self.MIXED)
+        entry = plan["pipes"][0]
+        self.assertEqual(entry["prefixes"], [])
+        self.assertEqual(entry["addresses"], ["142.251.27.100"],
+                         "only the video address, and only as an address")
+
+    def test_an_unresolvable_address_does_not_crash_prefixing(self):
+        self.assertIsNone(SHAPER._prefix_of("not-an-address"))
+        self.assertIsNone(SHAPER._prefix_of("2001:db8::1"))
+
+
 class SyncTests(unittest.TestCase):
     """A cap must follow its addresses, and must not re-apply for no reason.
 
