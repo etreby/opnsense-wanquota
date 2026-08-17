@@ -119,6 +119,31 @@ if grep -q 'uploadOk ? row.upload_mbit' \
     echo "the disabled upload field must keep showing the configured rate" >&2
     exit 1
 fi
+# The enable and dry-run switches govern service and device limits together, so there
+# must be exactly one of each in the Limits tab. There were two of each, one per
+# sub-tab, both writing the same model field: saving a device limit while the device
+# sub-tab's switch was unticked turned shaping off, so the service limits looked
+# untouched but disabled and no rules were installed.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+for switch in ("limitEnabled", "limitDryRun"):
+    found = re.findall(r'<input[^>]*id="%s"' % switch, source)
+    assert len(found) == 1, f"expected exactly one {switch} control, found {len(found)}"
+for gone in ("deviceLimitEnabled", "deviceLimitDryRun"):
+    assert gone not in source, f"{gone} duplicates a shared switch and must not return"
+PYCHECK
+# The endpoints must treat the switches as optional, so a caller that omits them
+# cannot silently disable shaping.
+grep -q 'private function applyState' \
+    "$repository/src/opnsense/mvc/app/controllers/OPNsense/WanQuota/Api/LimitsController.php"
+python3 - "$repository/src/opnsense/mvc/app/controllers/OPNsense/WanQuota/Api/LimitsController.php" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+assert "shaper_enabled = $this->request->getPost('enabled')" not in source, \
+    "absent must not read as off: use applyState"
+PYCHECK
 # Limits and Settings write the same fields, so a change on one page must refresh
 # the other. Enabling limits and clearing dry-run from the Limits page once left
 # Settings still showing them off, which reads as the save having been lost.

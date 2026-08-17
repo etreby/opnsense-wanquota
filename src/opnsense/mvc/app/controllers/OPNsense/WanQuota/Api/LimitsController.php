@@ -19,6 +19,33 @@ use OPNsense\WanQuota\WanQuota;
  */
 class LimitsController extends ApiControllerBase
 {
+    /**
+     * Apply the shared enable and dry-run switches, if the caller sent them.
+     *
+     * Both switches govern service and device limits together, so a request that
+     * omits them must leave them alone rather than reading absent as off. Treating
+     * absence as off is how saving a device limit once disabled the service limits
+     * too: the two sub-tabs each had their own switch writing the same field, and the
+     * one that happened to be unticked won. The interface now has a single pair, and
+     * this makes the endpoint safe for any other caller as well.
+     */
+    private function applyState(WanQuota $model): void
+    {
+        foreach (['enabled' => 'shaper_enabled', 'dry_run' => 'shaper_dry_run'] as $key => $field) {
+            /*
+             * getPost with an explicit null default rather than has(): a JSON request
+             * body does not populate $_REQUEST, so has() would report every switch as
+             * absent and none would ever be applied. This form reads the same whether
+             * the caller sent JSON or a form, and distinguishes "sent as 0" from
+             * "not sent".
+             */
+            $value = $this->request->getPost($key, null, null);
+            if ($value !== null) {
+                $model->general->$field = $value ? '1' : '0';
+            }
+        }
+    }
+
     /** Devices the firewall can name, with any limit already set on them. */
     public function devicesAction(): array
     {
@@ -159,8 +186,7 @@ class LimitsController extends ApiControllerBase
 
         $model = new WanQuota();
         $model->general->device_limits_json = json_encode($limits);
-        $model->general->shaper_enabled = $this->request->getPost('enabled') ? '1' : '0';
-        $model->general->shaper_dry_run = $this->request->getPost('dry_run') ? '1' : '0';
+        $this->applyState($model);
         $messages = $model->performValidation();
         if (count($messages) > 0) {
             $problems = [];
@@ -287,8 +313,7 @@ class LimitsController extends ApiControllerBase
 
         $model = new WanQuota();
         $model->general->service_limits_json = json_encode($limits);
-        $model->general->shaper_enabled = $this->request->getPost('enabled') ? '1' : '0';
-        $model->general->shaper_dry_run = $this->request->getPost('dry_run') ? '1' : '0';
+        $this->applyState($model);
         $messages = $model->performValidation();
         if (count($messages) > 0) {
             $problems = [];

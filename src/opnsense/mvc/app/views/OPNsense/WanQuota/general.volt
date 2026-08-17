@@ -66,6 +66,21 @@
         <div id="appDrill" class="wq-section wq-table-wrap"></div>
     </div></div>
     <div id="limits" class="tab-pane fade"><div style="padding:16px">
+        <!--
+            One pair of switches for the whole tab, deliberately outside the sub-tabs.
+            There used to be a pair in each, both writing shaper_enabled and
+            shaper_dry_run, so saving on one sub-tab applied that sub-tab's switch
+            state to the other's limits. Saving a device limit while the device
+            sub-tab's switch was unticked turned shaping off altogether: the service
+            limits looked untouched but disabled, and no rules were installed.
+            Per-service and per-device limits combine, so the switch that governs both
+            belongs where it visibly governs both.
+        -->
+        <div class="wq-action-box" style="margin-bottom:14px">
+          <label class="wq-switch"><input type="checkbox" id="limitEnabled"> <b>{{ lang._('Enable limits') }}</b></label>
+          <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="limitDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label>
+          <span class="wq-muted" style="margin-left:14px">{{ lang._('Applies to service and device limits together. Both kinds can be active at once.') }}</span>
+        </div>
         <ul class="nav nav-pills wq-subtabs">
             <li class="active"><a href="#limitsService" data-toggle="tab">{{ lang._('By service') }}</a></li>
             <li><a href="#limitsDevice" data-toggle="tab">{{ lang._('By device') }}</a></li>
@@ -73,8 +88,6 @@
         <div class="tab-content">
         <div id="limitsService" class="tab-pane fade in active">
         <div class="wq-action-box" style="margin-bottom:14px">
-          <label class="wq-switch"><input type="checkbox" id="limitEnabled"> <b>{{ lang._('Enable per-service limits') }}</b></label>
-          <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="limitDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label>
           <input id="limitSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search services…') }}">
           <span id="limitCount" class="wq-muted"></span>
           <button id="saveLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
@@ -85,8 +98,6 @@
         </div>
         <div id="limitsDevice" class="tab-pane fade">
             <div class="wq-action-box" style="margin-bottom:14px">
-              <label class="wq-switch"><input type="checkbox" id="deviceLimitEnabled"> <b>{{ lang._('Enable limits') }}</b></label>
-              <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="deviceLimitDryRun"> {{ lang._('Dry run') }}</label>
               <input id="deviceLimitSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search devices…') }}">
               <span id="deviceLimitCount" class="wq-muted"></span>
               <button id="verifyLimits" class="btn btn-default" style="margin-left:auto"><i class="fa fa-stethoscope"></i> {{ lang._('Verify') }}</button>
@@ -713,8 +724,8 @@ function showWizardStep(index) {
 let deviceLimitData = null;
 function renderDeviceLimits(data) {
     deviceLimitData = data;
-    $('#deviceLimitEnabled').prop('checked', !!data.enabled);
-    $('#deviceLimitDryRun').prop('checked', !!data.dry_run);
+    $('#limitEnabled').prop('checked', !!data.enabled);
+    $('#limitDryRun').prop('checked', !!data.dry_run);
     /*
      * Say up front when this firewall cannot shape uploads. A capture engine using
      * netmap takes packets off the kernel path before ipfw sees them leaving a LAN
@@ -806,8 +817,8 @@ function saveDeviceLimits() {
     $('#deviceLimitStatus').html('<div class="alert alert-info">' + esc('Applying…') + '</div>');
     $('#saveDeviceLimits').prop('disabled', true);
     ajaxCall('/api/wanquota/limits/setDevices', {
-        enabled: $('#deviceLimitEnabled').is(':checked') ? 1 : 0,
-        dry_run: $('#deviceLimitDryRun').is(':checked') ? 1 : 0,
+        enabled: $('#limitEnabled').is(':checked') ? 1 : 0,
+        dry_run: $('#limitDryRun').is(':checked') ? 1 : 0,
         limits: limits,
     }, function(result) {
         $('#saveDeviceLimits').prop('disabled', false);
