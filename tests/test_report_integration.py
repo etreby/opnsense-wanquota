@@ -96,6 +96,9 @@ class ConsumerReportTests(unittest.TestCase):
             )
 
         self.saved = {
+            "DNSMASQ_LEASES": CONSUMERS.DNSMASQ_LEASES,
+            "KEA_LEASES": CONSUMERS.KEA_LEASES,
+            "arp_macs": CONSUMERS.arp_macs,
             "CONFIG_PATH": CONSUMERS.CONFIG_PATH,
             "DOMAIN_DB": CONSUMERS.DOMAIN_DB,
             "flow_rows": CONSUMERS.flow_rows,
@@ -105,6 +108,11 @@ class ConsumerReportTests(unittest.TestCase):
         }
         CONSUMERS.CONFIG_PATH = str(self.config)
         CONSUMERS.DOMAIN_DB = str(self.domain_db)
+        # Lease and ARP sources: absent by default, overridden per test.
+        CONSUMERS.DNSMASQ_LEASES = str(root / "absent.leases")
+        CONSUMERS.KEA_LEASES = str(root / "absent.csv")
+        CONSUMERS.arp_macs = lambda runner=None: {}
+        self.root = root
 
         # ntopng RRDs are a binary format; fabricating them would test the
         # fixture, not the report. Patch at the boundary instead.
@@ -303,6 +311,50 @@ class SummaryTests(unittest.TestCase):
         REPORT.vnstat_rows = self.rows_for([(today, 5_000_000_000)])
         item = REPORT.summary(*REPORT.configuration())["providers"][0]
         self.assertGreaterEqual(item["projected"], item["used"])
+
+
+class IdentityIntegrationTests(ConsumerReportTests):
+    """Identity resolution through the whole report."""
+
+    def test_lease_hostname_names_a_device_with_no_static_mapping(self):
+        # 192.168.1.30 is deliberately absent from CONFIG's hosts entries.
+        (self.root / "d.leases").write_text(
+            "1787050729 aa:bb:cc:dd:ee:01 192.168.1.30 spare-laptop *\n", encoding="utf-8")
+        CONSUMERS.DNSMASQ_LEASES = str(self.root / "d.leases")
+        CONSUMERS.host_rrds = lambda network: [("192.168.1.30", "/fake/spare")]
+        CONSUMERS.rrd_totals = lambda path, start: (10, 90)
+        self.set_flows([])
+        result = CONSUMERS.report("thirty")
+        row = next(h for h in result["hosts"] if h["ip"] == "192.168.1.30")
+        self.assertEqual(row["name"], "spare-laptop")
+        self.assertEqual(row["name_source"], "dhcp")
+
+    def test_static_name_still_wins_over_a_lease(self):
+        (self.root / "d.leases").write_text(
+            "1787050729 aa:bb:cc:dd:ee:02 192.168.1.10 truenas-dhcp *\n", encoding="utf-8")
+        CONSUMERS.DNSMASQ_LEASES = str(self.root / "d.leases")
+        self.set_flows([])
+        row = next(h for h in CONSUMERS.report("thirty")["hosts"] if h["ip"] == "192.168.1.10")
+        self.assertEqual(row["name"], "TRUENAS")
+        self.assertEqual(row["name_source"], "static")
+
+    def test_hosts_and_attribution_carry_mac_and_stable_key(self):
+        CONSUMERS.arp_macs = lambda runner=None: {"192.168.1.10": "70:f3:95:04:88:a6"}
+        self.set_flows([
+            {"if": "em0", "direction": "out", "src_addr": "192.168.1.10",
+             "dst_addr": "198.51.100.5", "octets": 600},
+        ])
+        result = CONSUMERS.report("thirty")
+        host = next(h for h in result["hosts"] if h["ip"] == "192.168.1.10")
+        att = next(a for a in result["device_attribution"] if a["device"] == "192.168.1.10")
+        self.assertEqual(host["mac"], "70:f3:95:04:88:a6")
+        self.assertEqual(host["device_key"], "70:f3:95:04:88:a6")
+        self.assertEqual(att["mac"], "70:f3:95:04:88:a6")
+
+    def test_stable_key_is_the_address_when_no_mac_is_known(self):
+        self.set_flows([])
+        host = next(h for h in CONSUMERS.report("thirty")["hosts"] if h["ip"] == "192.168.1.10")
+        self.assertEqual(host["device_key"], "192.168.1.10")
 
 
 if __name__ == "__main__":

@@ -15,13 +15,23 @@ test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/health.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/intelligence.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/mcp.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/devices.py"
 grep -q '^\[mcp\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q '^\[deviceflush\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+grep -q 'devices.py' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
 grep -q 'WanQuota/setup.php' "$repository/+POST_INSTALL.post"
 grep -q 'WanQuota/teardown.php' "$repository/+PRE_DEINSTALL.post"
 grep -q 'general/index#consumers' "$repository/src/opnsense/www/js/widgets/WanConsumers.js"
 grep -q 'general/index' "$repository/src/opnsense/www/js/widgets/WanQuota.js"
 grep -q 'general/index#consumers' "$repository/src/opnsense/www/js/widgets/WanDomains.js"
 grep -q '<wandomains>' "$repository/src/opnsense/www/js/widgets/Metadata/WanQuota.xml"
+
+# The PHP side was only ever linted. Run the framework-free transport tests when
+# a php binary is available: CI has one and so does the firewall, so this is
+# covered in both places, and skipped cleanly where php is absent.
+if command -v php >/dev/null 2>&1; then
+    php "$repository/tests/php/McpGatewayTest.php"
+fi
 
 # The report view carries most of the UI logic but is not covered by the unit
 # tests, and a syntax error there breaks the page silently. Parse the inline

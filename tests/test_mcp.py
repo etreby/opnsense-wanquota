@@ -86,6 +86,21 @@ class ToolSurfaceTests(unittest.TestCase):
         self.assertNotIn("wanquota_override", names)
         self.assertFalse(any("override" in name or "enforce" in name for name in names))
 
+    def test_no_tool_can_reach_per_device_enforcement(self):
+        # devices.py can block a device off the network. Nothing on the MCP
+        # surface may reach it, and no resource may either.
+        forbidden = ("enforce", "block", "budget_apply", "devices_apply", "flush")
+        names = {tool["name"] for tool in MCP.tool_descriptors()}
+        for word in forbidden:
+            self.assertFalse(any(word in name for name in names), word)
+        for uri in MCP.RESOURCES_BY_URI:
+            self.assertFalse(any(word in uri for word in forbidden), uri)
+
+    def test_handlers_do_not_import_the_enforcement_module(self):
+        import sys as _sys
+        self.assertNotIn("devices", {m.split(".")[-1] for m in _sys.modules
+                                     if m.startswith("wanquota_mcp")})
+
     def test_unknown_tool_is_method_not_found(self):
         response = MCP.handle(request("tools/call", {"name": "nope", "arguments": {}}))
         self.assertEqual(response["error"]["code"], MCP.METHOD_NOT_FOUND)
@@ -100,6 +115,48 @@ class ToolSurfaceTests(unittest.TestCase):
     def test_period_defaults_to_thirty(self):
         self.assertEqual(MCP._period({}), "thirty")
         self.assertEqual(MCP._period({"period": "week"}), "week")
+
+
+class CapabilityAndResourceTests(unittest.TestCase):
+    def test_initialize_declares_resources(self):
+        caps = MCP.handle(request("initialize", {}))["result"]["capabilities"]
+        self.assertIn("tools", caps)
+        self.assertIn("resources", caps)
+
+    def test_resources_are_listed(self):
+        uris = {r["uri"] for r in MCP.handle(request("resources/list"))["result"]["resources"]}
+        self.assertEqual(uris, {"wanquota://summary", "wanquota://health"})
+
+    def test_resource_descriptors_declare_a_mime_type(self):
+        for r in MCP.handle(request("resources/list"))["result"]["resources"]:
+            self.assertEqual(r["mimeType"], "application/json")
+
+    def test_unknown_resource_is_invalid_params_and_lists_the_real_ones(self):
+        response = MCP.handle(request("resources/read", {"uri": "wanquota://nope"}))
+        self.assertEqual(response["error"]["code"], MCP.INVALID_PARAMS)
+        self.assertIn("wanquota://summary", response["error"]["message"])
+
+    def test_resource_read_returns_json_text(self):
+        original = MCP.RESOURCES_BY_URI["wanquota://health"]["handler"]
+        MCP.RESOURCES_BY_URI["wanquota://health"]["handler"] = lambda _a: {"status": "ok", "checks": []}
+        try:
+            body = MCP.handle(request("resources/read", {"uri": "wanquota://health"}))
+            content = body["result"]["contents"][0]
+            self.assertEqual(json.loads(content["text"])["status"], "ok")
+            self.assertEqual(content["uri"], "wanquota://health")
+        finally:
+            MCP.RESOURCES_BY_URI["wanquota://health"]["handler"] = original
+
+    def test_tools_with_an_output_schema_declare_it(self):
+        declared = {t["name"] for t in MCP.tool_descriptors() if "outputSchema" in t}
+        self.assertEqual(declared, {"wanquota_health", "wanquota_device", "wanquota_site"})
+
+    def test_big_payload_tools_deliberately_declare_no_output_schema(self):
+        # Left undeclared on purpose: an approximate schema a client enforces is
+        # worse than none, because it rejects valid data.
+        undeclared = {t["name"] for t in MCP.tool_descriptors() if "outputSchema" not in t}
+        self.assertIn("wanquota_consumers", undeclared)
+        self.assertIn("wanquota_intelligence", undeclared)
 
 
 class ToolCallTests(unittest.TestCase):
@@ -277,6 +334,19 @@ class DrillToolTests(unittest.TestCase):
         body = self.payload(self.call("wanquota_device", {"device": "Quiet Box"}))
         self.assertEqual(body["sites"], [])
         self.assertIn("daily buckets", body["empty_reason"])
+
+    def test_output_schema_tools_return_structured_content(self):
+        response = self.call("wanquota_device", {"device": "TRUENAS"})
+        self.assertIn("structuredContent", response["result"])
+        self.assertEqual(response["result"]["structuredContent"]["name"], "TRUENAS")
+
+    def test_tools_without_an_output_schema_omit_structured_content(self):
+        MCP.TOOLS_BY_NAME["wanquota_consumers"]["handler"] = lambda _a: {"status": "ok"}
+        try:
+            response = self.call("wanquota_consumers", {})
+            self.assertNotIn("structuredContent", response["result"])
+        finally:
+            MCP.TOOLS_BY_NAME["wanquota_consumers"]["handler"] = MCP.tool_consumers
 
     def test_drill_tools_are_still_read_only(self):
         for tool in ("wanquota_device", "wanquota_site"):

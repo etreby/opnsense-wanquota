@@ -138,6 +138,8 @@
             <domain_categories_json type="TextField"><Default>{}</Default><Required>Y</Required></domain_categories_json>
             <enforcement_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></enforcement_enabled>
             <enforcement_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></enforcement_dry_run>
+            <device_enforcement_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></device_enforcement_enabled>
+            <device_enforcement_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></device_enforcement_dry_run>
             <enforcement_policy type="OptionField"><Default>observe</Default><Required>Y</Required><OptionValues><observe>Observe only</observe><deprioritize>Deprioritize</deprioritize><failover>Failover only</failover><cutoff>Cut off at quota</cutoff></OptionValues></enforcement_policy>
             <guardrail_thresholds type="TextField"><Default>50,75,90,100</Default><Required>Y</Required></guardrail_thresholds>
             <emergency_reserve_gb type="NumericField"><Default>5</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></emergency_reserve_gb>

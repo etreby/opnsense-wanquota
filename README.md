@@ -36,6 +36,9 @@ quota reporting and top-consumer visibility.
   Prometheus-compatible metrics, wallboard mode, high-contrast mode, and clickable charts.
 - Read-only Model Context Protocol server so AI agents can query quota status,
   consumers, forecasts, and data-source health over stdio or the authenticated API.
+- Device names resolved from DHCP leases as well as static mappings, and device
+  identity tracked by MAC so budgets and history survive an address change.
+- Optional per-device budget enforcement, disabled and dry-run by default.
 
 ## Screenshots
 
@@ -181,6 +184,44 @@ caches, and registers the DNS collector, so no manual restart is needed.
 
 `PLUGIN_REVISION` tracks fixes released against the same `PLUGIN_VERSION`, giving
 package versions such as `0.8_2`.
+
+## Per-device budget enforcement
+
+The gateway guardrails act on a whole provider. Per-device enforcement acts on
+individual devices that exceed a budget, by maintaining the pf table
+`wanquota_over_budget`. **You must add a firewall rule blocking that table** —
+the plugin maintains membership, your rule decides what membership means.
+
+It is **disabled by default, and dry-run when first enabled**. Dry run records
+the membership it would apply to
+`/var/db/wanquota/device-enforcement-plan.json` and changes nothing. Read that
+file before turning dry-run off.
+
+Three categories can never be blocked, regardless of budget: the firewall itself,
+any device marked `exclude` in the per-device policies, and any member of a group
+named `Protected Infrastructure` or discovered from the
+`INFRASTRUCTURE_DEVICES` alias. A budget cannot lock the firewall out of its own
+network or take down infrastructure the network depends on.
+
+Membership is recomputed every run and applied as one atomic replace, so raising
+a budget releases the device on the next run. `configctl wanquota deviceflush`
+empties the table immediately, and uninstalling the plugin flushes it too — a
+rule owned by a plugin that no longer exists must not keep blocking anything.
+
+None of this is reachable from the MCP server. The tool surface stays read-only,
+and a test asserts no tool or resource can touch enforcement.
+
+## Device identity
+
+Names come from static mappings in `config.xml` first, then the DHCP hostname
+from the dnsmasq or Kea lease file, then the bare address. Reading only static
+mappings left devices showing as raw IPs that the firewall could already name.
+
+Per-device budgets and exclusions match on address, MAC, **or** DHCP hostname,
+and history baselines are keyed to the MAC when one is known. Addresses are not
+identity: DHCP reassigns them, and a device using a randomised MAC per network
+holds several leases at once, so a policy keyed only to an address silently stops
+applying to the device it was set for.
 
 ## Requirements
 

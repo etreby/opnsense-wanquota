@@ -40,7 +40,7 @@ PROTOCOL_VERSION = "2024-11-05"
 # version we do not implement would be a false statement of capability.
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SERVER_NAME = "wanquota"
-SERVER_VERSION = "0.10"
+SERVER_VERSION = "0.11"
 
 PERIODS = ("today", "week", "thirty", "month")
 
@@ -273,6 +273,87 @@ def tool_site(arguments):
     }
 
 
+# Output schemas are declared only for the tools whose shape is small and stable.
+# The big report payloads are deliberately left undeclared rather than described
+# approximately: a schema that drifts from the payload is worse than none, since
+# a client will reject valid data.
+_BYTES = {"type": "integer", "description": "Bytes."}
+
+DEVICE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string"},
+        "period": {"type": "string"},
+        "device": {"type": "string", "description": "Resolved IP address."},
+        "name": {"type": "string"},
+        "device_total": {"type": ["integer", "null"], "description": "ntopng total, all traffic."},
+        "sites": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"domain": {"type": "string"}, "total": _BYTES},
+                "required": ["domain", "total"],
+            },
+        },
+        "providers": {"type": "array", "items": {"type": "object"}},
+        "attribution": {"type": ["object", "null"]},
+        "note": {"type": "string"},
+        "empty_reason": {"type": ["string", "null"]},
+    },
+    "required": ["status", "device", "name", "sites"],
+}
+
+SITE_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string"},
+        "period": {"type": "string"},
+        "site": {"type": "string"},
+        "found": {"type": "boolean"},
+        "total": _BYTES,
+        "observed_ip_count": {"type": ["integer", "null"]},
+        "devices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "device": {"type": "string"},
+                    "name": {"type": "string"},
+                    "total": _BYTES,
+                },
+                "required": ["device", "total"],
+            },
+        },
+        "providers": {"type": "array", "items": {"type": "object"}},
+        "empty_reason": {"type": ["string", "null"]},
+    },
+    "required": ["status", "site", "found", "devices"],
+}
+
+HEALTH_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string", "enum": ["ok", "degraded", "failed"]},
+        "generated_at": {"type": "string"},
+        "checks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "status": {"type": "string", "enum": ["ok", "stale", "failed", "disabled"]},
+                    "detail": {"type": "string"},
+                    "age_seconds": {"type": ["integer", "null"]},
+                    "required": {"type": "boolean"},
+                },
+                "required": ["name", "status", "detail"],
+            },
+        },
+    },
+    "required": ["status", "checks"],
+}
+
+
 _PERIOD_SCHEMA = {
     "type": "object",
     "properties": {
@@ -321,6 +402,7 @@ TOOLS = (
             "first when a number looks wrong: a stale collector yields stale reports."
         ),
         "inputSchema": _NO_ARGUMENTS,
+        "outputSchema": HEALTH_OUTPUT_SCHEMA,
         "handler": tool_health,
     },
     {
@@ -372,6 +454,7 @@ TOOLS = (
             },
             "required": ["device"],
         },
+        "outputSchema": DEVICE_OUTPUT_SCHEMA,
         "handler": tool_device,
     },
     {
@@ -390,6 +473,7 @@ TOOLS = (
             },
             "required": ["site"],
         },
+        "outputSchema": SITE_OUTPUT_SCHEMA,
         "handler": tool_site,
     },
 )
@@ -409,13 +493,16 @@ READ_ONLY_ANNOTATIONS = {
 
 
 def tool_descriptors():
-    return [
-        {
+    descriptors = []
+    for tool in TOOLS:
+        descriptor = {
             **{key: tool[key] for key in ("name", "description", "inputSchema")},
             "annotations": {"title": tool["title"], **READ_ONLY_ANNOTATIONS},
         }
-        for tool in TOOLS
-    ]
+        if "outputSchema" in tool:
+            descriptor["outputSchema"] = tool["outputSchema"]
+        descriptors.append(descriptor)
+    return descriptors
 
 
 def call_tool(name, arguments):
@@ -425,6 +512,49 @@ def call_tool(name, arguments):
     if not isinstance(arguments, dict):
         raise InvalidParams("arguments must be an object")
     return tool["handler"](arguments)
+
+
+
+# Two of the reports read naturally as documents rather than actions, so they are
+# also offered as resources. Same read-only data, addressed rather than invoked.
+RESOURCES = (
+    {
+        "uri": "wanquota://summary",
+        "name": "WAN quota summary",
+        "description": "Current billing-cycle status for every enabled provider.",
+        "mimeType": "application/json",
+        "handler": tool_summary,
+    },
+    {
+        "uri": "wanquota://health",
+        "name": "WAN quota data health",
+        "description": "Freshness and availability of every data source the reports depend on.",
+        "mimeType": "application/json",
+        "handler": tool_health,
+    },
+)
+
+RESOURCES_BY_URI = {item["uri"]: item for item in RESOURCES}
+
+
+def resource_descriptors():
+    return [
+        {key: item[key] for key in ("uri", "name", "description", "mimeType")}
+        for item in RESOURCES
+    ]
+
+
+def read_resource(uri):
+    item = RESOURCES_BY_URI.get(uri)
+    if item is None:
+        raise InvalidParams(
+            f"Unknown resource: {uri}. Available: " + ", ".join(sorted(RESOURCES_BY_URI))
+        )
+    return {
+        "uri": uri,
+        "mimeType": item["mimeType"],
+        "text": json.dumps(item["handler"]({}), separators=(",", ":")),
+    }
 
 
 def _result(request_id, payload):
@@ -455,7 +585,10 @@ def handle(request):
         agreed = requested if requested in SUPPORTED_PROTOCOL_VERSIONS else PROTOCOL_VERSION
         return _result(request_id, {
             "protocolVersion": agreed,
-            "capabilities": {"tools": {"listChanged": False}},
+            "capabilities": {
+                "tools": {"listChanged": False},
+                "resources": {"subscribe": False, "listChanged": False},
+            },
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
         })
 
@@ -467,6 +600,19 @@ def handle(request):
 
     if method == "tools/list":
         return _result(request_id, {"tools": tool_descriptors()})
+
+    if method == "resources/list":
+        return _result(request_id, {"resources": resource_descriptors()})
+
+    if method == "resources/read":
+        uri = params.get("uri") if isinstance(params, dict) else None
+        try:
+            contents = read_resource(uri)
+        except InvalidParams as error:
+            return _error(request_id, INVALID_PARAMS, str(error))
+        except Exception as error:
+            return _error(request_id, INTERNAL_ERROR, f"{type(error).__name__}: {error}")
+        return _result(request_id, {"contents": [contents]})
 
     if method == "tools/call":
         name = params.get("name") if isinstance(params, dict) else None
@@ -486,10 +632,15 @@ def handle(request):
                 "content": [{"type": "text", "text": f"{type(error).__name__}: {error}"}],
                 "isError": True,
             })
-        return _result(request_id, {
+        result = {
             "content": [{"type": "text", "text": json.dumps(payload, separators=(",", ":"))}],
             "isError": False,
-        })
+        }
+        # A tool that advertises an outputSchema must also return the parsed form,
+        # so a client can use the data without re-parsing the text block.
+        if "outputSchema" in TOOLS_BY_NAME[name] and isinstance(payload, dict):
+            result["structuredContent"] = payload
+        return _result(request_id, result)
 
     if is_notification:
         return None

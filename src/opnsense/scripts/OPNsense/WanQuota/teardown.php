@@ -31,3 +31,21 @@ if ($removed > 0) {
 }
 
 echo "Removed {$removed} WAN quota scheduler job(s)\n";
+
+/*
+ * Release per-device enforcement before the plugin goes away. Leaving members in
+ * the pf table would keep devices blocked by a rule whose owner no longer exists,
+ * which is the one uninstall outcome that must not happen.
+ */
+$script = '/usr/local/opnsense/scripts/OPNsense/WanQuota/devices.py';
+if (is_executable($script)) {
+    exec(escapeshellarg($script) . ' flush 2>&1', $output, $status);
+    echo $status === 0
+        ? "Released per-device WAN quota enforcement\n"
+        : "WARNING: could not release per-device enforcement; check the wanquota_over_budget pf table\n";
+} else {
+    exec('/sbin/pfctl -t wanquota_over_budget -T flush 2>&1', $ignored, $fallback);
+    echo $fallback === 0
+        ? "Flushed the per-device enforcement table\n"
+        : "WARNING: per-device enforcement table may still hold members\n";
+}

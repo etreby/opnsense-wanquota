@@ -211,7 +211,9 @@ def provider_summary(provider, today):
             None if not missing_days else
             f"{missing_days} of {elapsed} elapsed cycle days have no vnStat data, so "
             f"'used' is a floor and the projection is a lower bound. The rate comes from "
-            f"the {measured_days} measured day(s)."
+            f"the {measured_days} measured day(s). To close the gap, enter the usage your "
+            f"ISP reports for this cycle as this provider's baseline and set its baseline "
+            f"cycle to {start.isoformat()}; the baseline is added to the measured total."
         ),
         "warning": percent >= provider["warning_percent"],
         "available": error is None,

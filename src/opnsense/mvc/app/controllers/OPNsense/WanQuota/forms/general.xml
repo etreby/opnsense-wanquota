@@ -135,6 +135,18 @@
     <field><id>wanquota.general.domain_categories_json</id><label>Custom domain categories (JSON)</label><type>text</type><help>Object mapping category names to domain-suffix arrays. Built-in categories remain available.</help></field>
     <field><id>wanquota.general.enforcement_enabled</id><label>Enable automatic guardrail enforcement</label><type>checkbox</type><help>Requires dry-run to be disabled and a non-observe policy. Leave disabled until recommendations are verified.</help></field>
     <field><id>wanquota.general.enforcement_dry_run</id><label>Guardrail dry-run mode</label><type>checkbox</type></field>
+    <field>
+      <id>wanquota.general.device_enforcement_enabled</id>
+      <label>Per-device budget enforcement</label>
+      <type>checkbox</type>
+      <help>Block individual devices that exceed their configured budget, by maintaining the wanquota_over_budget firewall table. Requires a firewall rule that blocks that table. The router, devices marked excluded, and members of a protected infrastructure group are never blocked.</help>
+    </field>
+    <field>
+      <id>wanquota.general.device_enforcement_dry_run</id>
+      <label>Per-device dry-run mode</label>
+      <type>checkbox</type>
+      <help>Record which devices would be blocked without changing the firewall table. Leave enabled until the recorded membership matches what you intend to block.</help>
+    </field>
     <field><id>wanquota.general.enforcement_policy</id><label>Maximum automatic policy</label><type>dropdown</type></field>
     <field><id>wanquota.general.guardrail_thresholds</id><label>Guardrail thresholds (%)</label><type>text</type></field>
     <field><id>wanquota.general.emergency_reserve_gb</id><label>Emergency reserve (GB)</label><type>text</type></field>

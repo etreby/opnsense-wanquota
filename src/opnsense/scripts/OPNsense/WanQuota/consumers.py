@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 """Rank LAN consumers and DNS-attributed domains from OPNsense Insight flows."""
 
+import csv
 import datetime as dt
 import glob
 import ipaddress
@@ -19,6 +20,93 @@ FLOW_DB_PATTERN = "/var/netflow/src_addr_details_*.sqlite"
 STATE_DIR = "/var/db/wanquota"
 DOMAIN_DB = os.path.join(STATE_DIR, "domains.sqlite")
 NTOP_RRD_PATTERN = "/var/db/ntopng/*/rrd"
+DNSMASQ_LEASES = "/var/db/dnsmasq.leases"
+KEA_LEASES = "/var/db/kea/kea-leases4.csv"
+ARP_COMMAND = ["/usr/sbin/arp", "-an"]
+
+
+def dnsmasq_leases(path=None):
+    """Map address -> (hostname, mac) from dnsmasq. Absence is normal."""
+    result = {}
+    try:
+        with open(path or DNSMASQ_LEASES, encoding="utf-8", errors="replace") as handle:
+            for line in handle:
+                parts = line.split()
+                # expiry mac address hostname client-id
+                if len(parts) < 4:
+                    continue
+                hostname = parts[3] if parts[3] != "*" else ""
+                result[parts[2]] = (hostname, parts[1].lower())
+    except OSError:
+        return {}
+    return result
+
+
+def kea_leases(path=None):
+    """Map address -> (hostname, mac) from Kea. OPNsense is mid-migration, so
+    both this and dnsmasq can be present, empty, or missing."""
+    result = {}
+    try:
+        with open(path or KEA_LEASES, encoding="utf-8", errors="replace") as handle:
+            for row in csv.DictReader(handle):
+                address = (row.get("address") or "").strip()
+                if not address:
+                    continue
+                result[address] = (
+                    (row.get("hostname") or "").strip().rstrip("."),
+                    (row.get("hwaddr") or "").strip().lower(),
+                )
+    except (OSError, csv.Error):
+        return {}
+    return result
+
+
+def arp_macs(runner=None):
+    """Map address -> mac from the live neighbour table."""
+    try:
+        output = (runner or _run_arp)()
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    macs = {}
+    for line in output.splitlines():
+        match = re.search(r"\((\d+\.\d+\.\d+\.\d+)\) at ([0-9a-fA-F:]+)", line)
+        if match and "permanent" not in line:
+            macs[match.group(1)] = match.group(2).lower()
+    return macs
+
+
+def _run_arp():
+    return subprocess.check_output(ARP_COMMAND, text=True, timeout=15)
+
+
+def identities(static_names, leases, macs):
+    """Resolve a display name and a stable key for every known address.
+
+    Static config wins, then a DHCP hostname, then the bare address. Naming from
+    config alone left devices showing as raw IPs even though the firewall's own
+    lease knew them.
+
+    The stable key is the MAC when one is known. Addresses are not identity: DHCP
+    reassigns them, and a device using a randomised MAC per network appears under
+    several. Anything keyed to an address alone silently stops matching the device
+    it was set for.
+    """
+    result = {}
+    for address in set(static_names) | set(leases) | set(macs):
+        lease_name, lease_mac = leases.get(address, ("", ""))
+        mac = macs.get(address) or lease_mac or ""
+        result[address] = {
+            "name": static_names.get(address) or lease_name or address,
+            "mac": mac,
+            "hostname": lease_name,
+            "key": mac or address,
+            "name_source": (
+                "static" if static_names.get(address)
+                else "dhcp" if lease_name
+                else "address"
+            ),
+        }
+    return result
 
 
 def node_text(node, name, default=""):
@@ -249,7 +337,7 @@ UNATTRIBUTABLE_MIN_BYTES = 50_000_000
 UNATTRIBUTABLE_MAX_PERCENT = 20
 
 
-def attribution_rows(external, attributed, names):
+def attribution_rows(external, attributed, names, ident=None):
     """Per-device attributed share of external traffic.
 
     The denominator is external flow bytes, not the ntopng RRD total: the RRD
@@ -268,9 +356,12 @@ def attribution_rows(external, attributed, names):
         covered = attributed.get(device, 0)
         percent = covered / total * 100 if total else 0
         flagged = total >= UNATTRIBUTABLE_MIN_BYTES and percent < UNATTRIBUTABLE_MAX_PERCENT
+        entry = (ident or {}).get(device, {})
         rows.append({
             "device": device,
             "name": names.get(device, device),
+            "mac": entry.get("mac", ""),
+            "device_key": entry.get("key", device),
             "external": total,
             "attributed": covered,
             "unattributed": max(0, total - covered),
@@ -295,9 +386,15 @@ def attribution_rows(external, attributed, names):
 
 
 def report(period):
-    settings, names = settings_and_names()
+    settings, static_names = settings_and_names()
     if not settings["enabled"]:
         return {"status": "disabled", "period": period, "hosts": [], "domains": []}
+    # One identity map for the whole report: display name, MAC, and a stable key.
+    leases = {**kea_leases(), **dnsmasq_leases()}
+    ident = identities(static_names, leases, arp_macs())
+    names = {address: entry["name"] for address, entry in ident.items()}
+    for address, name in static_names.items():
+        names.setdefault(address, name)
     start = period_start(period)
     hosts = []
     external_flows = []
@@ -308,7 +405,15 @@ def report(period):
         upload, download = rrd_totals(path, start)
         total = upload + download
         if total > 0:
-            hosts.append({"ip": address, "name": names.get(address, address), "download": download, "upload": upload, "total": total})
+            entry = ident.get(address, {})
+            hosts.append({
+                "ip": address,
+                "name": names.get(address, address),
+                "mac": entry.get("mac", ""),
+                "device_key": entry.get("key", address),
+                "name_source": entry.get("name_source", "address"),
+                "download": download, "upload": upload, "total": total,
+            })
     flow_error = None
     if settings["domain_enabled"]:
         try:
@@ -398,7 +503,7 @@ def report(period):
             "for that; the two orders can differ."
         ),
         "device_domains": matrix_rows,
-        "device_attribution": attribution_rows(device_external, device_attributed, names),
+        "device_attribution": attribution_rows(device_external, device_attributed, names, ident),
         "providers": provider_rows,
         "domain_attribution": {
             "attributed_bytes": attributed,

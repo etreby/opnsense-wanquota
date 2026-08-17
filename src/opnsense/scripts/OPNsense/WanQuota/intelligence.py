@@ -85,6 +85,10 @@ def options():
         "anomaly_sigma": number(general, "anomaly_sigma", 3, 1, 10),
         "enforcement": value(general, "enforcement_enabled", "0") == "1",
         "dry_run": value(general, "enforcement_dry_run", "1") == "1",
+        # Per-device enforcement is separate from the gateway guardrails and both
+        # default to the safe position: off, and dry-run when switched on.
+        "device_enforcement": value(general, "device_enforcement_enabled", "0") == "1",
+        "device_dry_run": value(general, "device_enforcement_dry_run", "1") == "1",
         "thresholds": [int(x) for x in value(general, "guardrail_thresholds", "50,75,90,100").split(",") if x.strip().isdigit()],
         "reserve_gb": number(general, "emergency_reserve_gb", 5, 0, 100000),
         "policy": value(general, "enforcement_policy", "observe"),
@@ -114,7 +118,7 @@ def database():
     db.executescript("""
       CREATE TABLE IF NOT EXISTS provider_samples(ts INTEGER,provider TEXT,logical TEXT,used REAL,quota REAL,percent REAL,rx REAL,tx REAL,latency REAL,loss REAL,status TEXT);
       CREATE INDEX IF NOT EXISTS provider_samples_idx ON provider_samples(provider,ts);
-      CREATE TABLE IF NOT EXISTS consumer_samples(ts INTEGER,device TEXT,name TEXT,total REAL,download REAL,upload REAL);
+      CREATE TABLE IF NOT EXISTS consumer_samples(ts INTEGER,device TEXT,name TEXT,total REAL,download REAL,upload REAL,mac TEXT);
       CREATE INDEX IF NOT EXISTS consumer_samples_idx ON consumer_samples(device,ts);
       CREATE TABLE IF NOT EXISTS cycle_archive(provider TEXT,start TEXT,end TEXT,used REAL,quota REAL,rx REAL,tx REAL,complete INTEGER,PRIMARY KEY(provider,start));
       CREATE TABLE IF NOT EXISTS anomalies(ts INTEGER,kind TEXT,subject TEXT,severity TEXT,observed REAL,baseline REAL,message TEXT);
@@ -122,6 +126,16 @@ def database():
       CREATE TABLE IF NOT EXISTS policy_state(provider TEXT PRIMARY KEY,action TEXT,updated INTEGER,detail TEXT);
       CREATE TABLE IF NOT EXISTS metadata(key TEXT PRIMARY KEY,value TEXT);
     """)
+    # Older installs predate the mac column. Adding it is the whole migration:
+    # existing rows keep a NULL mac and continue to match by address.
+    try:
+        db.execute("ALTER TABLE consumer_samples ADD COLUMN mac TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        db.execute("CREATE INDEX IF NOT EXISTS consumer_samples_mac ON consumer_samples(mac,ts)")
+    except sqlite3.OperationalError:
+        pass
     return db
 
 
@@ -208,6 +222,30 @@ def forecasts(item):
     }
 
 
+def policy_for(host, policies):
+    """Find a per-device policy by address, MAC, or DHCP hostname.
+
+    Matching on address alone silently stopped applying whenever DHCP moved a
+    device, and a device that rotates its MAC per network holds several leases at
+    once. Accepting any of the three means a policy set once keeps applying.
+    """
+    for key in (host.get("ip"), (host.get("mac") or "").lower(), (host.get("hostname") or "").lower()):
+        if key and key in policies:
+            return policies[key]
+    return {}
+
+
+def policy_index(devices):
+    """Index configured device policies by every identifier they may carry."""
+    index = {}
+    for item in devices:
+        for field in ("address", "mac", "hostname"):
+            value = item.get(field)
+            if value:
+                index[str(value).lower() if field != "address" else str(value)] = item
+    return index
+
+
 def policy_decision(item, cfg, override=None):
     percent = item["percent"]
     reserve_hit = item["remaining"] <= cfg["reserve_gb"] * 1e9
@@ -241,7 +279,7 @@ def send_webhook(cfg, event, payload):
     elif cfg.get("webhook_format") == "telegram": document = {"chat_id": cfg.get("webhook_recipient", ""), "text": message[:4000]}
     else: document = {"event": event, "payload": payload}
     body = json.dumps(document).encode()
-    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.10"})
+    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.11"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return str(response.status)
@@ -288,8 +326,8 @@ def snapshot(notify=True):
     enabled, providers = report.configuration()
     summary = report.summary(enabled, providers)
     consumer = consumers.report("month")
-    device_policies = {str(item.get("address")): item for item in cfg["devices"] if item.get("address")}
-    consumer["hosts"] = [host for host in consumer.get("hosts", []) if not device_policies.get(host["ip"], {}).get("exclude")]
+    device_policies = policy_index(cfg["devices"])
+    consumer["hosts"] = [host for host in consumer.get("hosts", []) if not policy_for(host, device_policies).get("exclude")]
     quality = gateway_quality()
     ts = int(dt.datetime.now().timestamp())
     events = []
@@ -326,7 +364,14 @@ def snapshot(notify=True):
                     decision["applied"] = previous_action
             db.execute("INSERT OR REPLACE INTO policy_state VALUES(?,?,?,?)", (item["name"], decision["applied"], ts, json.dumps(decision)))
         for host in consumer.get("hosts", []):
-            previous = db.execute("SELECT total,upload FROM consumer_samples WHERE device=? ORDER BY ts DESC LIMIT 1", (host["ip"],)).fetchone()
+            # Prefer the MAC so a device keeps its baseline across a DHCP change;
+            # fall back to the address for rows written before the mac column.
+            mac = (host.get("mac") or "").lower()
+            previous = None
+            if mac:
+                previous = db.execute("SELECT total,upload FROM consumer_samples WHERE mac=? ORDER BY ts DESC LIMIT 1", (mac,)).fetchone()
+            if previous is None:
+                previous = db.execute("SELECT total,upload FROM consumer_samples WHERE device=? ORDER BY ts DESC LIMIT 1", (host["ip"],)).fetchone()
             has_history = db.execute("SELECT 1 FROM consumer_samples LIMIT 1").fetchone() is not None
             delta = max(0, host["total"] - (previous["total"] if previous else host["total"]))
             mean, deviation = delta_baseline(db, "consumer_samples", "device", host["ip"], "total", ts)
@@ -340,10 +385,10 @@ def snapshot(notify=True):
                 events.append({"kind":"new device","subject":host["name"],"severity":"warning","observed":host["ip"],"baseline":"known inventory","message":f"New traffic-producing device {host['name']} ({host['ip']})"})
             if 1 <= dt.datetime.now().hour < 6 and delta > 500_000_000:
                 events.append({"kind":"quiet-hours traffic","subject":host["name"],"severity":"warning","observed":delta,"baseline":500_000_000,"message":f"{host['name']} transferred {delta/1e9:.2f} GB during quiet hours"})
-            device_budget = float(device_policies.get(host["ip"], {}).get("budget_gb", 0) or 0) * 1e9
+            device_budget = float(policy_for(host, device_policies).get("budget_gb", 0) or 0) * 1e9
             if device_budget and host["total"] >= device_budget:
                 events.append({"kind":"device budget","subject":host["name"],"severity":"critical","observed":host["total"],"baseline":device_budget,"message":f"{host['name']} exceeded its {device_budget/1e9:.2f} GB monthly budget"})
-            db.execute("INSERT INTO consumer_samples VALUES(?,?,?,?,?,?)", (ts,host["ip"],host["name"],host["total"],host["download"],host["upload"]))
+            db.execute("INSERT INTO consumer_samples(ts,device,name,total,download,upload,mac) VALUES(?,?,?,?,?,?,?)", (ts,host["ip"],host["name"],host["total"],host["download"],host["upload"],(host.get("mac") or "") or None))
         group_totals = {}
         for host in consumer.get("hosts", []):
             group_name = group_for(host["ip"], cfg["groups"]); group_totals[group_name] = group_totals.get(group_name, 0) + host["total"]
@@ -372,9 +417,9 @@ def snapshot(notify=True):
 
 def dashboard(period="thirty"):
     cfg = options(); enabled, providers = report.configuration(); summary = report.summary(enabled, providers); consumer = consumers.report(period); quality = gateway_quality()
-    device_policies = {str(item.get("address")): item for item in cfg["devices"] if item.get("address")}
+    device_policies = policy_index(cfg["devices"])
     for host in consumer.get("hosts", []):
-        policy = device_policies.get(host["ip"], {}); host["excluded"] = bool(policy.get("exclude")); host["budget"] = float(policy.get("budget_gb",0) or 0)*1e9 or None
+        policy = policy_for(host, device_policies); host["excluded"] = bool(policy.get("exclude")); host["budget"] = float(policy.get("budget_gb",0) or 0)*1e9 or None
     with database() as db:
         archives = [dict(row) for row in db.execute("SELECT * FROM cycle_archive ORDER BY start DESC LIMIT 48")]
         anomalies = [dict(row) for row in db.execute("SELECT * FROM anomalies ORDER BY ts DESC LIMIT 50")]
