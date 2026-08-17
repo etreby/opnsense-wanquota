@@ -48,15 +48,6 @@ function reload_shaper(): void
 }
 
 /*
- * Delete the pipes this plugin created from the running dummynet state.
- *
- * Removing a pipe from the configuration and disabling the service does not
- * delete it from the kernel: it lingers with no rule pointing at it, shaping
- * nothing but visible in `ipfw pipe show` and confusing anyone looking for why a
- * limit seems to still exist. Deleting by number only touches pipes in this
- * plugin's reserved range.
- */
-/*
  * The bandwidth and metric to write for a planned pipe.
  *
  * The model's bandwidth is an IntegerField, so a fractional Mbit/s rate is refused
@@ -80,6 +71,47 @@ function bandwidth_of(array $entry, string $prefix = ''): array
     return [(string)$value, (string)$metric];
 }
 
+/*
+ * Pipe numbers reserved by this plugin: 21000-21999 for services, 22000-22999 for
+ * devices. Kept in step with PIPE_BASE and DEVICE_PIPE_BASE in shaper.py.
+ */
+const PIPE_RANGE_FIRST = 21000;
+const PIPE_RANGE_LAST = 22999;
+
+/*
+ * Pipes present in the running kernel inside this plugin's reserved range.
+ *
+ * Needed because the configuration is not a complete record of what is running. A
+ * pipe removed from the configuration by an earlier version stayed in the kernel and
+ * nothing then referenced it, so it could never be found again — 21001 lingered at
+ * 3 Mbit/s after a Twitch cap was removed. Reading the kernel makes cleanup
+ * self-healing rather than dependent on having recorded the number at the time.
+ * Only the reserved range is touched, so a hand-made pipe is never at risk.
+ */
+function kernel_pipes(): array
+{
+    exec('/sbin/ipfw pipe list 2>/dev/null', $lines, $status);
+    $numbers = [];
+    foreach ((array)$lines as $line) {
+        if (preg_match('/^\s*(\d+):/', (string)$line, $found)) {
+            $number = (int)$found[1];
+            if ($number >= PIPE_RANGE_FIRST && $number <= PIPE_RANGE_LAST) {
+                $numbers[] = (string)$number;
+            }
+        }
+    }
+    return array_values(array_unique($numbers));
+}
+
+/*
+ * Delete the pipes this plugin created from the running dummynet state.
+ *
+ * Removing a pipe from the configuration and disabling the service does not
+ * delete it from the kernel: it lingers with no rule pointing at it, shaping
+ * nothing but visible in `ipfw pipe show` and confusing anyone looking for why a
+ * limit seems to still exist. Deleting by number only touches pipes in this
+ * plugin's reserved range.
+ */
 function delete_pipes(array $numbers): void
 {
     foreach ($numbers as $number) {
@@ -139,9 +171,10 @@ if ($mode === 'flush') {
     $model->serializeToConfig();
     OPNsense\Core\Config::getInstance()->save('Remove WAN quota per-service bandwidth limits');
     reload_shaper();
-    delete_pipes($ownedNumbers);
+    $gone = array_unique(array_merge($ownedNumbers, kernel_pipes()));
+    delete_pipes($gone);
     echo json_encode(['status' => 'ok', 'removed' => $removed,
-                      'pipes_deleted' => $ownedNumbers]) . PHP_EOL;
+                      'pipes_deleted' => array_values($gone)]) . PHP_EOL;
     exit(0);
 }
 
@@ -164,7 +197,7 @@ if (($plan['status'] ?? '') !== 'ok' || !empty($plan['dry_run'])) {
      * limit had been released saw pipes that looked live. Nothing was being shaped —
      * no rule pointed at them — but leaving them is misleading and they accumulate.
      */
-    delete_pipes($ownedNumbers);
+    delete_pipes(array_unique(array_merge($ownedNumbers, kernel_pipes())));
     echo json_encode([
         'status' => $plan['status'] ?? 'unknown',
         'applied' => 0,
@@ -230,10 +263,33 @@ if (count($messages) > 0) {
 }
 $model->serializeToConfig();
 OPNsense\Core\Config::getInstance()->save('WAN quota per-service bandwidth pipes');
+/*
+ * Delete kernel pipes this plugin owned that the new plan no longer uses.
+ *
+ * Removing one service's limit while others stay enabled takes the pipe out of the
+ * configuration but leaves it in the running kernel. Measured after removing a
+ * Twitch cap: `ipfw pipe list` still showed 21001 at 3 Mbit/s with no rule pointing
+ * at it. Nothing was being shaped, but it reads as a limit that is still in force and
+ * they accumulate one per removal.
+ */
+$stillPlanned = [];
+foreach (($plan['pipes'] ?? []) as $entry) {
+    $stillPlanned[] = (string)$entry['pipe'];
+}
+foreach (($plan['device_pipes'] ?? []) as $entry) {
+    $stillPlanned[] = (string)$entry['pipe'];
+    if (!empty($entry['upload_pipe'])) {
+        $stillPlanned[] = (string)$entry['upload_pipe'];
+    }
+}
+$obsolete = array_diff(array_unique(array_merge($ownedNumbers, kernel_pipes())),
+                       $stillPlanned);
+delete_pipes($obsolete);
 echo json_encode(['status' => 'ok', 'phase' => 'pipes',
                   'pipes' => count($plan['pipes'] ?? []),
                   'device_pipes' => count($plan['device_pipes'] ?? []),
-                  'removed' => $removed]) . PHP_EOL;
+                  'removed' => $removed,
+                  'pipes_deleted' => array_values($obsolete)]) . PHP_EOL;
 exit(0);
 }
 

@@ -61,6 +61,17 @@ following = released[1].split("exit(0);")[0]
 assert "delete_pipes(" in following, \
     "disabling limits must delete the kernel pipes, not just the configuration"
 PYCHECK
+# Removing one limit while others stay enabled must also delete its kernel pipe.
+# Measured after removing a Twitch cap: `ipfw pipe list` still showed 21001 at
+# 3 Mbit/s with no rule pointing at it, which reads as a limit still in force.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+body = source[source.index("WAN quota per-service bandwidth pipes"):]
+body = body[:body.index("exit(0);")]
+assert "delete_pipes(" in body, \
+    "applying must delete kernel pipes the new plan no longer uses"
+PYCHECK
 # Upload shaping is impossible while a capture engine holds packets away from
 # ipfw's inbound hook, so the plan must be able to refuse the upload half alone
 # rather than reporting a cap that shapes nothing.
