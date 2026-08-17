@@ -147,9 +147,17 @@ that is saved and not applied shapes nothing and an agent has no way to notice.
 
 Two things stay off the surface deliberately:
 
-- **Guardrail overrides.** The tool surface cannot change routing. Shaping traffic is
-  recoverable; moving a household onto a different WAN has a bill attached. Use the
-  Intelligence tab or `POST /api/wanquota/override`.
+- **The override verb.** No tool performs a guardrail override, so an agent cannot
+  move a household onto a different WAN in one call. Use the Intelligence tab or
+  `POST /api/wanquota/override` for that.
+
+  Stated precisely, because the flattering version is wrong: this is *not* the same
+  as "MCP cannot change routing". `wanquota_set_settings` can set
+  `enforcement_enabled` and `enforcement_dry_run`, and the guardrail engine then acts
+  on its own schedule — as can `device_enforcement_enabled`, which lets the
+  per-device budget enforcer block a device. Full control was asked for and that is
+  what it means. The fields that reach those engines are listed in the tests, so
+  field-level reach has the same one-place answer that tool-level reach does.
 - **Credentials.** `smtp_password` can be set but is never returned — the settings
   reader reports it as `(withheld)`, and a test asserts the value never appears in a
   response.

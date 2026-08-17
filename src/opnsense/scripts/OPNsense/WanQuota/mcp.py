@@ -7,9 +7,13 @@ rather than a reporting window. Each tool declares which it is, so a client can
 prompt before a change and not before a report, and the set of writers is asserted
 in the tests rather than left to inspection.
 
-Two things stay off the surface on purpose. The guardrail that changes routing is
-absent: shaping traffic is recoverable, moving a household onto a different WAN has
-a bill attached. Credentials can be set but never read back.
+What stays off the surface, stated precisely because the imprecise version is
+flattering and wrong: there is no tool that *performs* a guardrail override, so an
+agent cannot move a household onto a different WAN in one call. It can, however, set
+`enforcement_enabled` and `enforcement_dry_run` through wanquota_set_settings, and
+the guardrail engine then acts on its own schedule. Full control was asked for and
+that is what full control means; the honest boundary is "no override verb", not
+"cannot change routing". Credentials can be set but never read back.
 
 Writes go through configure.php, which validates them with the same model the web
 interface uses, so a value the interface would reject is rejected here too and
@@ -173,9 +177,10 @@ def tool_categories(arguments):
 def tool_limits(_arguments):
     """What is currently limited, and what the limits would match.
 
-    Read-only, like everything else here: an agent can report and explain the
-    limits but cannot set or clear one. Changing how traffic is shaped stays with
-    the interface and the endpoint outside the read-only privilege.
+    Reporting only in itself; the limit-editing tools are separate and declare
+    themselves as writers. Read this first when asked why a limit is not working:
+    it reports whether limits are enabled, whether dry-run is on, whether this
+    firewall can shape uploads at all, and what each running rule has matched.
     """
     cfg = shaper.options()
     plan = shaper.run() if cfg["enabled"] else None

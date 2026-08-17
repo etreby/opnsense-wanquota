@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import os
+import re
 import unittest
 
 SOURCE_DIR = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota"
@@ -696,3 +697,51 @@ class WriteToolTests(unittest.TestCase):
         self.assertEqual(document["settings"]["smtp_host"], "mail.example.invalid")
         self.assertEqual(document["settings"]["smtp_password"], "(withheld)")
         self.assertNotIn("a-real-secret", json.dumps(document))
+
+
+class WritableFieldTests(unittest.TestCase):
+    """Which settings a remote caller can reach, named deliberately.
+
+    Tool names are not the whole boundary. There is no tool called "enforce", but
+    wanquota_set_settings reaches the guardrail engine through a field, and a claim
+    that MCP "cannot change routing" is false because of it. These fields are listed
+    so the reach is a decision on the record rather than a side effect of the
+    allowlist, matching what the WRITERS set does for tools.
+    """
+
+    # Fields that let an agent start something which then acts on its own schedule.
+    CONSEQUENTIAL = {
+        "enforcement_enabled",        # the guardrail engine may change gateway routing
+        "enforcement_dry_run",
+        "enforcement_policy",
+        "guardrail_thresholds",
+        "emergency_reserve_gb",
+        "device_enforcement_enabled", # the budget enforcer may block a device
+        "device_enforcement_dry_run",
+        "shaper_enabled",             # limits begin shaping traffic
+        "shaper_dry_run",
+    }
+
+    def writable(self):
+        source = (Path(__file__).parents[1]
+                  / "src/opnsense/scripts/OPNsense/WanQuota/configure.php").read_text()
+        block = source[source.index("const WRITABLE = ["):source.index("];")]
+        return set(re.findall(r"'([a-z0-9_]+)'", block))
+
+    def test_the_consequential_fields_are_writable_and_known(self):
+        """Deliberate: the owner asked for full control. Recorded, not hidden."""
+        writable = self.writable()
+        for field in self.CONSEQUENTIAL:
+            self.assertIn(field, writable, field)
+
+    def test_no_unlisted_enforcement_field_becomes_writable(self):
+        """A new enforcement-shaped field must be added to the list above knowingly."""
+        suspicious = {name for name in self.writable()
+                      if "enforce" in name or "shaper" in name or "guardrail" in name}
+        self.assertEqual(suspicious - self.CONSEQUENTIAL, set(),
+                         "an engine-starting field was made writable without being listed")
+
+    def test_the_override_verb_is_not_reachable_as_a_field(self):
+        """Performing an override stays a separate endpoint, not a setting."""
+        writable = self.writable()
+        self.assertFalse(any("override" in name for name in writable))
