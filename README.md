@@ -41,6 +41,11 @@ quota reporting and top-consumer visibility.
 - Optional per-device budget enforcement, disabled and dry-run by default.
 - Per-service bandwidth limits for streaming services, using the OPNsense traffic
   shaper, disabled and dry-run by default.
+- Apps breakdown: share per application as a pie chart and table, with unnamed
+  traffic grouped by transport rather than hidden in one remainder.
+- Live sessions tab showing conversations open right now, read from the firewall
+  state table, including destinations DNS never named.
+- Installed plugin version shown in the header and the Data Health tab.
 - App categories breakdown: share of attributed traffic per category as a pie
   chart with a ranked Top 10, an explicit Uncategorised slice, and the tail rolled
   into Others.
@@ -195,6 +200,38 @@ caches, and registers the DNS collector, so no manual restart is needed.
 
 `PLUGIN_REVISION` tracks fixes released against the same `PLUGIN_VERSION`, giving
 package versions such as `0.8_2`.
+
+## Apps breakdown
+
+The **Apps** tab shows share per application — GitHub, ChatGPT, YouTube — a grain
+below the category view, as a pie chart with a ranked table. Clicking an app shows
+the domains that carried it, which link on to the device drill-down.
+
+Traffic with no known domain cannot be named as an application at all. Rather than
+disappearing into one anonymous remainder it is grouped by how it was carried, so
+you see **Secure Web Browsing**, **Quic UDP Connection** or **Web Browsing**. Those
+entries read like application names but are not: they are unnamed traffic grouped by
+transport, and the payload note says so.
+
+A domain matching no known application is listed under its own registrable name
+rather than folded away, so the tail stays inspectable.
+
+## Live sessions
+
+The **Live sessions** tab answers a different question from every other report:
+not what was counted, but what is open right now. It reads the firewall state
+table, so it shows conversations **whether or not DNS ever named the
+destination** — the one view where traffic invisible to the domain reports still
+appears.
+
+Each row links to the device and, when known, the domain drill-down. Filter by
+device, destination or service.
+
+Two things it is not. State byte counters reset when a state is created and vanish
+when it expires, so **they are not quota accounting** and must not be added to
+quota figures. And a NAT'd firewall lists each conversation twice, once per
+translation direction; records are merged on the internal endpoint pair so nothing
+is double counted.
 
 ## App categories breakdown
 
