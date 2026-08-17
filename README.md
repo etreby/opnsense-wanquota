@@ -42,7 +42,11 @@ quota reporting and top-consumer visibility.
   identity tracked by MAC so budgets and history survive an address change.
 - Optional per-device budget enforcement, disabled and dry-run by default.
 - Per-service bandwidth limits for streaming services, using the OPNsense traffic
-  shaper, disabled and dry-run by default.
+  shaper, disabled and dry-run by default. Per-service and per-device limits combine.
+- Optional experimental upload shaping through ipfw's layer2 hook, off by default, for
+  firewalls where a netmap capture engine makes upload caps otherwise impossible.
+- Live per-WAN download and upload rates, and a per-WAN ranking of the devices using
+  it most.
 - Apps breakdown: share per application as a pie chart and table, with unnamed
   traffic grouped by transport rather than hidden in one remainder.
 - Live sessions tab showing conversations open right now, read from the firewall
@@ -517,6 +521,66 @@ fire — which **Verify** then shows as zero bytes matched.
 
 Whether removing Zenarmor from the LAN interface restores upload shaping has *not*
 been tested here, so the plugin does not claim it does.
+
+### Experimental upload shaping
+
+Upload caps are impossible through the normal path when a netmap capture engine hides
+LAN egress, but ipfw has a second hook at the ethernet layer, and that one sees the
+traffic. Measured in a 45 second window with 8.4 MB uploaded from one device:
+
+| Probe | Packets | Bytes |
+| --- | --- | --- |
+| `count ip from <device> to any layer2` | **3,005** | **4,072,022** |
+| the same match at the IP layer | 3 | 231 |
+
+Enabling **Experimental upload shaping (layer2)** in Settings → Enforcement therefore
+makes upload caps work on such a firewall. Verified end to end: with a 5 Mbit cap on
+one device, the layer2 rule matched 4,431,445 bytes of a 4,194,304-byte upload — the
+payload plus ethernet and TCP/IP overhead, so all of it — and the transfer ran at
+**4.40 Mbit/s against a ~22 Mbit/s baseline**.
+
+It is off by default and labelled experimental for reasons that are not formalities:
+
+- **The shaper model has no layer2 field.** Its rule offers interface, proto, source,
+  destination, direction and a pipe target, nothing more. So these are raw `ipfw`
+  rules outside the model that normally owns them.
+- **An `ipfw reload` removes them**, and OPNsense reloads on any firewall or shaper
+  change. The five-minute collector re-asserts them — after the shaper sync, never
+  before it, since a re-apply performs the reload that would flush them — so a cap can
+  lapse between the reload and the next collector run. **Verify** shows whether the
+  rule is matching, so a lapse is visible rather than silent.
+- **Layer2 filtering is a global switch.** Turning it on activates the system's stock
+  layer2 rules for all traffic, including a deny for frame types that are not IPv4 or
+  IPv6. A permit-everything rule is installed *after* the pipe rules and *before* the
+  stock set, so what passes is exactly what passes with the switch off while a pipe
+  rule still matches first. The switch is enabled only once that permit rule exists; if
+  it cannot be installed the rules are withdrawn and the switch stays off. Plugin rules
+  occupy 90–99, below the system's, which start at 110.
+
+Turning the feature off removes the rules and the switch. That release path had a bug
+worth recording: it was gated on the plugin's own rules still being present, and since
+a reload flushes them, turning the feature off could leave the global switch on with no
+permit rule — the one state the ordering exists to prevent. The switch is now read
+directly rather than inferred.
+
+### Live per-WAN throughput
+
+The Summary tab shows what is moving through each WAN right now, sampled from the
+interface counters. The quota cards answer "how much this cycle" and cannot answer
+this, because vnStat and the flow database both aggregate after the fact.
+
+Direction here is exact, taken from the interface itself — worth stating because the
+per-WAN *attribution* report explicitly cannot split direction, and the two should not
+be confused. Polling happens only while the tab is visible, since each sample costs a
+second on the firewall, and a counter that goes backwards is reported as an unusable
+sample rather than as a negative or wrapped rate.
+
+### Which devices use a WAN most
+
+A WAN name is a link — in the Summary cards, the Intelligence cards and the per-WAN
+table — and opens a ranking of every device attributed to that WAN with its share.
+Ranking uses attributed flow totals, so a device on encrypted DNS or a VPN is
+under-represented.
 
 ### Verify
 
