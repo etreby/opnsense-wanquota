@@ -99,9 +99,10 @@ class TableTests(unittest.TestCase):
             calls.append(args)
             return self.FakeResult()
 
-        ok, error = DEVICES.apply_table(["192.168.1.20", "192.168.1.21"], runner=runner)
+        ok, error, detail = DEVICES.apply_table(["192.168.1.20", "192.168.1.21"], runner=runner)
         self.assertTrue(ok)
         self.assertEqual(error, "")
+        self.assertEqual(detail, "")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][:5], [DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"])
         self.assertEqual(calls[0][5:], ["192.168.1.20", "192.168.1.21"])
@@ -117,10 +118,22 @@ class TableTests(unittest.TestCase):
         self.assertEqual(calls[0], [DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"])
 
     def test_pfctl_failure_is_reported_not_raised(self):
-        ok, error = DEVICES.apply_table(
+        ok, error, detail = DEVICES.apply_table(
             ["192.168.1.20"], runner=lambda args: self.FakeResult(1, "no such table"))
         self.assertFalse(ok)
         self.assertIn("no such table", error)
+        self.assertIn("no such table", detail)
+
+    def test_informational_stderr_on_success_is_not_an_error(self):
+        # pfctl narrates success on stderr ("1 addresses added.", "no changes.").
+        # Reporting that as an error put a failure message in the plan file for a
+        # run that worked.
+        for chatter in ("1 addresses added.\n", "no changes.\n"):
+            ok, error, detail = DEVICES.apply_table(
+                ["192.168.1.20"], runner=lambda args: self.FakeResult(0, chatter))
+            self.assertTrue(ok)
+            self.assertEqual(error, "")
+            self.assertEqual(detail, chatter.strip())
 
 
 if __name__ == "__main__":

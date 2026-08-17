@@ -85,11 +85,19 @@ def over_budget(hosts, policies, groups, router, protected_groups=PROTECTED_GROU
 
 
 def apply_table(addresses, runner=None):
-    """Replace the pf table contents atomically."""
+    """Replace the pf table contents atomically.
+
+    pfctl reports what it did on stderr even when it succeeds ("1 addresses
+    added.", "no changes."), so stderr is only treated as an error when the exit
+    status says so. Passing it through unconditionally put a success message in
+    the plan file's error field, which reads as a failure that did not happen.
+    """
     run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
     args = [PFCTL, "-t", TABLE, "-T", "replace"] + list(addresses)
     result = run(args)
-    return getattr(result, "returncode", 1) == 0, getattr(result, "stderr", "") or ""
+    ok = getattr(result, "returncode", 1) == 0
+    message = (getattr(result, "stderr", "") or "").strip()
+    return ok, ("" if ok else message), message
 
 
 def flush(runner=None):
@@ -110,10 +118,11 @@ def run(period="month"):
     settings, _ = consumers.settings_and_names()
     if not enabled:
         # Nothing configured to act, so make sure nothing is left acting.
-        applied, error = flush()
+        applied, error, detail = flush()
         document = {
             "status": "disabled", "members": [], "skipped": [],
-            "table": TABLE, "flushed": applied, "error": error or None,
+            "table": TABLE, "flushed": applied,
+            "error": error or None, "pfctl": detail or None,
         }
         write_plan(document)
         return document
@@ -138,9 +147,10 @@ def run(period="month"):
             "changed. Disable dry-run to enforce."
         )
     else:
-        applied, error = apply_table(addresses)
+        applied, error, detail = apply_table(addresses)
         document["applied"] = applied
         document["error"] = error or None
+        document["pfctl"] = detail or None
     write_plan(document)
     return document
 
@@ -148,9 +158,10 @@ def run(period="month"):
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "run"
     if mode == "flush":
-        applied, error = flush()
+        applied, error, detail = flush()
         print(json.dumps({"status": "ok" if applied else "failed", "flushed": applied,
-                          "error": error or None}, separators=(",", ":")))
+                          "error": error or None, "pfctl": detail or None},
+                         separators=(",", ":")))
         return
     period = sys.argv[2] if len(sys.argv) > 2 else "month"
     print(json.dumps(run(period), separators=(",", ":")))
