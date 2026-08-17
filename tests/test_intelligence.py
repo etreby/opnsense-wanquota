@@ -13,7 +13,9 @@ SPEC.loader.exec_module(INTELLIGENCE)
 class IntelligenceTests(unittest.TestCase):
     def test_longest_domain_suffix_category(self):
         categories = {"Video": ("youtube.com",), "Other service": ("example.net",)}
-        self.assertEqual(INTELLIGENCE.suffix_category("r1.googlevideo.com", INTELLIGENCE.BUILTIN_CATEGORIES), "Video")
+        # The builtin taxonomy was renamed to app-oriented labels: what the
+        # traffic is for, rather than which service operates it.
+        self.assertEqual(INTELLIGENCE.suffix_category("r1.googlevideo.com", INTELLIGENCE.BUILTIN_CATEGORIES), "Media Streaming")
         self.assertEqual(INTELLIGENCE.suffix_category("cdn.example.net", categories), "Other service")
 
     def test_device_group_accepts_host_and_cidr(self):

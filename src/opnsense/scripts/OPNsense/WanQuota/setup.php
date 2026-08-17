@@ -130,5 +130,48 @@ if (!$cronExists) {
 // Serialize even when adopting an older schedule with origin=cron.
 $cron->serializeToConfig();
 
+/*
+ * Declare the per-device enforcement table as an "external" alias.
+ *
+ * Populating a bare pf table is not enough to be usable: firewall rules are
+ * written against aliases, so a table OPNsense does not know about never appears
+ * in the rule dropdown and cannot be selected. An external alias is precisely the
+ * type for a table whose contents are maintained by something else — OPNsense
+ * owns its lifecycle and shows it in the rule editor, while the plugin fills it.
+ *
+ * The alias is created empty and stays empty until per-device enforcement is
+ * enabled, which is off by default. Creating it changes no traffic on its own.
+ */
+$aliasName = 'wanquota_over_budget';
+try {
+    $aliases = new \OPNsense\Firewall\Alias();
+    $exists = false;
+    foreach ($aliases->aliases->alias->iterateItems() as $alias) {
+        if ((string)$alias->name === $aliasName) {
+            $exists = true;
+            break;
+        }
+    }
+    if (!$exists) {
+        $alias = $aliases->aliases->alias->Add();
+        $alias->name = $aliasName;
+        $alias->type = 'external';
+        $alias->description = 'WAN quota: devices over their per-device budget (maintained by os-wanquota)';
+        $aliasErrors = $aliases->performValidation();
+        if (count($aliasErrors) > 0) {
+            foreach ($aliasErrors as $message) {
+                fwrite(STDERR, 'alias: ' . (string)$message . PHP_EOL);
+            }
+        } else {
+            $aliases->serializeToConfig();
+            echo "Created the {$aliasName} external alias for per-device enforcement\n";
+        }
+    }
+} catch (\Throwable $error) {
+    // Never fail the install over this: everything except per-device enforcement
+    // works without the alias, and the alias can be created by hand.
+    fwrite(STDERR, "Could not create the {$aliasName} alias: " . $error->getMessage() . PHP_EOL);
+}
+
 \OPNsense\Core\Config::getInstance()->save('Initialize WAN quota and consumer reporting plugin');
 echo "WAN quota settings and DNS collector schedule saved\n";

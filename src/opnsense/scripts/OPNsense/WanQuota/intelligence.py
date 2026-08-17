@@ -27,13 +27,106 @@ import report
 STATE_DIR = "/var/db/wanquota"
 DB_PATH = os.path.join(STATE_DIR, "intelligence.sqlite")
 CONFIG_PATH = "/conf/config.xml"
+# App-oriented categories, matched by domain suffix. Named for what the traffic is
+# *for* rather than who operates it, because "28% Media Streaming" answers a
+# question about the household and "28% googlevideo.com" does not.
+#
+# The list is deliberately suffix-based and conservative: a domain that matches
+# nothing lands in Uncategorised rather than being guessed into a bucket, so the
+# breakdown never overstates how much it understands. Extend it from the settings
+# page with domain_categories_json; user entries win over these.
 BUILTIN_CATEGORIES = {
-    "Video": ("youtube.com", "googlevideo.com", "netflix.com", "tiktok.com", "twitch.tv"),
-    "Cloud": ("icloud.com", "dropbox.com", "onedrive.com", "amazonaws.com", "googleapis.com"),
-    "Updates": ("windowsupdate.com", "microsoft.com", "ubuntu.com", "pop-os.org", "apple.com"),
-    "Gaming": ("steampowered.com", "steamcontent.com", "playstation.net", "xboxlive.com", "epicgames.com"),
-    "Social": ("facebook.com", "instagram.com", "twitter.com", "x.com", "snapchat.com"),
+    "Media Streaming": (
+        "youtube.com", "googlevideo.com", "ytimg.com", "netflix.com", "nflxvideo.net",
+        "tiktok.com", "tiktokcdn.com", "twitch.tv", "ttvnw.net", "spotify.com",
+        "scdn.co", "primevideo.com", "aiv-cdn.net", "hbomax.com", "max.com",
+        "disneyplus.com", "dssott.com", "shahid.net", "osn.com", "soundcloud.com",
+        "vimeo.com", "plex.tv", "plex.direct", "jellyfin.org", "sndcdn.com",
+    ),
+    "Secure Web Browsing": (
+        "cloudflare.com", "cloudflare-dns.com", "cloudflaressl.com", "akamai.net",
+        "akamaiedge.net", "akamaihd.net", "akadns.net", "fastly.net", "fastlylb.net",
+        "edgekey.net", "edgesuite.net", "cloudfront.net", "gstatic.com",
+        "googleusercontent.com", "jsdelivr.net", "unpkg.com", "letsencrypt.org",
+        "digicert.com", "sectigo.com", "ocsp.pki.goog",
+    ),
+    "Online Utility": (
+        "windowsupdate.com", "update.microsoft.com", "delivery.mp.microsoft.com",
+        "ubuntu.com", "canonical.com", "debian.org", "pop-os.org", "archlinux.org",
+        "githubusercontent.com", "github.com", "githubassets.com", "ghcr.io",
+        "docker.io", "docker.com", "npmjs.org", "pypi.org", "pythonhosted.org",
+        "gvt1.com", "gvt2.com", "aaplimg.com", "mzstatic.com", "swcdn.apple.com",
+        "storjshare.io", "db-ip.com",
+    ),
+    "A.I. Tools": (
+        "anthropic.com", "claude.ai", "openai.com", "chatgpt.com", "oaistatic.com",
+        "oaiusercontent.com", "gemini.google.com", "bard.google.com",
+        "generativelanguage.googleapis.com", "perplexity.ai", "huggingface.co",
+        "mistral.ai", "cohere.ai", "copilot.microsoft.com", "githubcopilot.com",
+        "x.ai", "grok.com", "deepseek.com", "ollama.com", "ollama.ai",
+    ),
+    "Business Tools": (
+        "office.com", "office365.com", "officeapps.live.com", "sharepoint.com",
+        "outlook.com", "microsoftonline.com", "atlassian.net", "atlassian.com",
+        "salesforce.com", "workday.com", "zoho.com", "notion.so", "asana.com",
+        "monday.com", "hubspot.com", "docusign.net", "adobe.com", "adobelogin.com",
+    ),
+    "Instant Messaging": (
+        "whatsapp.com", "whatsapp.net", "telegram.org", "t.me", "telegram-cdn.org",
+        "signal.org", "messenger.com", "discord.com", "discordapp.net", "discord.gg",
+        "slack.com", "slack-edge.com", "imessage.apple.com",
+    ),
+    "Web Browsing": (
+        "google.com", "bing.com", "duckduckgo.com", "yahoo.com", "wikipedia.org",
+        "wikimedia.org", "reddit.com", "redd.it", "medium.com", "stackoverflow.com",
+        "stackexchange.com", "bbc.co.uk", "cnn.com", "aljazeera.net", "youm7.com",
+    ),
+    "Conferencing": (
+        "zoom.us", "zoomgov.com", "teams.microsoft.com", "teams.live.com",
+        "skype.com", "webex.com", "gotomeeting.com", "bluejeans.com",
+        "meet.google.com", "whereby.com",
+    ),
+    "Network Management": (
+        "opnsense.org", "pfsense.org", "ntp.org", "pool.ntp.org", "tailscale.com",
+        "tailscale.io", "ui.com", "ubnt.com", "unifi.ui.com", "asus.com",
+        "asuscomm.com", "ddns.net", "no-ip.com", "duckdns.org", "grafana.com",
+        "elastic.co", "sunnyvalley.io", "zenarmor.com",
+    ),
+    "Cloud Services": (
+        "icloud.com", "icloud-content.com", "dropbox.com", "dropboxusercontent.com",
+        "onedrive.com", "live.com", "drive.google.com", "googleapis.com",
+        "amazonaws.com", "s3.amazonaws.com", "backblazeb2.com", "b2-api.backblazeb2.com",
+        "digitaloceanspaces.com", "wasabisys.com", "mega.nz", "pcloud.com",
+    ),
+    "Social Networks": (
+        "facebook.com", "fbcdn.net", "instagram.com", "cdninstagram.com",
+        "twitter.com", "x.com", "twimg.com", "snapchat.com", "sc-cdn.net",
+        "linkedin.com", "licdn.com", "pinterest.com", "threads.net",
+    ),
+    "Gaming": (
+        "steampowered.com", "steamcontent.com", "steamstatic.com", "playstation.net",
+        "playstation.com", "xboxlive.com", "xbox.com", "epicgames.com",
+        "easebar.com", "riotgames.com", "nintendo.net", "roblox.com", "battle.net",
+    ),
+    "Smart Home and IoT": (
+        "amazonalexa.com", "alexa.amazon.com", "avs-alexa-na.amazon.com",
+        "tuyaus.com", "tuyaeu.com", "tuya.com", "sonoff.tech", "ewelink.cc",
+        "home-assistant.io", "nabucasa.com", "lgtvsdp.com", "lgeapi.com",
+        "samsungcloudsolution.com", "samsungiotcloud.com", "shelly.cloud",
+    ),
+    "Advertising and Tracking": (
+        "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+        "google-analytics.com", "analytics.google.com", "scorecardresearch.com",
+        "criteo.com", "taboola.com", "outbrain.com", "adnxs.com", "sentry.io",
+        "bugsnag.com", "crashlytics.com", "app-measurement.com",
+    ),
 }
+
+# Everything below the top slice is rolled into one entry so the chart stays
+# readable, and a category that matched nothing is never invented.
+CATEGORY_TOP_N = 10
+OTHERS_LABEL = "Others"
+UNCATEGORISED_LABEL = "Uncategorised"
 
 
 def value(node, name, default=""):
@@ -166,6 +259,62 @@ def suffix_category(domain, categories):
     return "Other"
 
 
+
+def category_breakdown(domains, categories, top_n=CATEGORY_TOP_N):
+    """Traffic share per app category, largest first, with a rolled-up remainder.
+
+    Returns rows carrying both bytes and percent so a caller never has to divide,
+    and so the percentages shown always sum against the same total. Domains that
+    match no suffix are reported as Uncategorised rather than distributed into
+    whatever looks closest: an honest unknown slice is the point, since attribution
+    is already an estimate upstream.
+
+    Everything past top_n becomes one Others row, which keeps a pie chart legible
+    without hiding the tail — the row states how many categories it covers.
+    """
+    totals = {}
+    for domain in domains:
+        name = domain.get("domain") or ""
+        amount = float(domain.get("total") or 0)
+        if amount <= 0:
+            continue
+        category = suffix_category(name, categories)
+        if category == "Other":
+            category = UNCATEGORISED_LABEL
+        totals[category] = totals.get(category, 0) + amount
+
+    grand_total = sum(totals.values())
+    ordered = sorted(totals.items(), key=lambda item: item[1], reverse=True)
+
+    def row(label, amount, folded=0):
+        entry = {
+            "name": label,
+            "total": amount,
+            "percent": (amount / grand_total * 100) if grand_total else 0,
+        }
+        if folded:
+            entry["categories_folded"] = folded
+        return entry
+
+    rows = [row(name, amount) for name, amount in ordered[:top_n]]
+    tail = ordered[top_n:]
+    if tail:
+        rows.append(row(OTHERS_LABEL, sum(amount for _, amount in tail), folded=len(tail)))
+    return {
+        "total": grand_total,
+        "categories": rows,
+        "known_percent": (
+            sum(r["percent"] for r in rows if r["name"] != UNCATEGORISED_LABEL)
+            if grand_total else 0
+        ),
+        "top_n": top_n,
+        "note": (
+            "Shares are of DNS-attributed traffic, not of the whole quota. "
+            "Uncategorised means the domain matched no known category; unattributed "
+            "traffic never reaches this breakdown at all."
+        ),
+    }
+
 def group_for(address, groups):
     for group in groups:
         for member in group.get("members", []):
@@ -279,7 +428,7 @@ def send_webhook(cfg, event, payload):
     elif cfg.get("webhook_format") == "telegram": document = {"chat_id": cfg.get("webhook_recipient", ""), "text": message[:4000]}
     else: document = {"event": event, "payload": payload}
     body = json.dumps(document).encode()
-    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.11"})
+    request = urllib.request.Request(cfg["webhook_url"], body, {"Content-Type": "application/json", "User-Agent": "os-wanquota/0.12"})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return str(response.status)
@@ -475,7 +624,7 @@ def dashboard(period="thirty"):
             "expected to reconcile."
         ),
     }
-    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"windows":windows,"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
+    return {"status":"ok","generated_at":dt.datetime.now().astimezone().isoformat(timespec="seconds"),"windows":windows,"summary":summary,"consumers":consumer,"groups":sorted(groups.values(),key=lambda x:x["total"],reverse=True),"categories":[{"name":k,"total":v} for k,v in sorted(categories.items(),key=lambda x:x[1],reverse=True)],"category_breakdown":category_breakdown((consumer.get("domains") or []),cfg["categories"]),"archives":archives,"anomalies":anomalies,"patterns":pattern_summary,"settings":{"enforcement":cfg["enforcement"],"dry_run":cfg["dry_run"],"policy":cfg["policy"],"prometheus":cfg["prometheus"],"accent":accent}}
 
 
 def prometheus():

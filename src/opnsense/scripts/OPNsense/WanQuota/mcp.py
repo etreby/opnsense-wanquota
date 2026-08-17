@@ -40,7 +40,7 @@ PROTOCOL_VERSION = "2024-11-05"
 # version we do not implement would be a false statement of capability.
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SERVER_NAME = "wanquota"
-SERVER_VERSION = "0.11"
+SERVER_VERSION = "0.12"
 
 PERIODS = ("today", "week", "thirty", "month")
 
@@ -141,6 +141,18 @@ def tool_intelligence(arguments):
 
 def tool_metrics(_arguments):
     return {"content_type": "text/plain; version=0.0.4", "metrics": intelligence.prometheus()}
+
+
+def tool_categories(arguments):
+    """App category shares. A small, stable answer to "what is the traffic for?"."""
+    period = _period(arguments)
+    payload = consumers.report(period)
+    breakdown = intelligence.category_breakdown(
+        payload.get("domains") or [], intelligence.options()["categories"]
+    )
+    breakdown["period"] = period
+    breakdown["status"] = payload.get("status")
+    return breakdown
 
 
 def _require(arguments, key):
@@ -330,6 +342,35 @@ SITE_OUTPUT_SCHEMA = {
     "required": ["status", "site", "found", "devices"],
 }
 
+CATEGORY_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "status": {"type": "string"},
+        "period": {"type": "string"},
+        "total": {"type": "number", "description": "Attributed bytes covered by the shares."},
+        "known_percent": {"type": "number", "description": "Share that matched a category."},
+        "top_n": {"type": "integer"},
+        "categories": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "total": {"type": "number"},
+                    "percent": {"type": "number"},
+                    "categories_folded": {
+                        "type": "integer",
+                        "description": "Only on the Others row: how many categories it covers.",
+                    },
+                },
+                "required": ["name", "total", "percent"],
+            },
+        },
+        "note": {"type": "string"},
+    },
+    "required": ["status", "total", "categories"],
+}
+
 HEALTH_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
@@ -433,6 +474,19 @@ TOOLS = (
         "description": "WAN quota metrics in Prometheus text exposition format.",
         "inputSchema": _NO_ARGUMENTS,
         "handler": tool_metrics,
+    },
+    {
+        "name": "wanquota_categories",
+        "title": "App categories breakdown",
+        "description": (
+            "Share of attributed traffic per app category (Media Streaming, A.I. Tools, "
+            "Conferencing and so on), largest first, with the tail rolled into Others. "
+            "Prefer this over wanquota_consumers when the question is what the traffic is "
+            "for rather than which device or domain produced it."
+        ),
+        "inputSchema": _PERIOD_SCHEMA,
+        "outputSchema": CATEGORY_OUTPUT_SCHEMA,
+        "handler": tool_categories,
     },
     {
         "name": "wanquota_device",

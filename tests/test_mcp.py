@@ -149,7 +149,8 @@ class CapabilityAndResourceTests(unittest.TestCase):
 
     def test_tools_with_an_output_schema_declare_it(self):
         declared = {t["name"] for t in MCP.tool_descriptors() if "outputSchema" in t}
-        self.assertEqual(declared, {"wanquota_health", "wanquota_device", "wanquota_site"})
+        self.assertEqual(declared, {"wanquota_health", "wanquota_device",
+                                    "wanquota_site", "wanquota_categories"})
 
     def test_big_payload_tools_deliberately_declare_no_output_schema(self):
         # Left undeclared on purpose: an approximate schema a client enforces is
@@ -347,6 +348,23 @@ class DrillToolTests(unittest.TestCase):
             self.assertNotIn("structuredContent", response["result"])
         finally:
             MCP.TOOLS_BY_NAME["wanquota_consumers"]["handler"] = MCP.tool_consumers
+
+    def test_categories_tool_returns_shares(self):
+        original = MCP.intelligence.options
+        MCP.intelligence.options = lambda: {"categories": MCP.intelligence.BUILTIN_CATEGORIES}
+        MCP.TOOLS_BY_NAME["wanquota_consumers"]["handler"] = lambda _a: SAMPLE_CONSUMERS
+        try:
+            MCP.consumers.report = lambda _p: {
+                "status": "ok",
+                "domains": [{"domain": "youtube.com", "total": 900},
+                            {"domain": "zoom.us", "total": 100}],
+            }
+            body = self.payload(self.call("wanquota_categories", {"period": "week"}))
+            names = {c["name"]: c["percent"] for c in body["categories"]}
+            self.assertAlmostEqual(names["Media Streaming"], 90.0)
+            self.assertEqual(body["period"], "week")
+        finally:
+            MCP.intelligence.options = original
 
     def test_drill_tools_are_still_read_only(self):
         for tool in ("wanquota_device", "wanquota_site"):

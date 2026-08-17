@@ -39,6 +39,9 @@ quota reporting and top-consumer visibility.
 - Device names resolved from DHCP leases as well as static mappings, and device
   identity tracked by MAC so budgets and history survive an address change.
 - Optional per-device budget enforcement, disabled and dry-run by default.
+- App categories breakdown: share of attributed traffic per category as a pie
+  chart with a ranked Top 10, an explicit Uncategorised slice, and the tail rolled
+  into Others.
 
 ## Screenshots
 
@@ -81,10 +84,11 @@ The plugin ships a read-only MCP server so an AI agent can answer questions abou
 the link ("is either provider going to blow its cap this cycle?", "which device
 drove yesterday's spike?") without being handed shell access to the firewall.
 
-Nine tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
+Ten tools are exposed: `wanquota_summary`, `wanquota_daily`, `wanquota_monthly`,
 `wanquota_health`, `wanquota_consumers`, `wanquota_intelligence`,
-`wanquota_metrics`, plus `wanquota_device` and `wanquota_site` for drilling into
-one device or one domain without pulling the whole report. Period-aware tools
+`wanquota_metrics`, plus `wanquota_device`, `wanquota_site` and
+`wanquota_categories` for drilling into one device, one domain, or the app
+category split without pulling the whole report. Period-aware tools
 accept `today`, `week`, `thirty`, or `month`.
 
 The summary and health reports are also exposed as resources at
@@ -190,12 +194,33 @@ caches, and registers the DNS collector, so no manual restart is needed.
 `PLUGIN_REVISION` tracks fixes released against the same `PLUGIN_VERSION`, giving
 package versions such as `0.8_2`.
 
+## App categories breakdown
+
+The Intelligence tab shows what the traffic was *for* — Media Streaming, A.I.
+Tools, Conferencing and so on — as a pie chart with a ranked share list beneath
+it. Fourteen categories ship built in, matched on domain suffix.
+
+Shares are of **DNS-attributed traffic**, not of the whole quota. A domain that
+matches no category is reported as `Uncategorised` rather than being guessed into
+the nearest bucket, and traffic that could not be attributed to a domain at all
+never reaches this breakdown. `known_percent` states how much matched.
+
+Only the top ten categories are listed; the rest are folded into one `Others` row
+that says how many categories it covers, so the chart stays readable without
+hiding the tail. Add your own suffixes with `domain_categories_json` in Settings.
+
+Agents can read the same breakdown through the `wanquota_categories` MCP tool.
+
 ## Per-device budget enforcement
 
 The gateway guardrails act on a whole provider. Per-device enforcement acts on
 individual devices that exceed a budget, by maintaining the pf table
-`wanquota_over_budget`. **You must add a firewall rule blocking that table** —
-the plugin maintains membership, your rule decides what membership means.
+`wanquota_over_budget`. Installing the plugin creates
+`wanquota_over_budget` as an **external** alias, so it appears in the firewall
+rule editor; **you must add a rule blocking that alias** — the plugin maintains
+membership, your rule decides what membership means. An external alias is the
+type for a table whose contents something else maintains, which is why a bare pf
+table would not have been selectable in the rule editor.
 
 It is **disabled by default, and dry-run when first enabled**. Dry run records
 the membership it would apply to
