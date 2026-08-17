@@ -95,20 +95,20 @@ class SharedCdnTests(unittest.TestCase):
 
 class AddressTests(unittest.TestCase):
     def test_matches_subdomains_of_a_service_suffix(self):
-        got, _ = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
+        got, _, _extra = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
         self.assertEqual(got, ["198.51.100.10", "198.51.100.11"])
 
     def test_unrelated_domains_are_not_matched(self):
-        got, _ = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
+        got, _, _extra = SHAPER.service_addresses(("nflxvideo.net",), MAPPINGS)
         self.assertNotIn("203.0.113.99", got)
 
     def test_result_is_sorted_and_deduplicated(self):
         pairs = MAPPINGS + [("a.nflxvideo.net", "198.51.100.10")]
-        got, _ = SHAPER.service_addresses(("nflxvideo.net",), pairs)
+        got, _, _extra = SHAPER.service_addresses(("nflxvideo.net",), pairs)
         self.assertEqual(got, sorted(set(got)))
 
     def test_no_mappings_yields_nothing(self):
-        self.assertEqual(SHAPER.service_addresses(("nflxvideo.net",), []), ([], {}))
+        self.assertEqual(SHAPER.service_addresses(("nflxvideo.net",), []), ([], {}, {}))
 
     def test_address_shared_with_another_service_is_excluded(self):
         # Observed on real data: a third of Netflix's addresses also served
@@ -116,14 +116,14 @@ class AddressTests(unittest.TestCase):
         pairs = [("nflxvideo.net", "198.51.100.10"),
                  ("netflix.com", "198.51.100.50"),
                  ("amazonaws.com", "198.51.100.50")]
-        exclusive, shared = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
+        exclusive, shared, _extra = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
         self.assertEqual(exclusive, ["198.51.100.10"])
         self.assertIn("198.51.100.50", shared)
         self.assertIn("amazonaws.com", shared["198.51.100.50"])
 
     def test_two_hostnames_of_the_same_service_do_not_count_as_sharing(self):
         pairs = [("nflxvideo.net", "198.51.100.10"), ("netflix.com", "198.51.100.10")]
-        exclusive, shared = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
+        exclusive, shared, _extra = SHAPER.service_addresses(("nflxvideo.net", "netflix.com"), pairs)
         self.assertEqual(exclusive, ["198.51.100.10"])
         self.assertEqual(shared, {})
 
@@ -139,6 +139,74 @@ class AddressTests(unittest.TestCase):
         plan = SHAPER.build_plan([{"service": "netflix", "mbit": 5}], pairs)
         self.assertEqual(plan["pipes"][0]["address_count"], 1)
         self.assertEqual(plan["pipes"][0]["shared_excluded"], 1)
+
+
+class CoDeliveryTests(unittest.TestCase):
+    """Nodes that serve a service under a second name of the same operator.
+
+    Measured on a live network: the address serving a 720p YouTube stream resolved
+    from both rr4.sn-vg5obxxb-j5pk.googlevideo.com and
+    rr4.sn-vg5obxxb-j5pk.gvt1.com. Treating gvt1.com as a stranger excluded 22 of
+    49 observed video nodes — including the one carrying the stream — so the cap
+    matched the YouTube page and never the video.
+    """
+
+    NODE = [("rr4.sn-x.googlevideo.com", "41.91.253.47"),
+            ("rr4.sn-x.gvt1.com", "41.91.253.47")]
+
+    def test_a_co_delivery_node_is_cappable(self):
+        exclusive, shared, incidental = SHAPER.service_addresses(
+            ("googlevideo.com",), self.NODE, co_delivery=("gvt1.com",))
+        self.assertEqual(exclusive, ["41.91.253.47"])
+        self.assertEqual(shared, {})
+        self.assertEqual(incidental["41.91.253.47"], ["gvt1.com"])
+
+    def test_without_the_declaration_the_same_node_is_excluded(self):
+        """The behaviour being corrected."""
+        exclusive, shared, _ = SHAPER.service_addresses(("googlevideo.com",), self.NODE)
+        self.assertEqual(exclusive, [])
+        self.assertIn("41.91.253.47", shared)
+
+    def test_genuinely_unrelated_domains_still_exclude_the_address(self):
+        """Search, static assets, APIs and ads must never be caught by a video cap."""
+        for stranger in ("google.com", "gstatic.com", "googleapis.com",
+                         "doubleclick.net", "app-measurement.com"):
+            pairs = [("rr1.googlevideo.com", "203.0.113.7"), (stranger, "203.0.113.7")]
+            exclusive, shared, _ = SHAPER.service_addresses(
+                ("googlevideo.com",), pairs, co_delivery=("gvt1.com",))
+            self.assertEqual(exclusive, [], f"{stranger} must still exclude the address")
+            self.assertIn(stranger, shared["203.0.113.7"])
+
+    def test_the_youtube_catalog_entry_declares_it(self):
+        self.assertIn("gvt1.com", SHAPER.STREAMING_SERVICES["youtube"]["co_delivery"])
+
+    def test_the_plan_discloses_what_else_the_cap_limits(self):
+        plan = SHAPER.build_plan([{"service": "youtube", "mbit": 3}], self.NODE)
+        entry = plan["pipes"][0]
+        self.assertEqual(entry["address_count"], 1)
+        self.assertEqual(entry["also_limits"], ["gvt1.com"])
+        self.assertEqual(entry["also_limits_addresses"], 1)
+
+    def test_a_plan_with_nothing_incidental_says_so(self):
+        plan = SHAPER.build_plan([{"service": "netflix", "mbit": 5}], MAPPINGS)
+        self.assertEqual(plan["pipes"][0]["also_limits"], [])
+
+    def test_no_co_delivery_domain_is_shared_infrastructure(self):
+        """A co-delivery domain on a real CDN would reintroduce the original hazard."""
+        for key, service in SHAPER.STREAMING_SERVICES.items():
+            for domain in service.get("co_delivery", ()):
+                self.assertFalse(SHAPER.is_shared_cdn(domain), f"{key}: {domain}")
+
+    def test_no_co_delivery_domain_belongs_to_another_service(self):
+        """Otherwise capping one service would silently cap another."""
+        suffixes = {}
+        for key, service in SHAPER.STREAMING_SERVICES.items():
+            for suffix in service["suffixes"]:
+                suffixes[suffix] = key
+        for key, service in SHAPER.STREAMING_SERVICES.items():
+            for domain in service.get("co_delivery", ()):
+                owner = suffixes.get(domain)
+                self.assertIsNone(owner, f"{key} co-delivers {domain}, owned by {owner}")
 
 
 class UpdateServiceTests(unittest.TestCase):

@@ -79,6 +79,13 @@ STREAMING_SERVICES = {
     "youtube": {
         "label": "YouTube",
         "suffixes": ("googlevideo.com", "youtube.com", "ytimg.com"),
+        # Google's cache nodes answer to both names: the address serving a live 720p
+        # stream resolved from rr4.sn-vg5obxxb-j5pk.googlevideo.com *and*
+        # rr4.sn-vg5obxxb-j5pk.gvt1.com. Without this, those nodes are treated as
+        # shared and excluded, which left a YouTube cap matching the page and never
+        # the video. gvt1.com also delivers Chrome and Play Store downloads from the
+        # same nodes, so a YouTube cap limits those too; the plan reports it.
+        "co_delivery": ("gvt1.com",),
     },
     "twitch": {
         "label": "Twitch",
@@ -260,7 +267,7 @@ def _foreign_names(suffixes, mappings):
     return per_address
 
 
-def service_addresses(suffixes, mappings):
+def service_addresses(suffixes, mappings, co_delivery=()):
     """Addresses observed for a service, excluding any it shares with others.
 
     `mappings` is the domain -> address relation already collected for attribution,
@@ -272,7 +279,23 @@ def service_addresses(suffixes, mappings):
     addresses also served amazonaws.com, and several of YouTube's also served
     google.com and analytics hosts. Shaping those would have throttled unrelated
     traffic that merely shares an address, which is a worse failure than capping
-    less than asked. Returns (exclusive, shared) so the caller can report the cost.
+    less than asked. Returns (exclusive, shared, incidental) so the caller can report
+    the cost.
+
+    `co_delivery` names domains that ride the *same* delivery nodes as the service and
+    are therefore acceptable to cap with it. This is a correction to the rule above,
+    not a loophole in it. Measured on a live network: the address serving a 720p
+    YouTube stream resolved from both `rr4.sn-vg5obxxb-j5pk.googlevideo.com` and
+    `rr4.sn-vg5obxxb-j5pk.gvt1.com` — one cache node under two Google names. Treating
+    the second as a stranger excluded 22 of the 49 observed video nodes, including the
+    one actually serving the stream, so the cap matched the page and never the video.
+    Anything genuinely unrelated — google.com for Search, gstatic.com, googleapis.com,
+    doubleclick.net — is still a stranger and still excludes the address, because
+    capping those would throttle ordinary browsing.
+
+    Addresses kept this way are returned in `incidental` with the co-delivery domains
+    found on them, so the interface can say what else the cap catches rather than
+    quietly widening its reach.
     """
     wanted = [s.strip().lower().rstrip(".") for s in suffixes if s and s.strip()]
 
@@ -284,16 +307,26 @@ def service_addresses(suffixes, mappings):
         name = (domain or "").strip().lower().rstrip(".")
         per_address.setdefault(address, set()).add(name)
 
-    exclusive, shared = set(), {}
+    friendly = {d.strip().lower().rstrip(".") for d in (co_delivery or ()) if d and d.strip()}
+
+    def rides_along(name):
+        """A domain delivered from the same nodes as the service."""
+        return any(name == domain or name.endswith("." + domain) for domain in friendly)
+
+    exclusive, shared, incidental = set(), {}, {}
     for address, names in per_address.items():
         if not any(belongs(name) for name in names):
             continue
-        strangers = sorted({registrable(name) for name in names if not belongs(name)})
+        outsiders = [name for name in names if not belongs(name)]
+        strangers = sorted({registrable(name) for name in outsiders if not rides_along(name)})
         if strangers:
             shared[address] = strangers
-        else:
-            exclusive.add(address)
-    return sorted(exclusive), shared
+            continue
+        along = sorted({registrable(name) for name in outsiders if rides_along(name)})
+        if along:
+            incidental[address] = along
+        exclusive.add(address)
+    return sorted(exclusive), shared, incidental
 
 
 def load_mappings(database=None):
@@ -346,7 +379,8 @@ def build_plan(limits, mappings, catalog=None, stored=None):
         except ValueError as error:
             rejected.append({"service": key, "reason": str(error)})
             continue
-        addresses, shared = service_addresses(service["suffixes"], mappings)
+        addresses, shared, incidental = service_addresses(
+            service["suffixes"], mappings, service.get("co_delivery", ()))
         # Fold in the address book, then re-check sharing so a stored address gets
         # exactly the same scrutiny as an observed one.
         book_rows = list(stored(key)) if stored else []
@@ -385,6 +419,10 @@ def build_plan(limits, mappings, catalog=None, stored=None):
             "addresses": addresses,
             "address_count": len(addresses),
             "shared_excluded": len(shared),
+            # What else this cap unavoidably limits, because it shares delivery nodes
+            # with the service. Reported so the reach is visible, not assumed.
+            "also_limits": sorted({d for names in incidental.values() for d in names}),
+            "also_limits_addresses": len(incidental),
             "shared_examples": {a: s[:3] for a, s in list(shared.items())[:3]},
             "from_address_book": sum(1 for a in addresses if a in sources),
             "observed_addresses": sum(
