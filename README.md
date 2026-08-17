@@ -315,6 +315,43 @@ the player picks a rung of its own ladder that fits. Setting 2 Mbit/s does not g
 1080p — at that rate Netflix will settle around 480p–720p and may rebuffer. If the
 goal is "1080p, not 4K", `1080p` (5 Mbit/s) is the preset that expresses it.
 
+### The local address book
+
+A limit is only as good as the addresses behind it, and waiting for a device to
+resolve a service by chance left some services uncappable — Windows Update was
+refused outright on a live network because nothing had asked for it recently.
+
+The plugin keeps its own SQLite store at `/var/db/wanquota/services.sqlite`, filled
+from two sources and refreshed on the existing collector schedule:
+
+| Source | Meaning |
+|---|---|
+| `observed` | Addresses devices actually used, from the DNS attribution database. Ground truth: traffic really went there. |
+| `resolved` | Addresses the firewall looked up itself for each service's hostnames. Fills the gaps. |
+
+**They are recorded separately because they are not equally trustworthy.** Active
+resolution works well for update mirrors, which publish stable hostnames
+(`archive.ubuntu.com` returns eighteen addresses), and badly for video services,
+whose delivery hostnames are per-session and geographic. Resolving `netflix.com`
+returns the *website*, not the appliance a television streams from — a cap built on
+it would limit the wrong thing while appearing to work. Every row records the
+hostname and method that produced it, and the plan reports `observed_addresses` so
+weak evidence is visible.
+
+Stored addresses get the same sharing scrutiny as observed ones — an address serving
+a foreign name is excluded whichever source found it, which matters because
+`deb.debian.org` resolves onto Fastly.
+
+Add hostnames per service without editing the plugin:
+
+```
+configctl wanquota addressadd netflix custom.cdn.example
+configctl wanquota addressrefresh
+configctl wanquota addressinventory
+```
+
+Expired rows are pruned on each refresh, so a retired CDN address does not linger.
+
 ### Coverage is partial by construction
 
 A shaper matches addresses, not names. The addresses come from the same DNS answers
