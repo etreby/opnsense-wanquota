@@ -56,6 +56,8 @@ quota reporting and top-consumer visibility.
 
 ![Per-service bandwidth limits](docs/screenshots/limits.png)
 
+![Per-device limits, with upload shaping refused and Verify showing what each rule matched](docs/screenshots/limits-devices.png)
+
 ![Live sessions with per-device rates](docs/screenshots/live-sessions.png)
 
 ![Guided settings wizard](docs/screenshots/settings-wizard.png)

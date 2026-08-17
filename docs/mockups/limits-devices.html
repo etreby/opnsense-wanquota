@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8"><title>Per-device limits</title><style>body{margin:0;background:#eef2f6;color:#172033;font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.top{height:54px;background:#263746;color:white;display:flex;align-items:center;padding:0 32px;font-size:18px}.page{padding:26px 34px;max-width:1400px}.hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:white;box-shadow:0 12px 30px #1720332e}.hero h1{margin:0 0 6px;font-size:25px}.hero p{margin:0;opacity:.78}.ver{margin-top:9px;font-size:11px;opacity:.6;letter-spacing:.3px}.tabs{display:flex;flex-wrap:wrap;margin-top:18px;background:white;border-bottom:1px solid #d4dce3}.tab{padding:13px 18px}.active{color:#1677a8;border-bottom:3px solid #1677a8;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}.card{background:white;border:1px solid #d8e0e6;border-radius:12px;padding:17px;box-shadow:0 4px 16px #17203312}.muted{color:#718092;font-size:12px}h3{margin:0 0 12px;font-size:15px}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:#64748b;font-weight:600;padding:7px 8px;border-bottom:1px solid #e2e8ee}td{padding:7px 8px;border-bottom:1px solid #eef2f6}tr:nth-child(even) td{background:#fafcfd}.bar{height:8px;background:#e7edf2;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:8px}.pill{display:inline-block;padding:1px 9px;border-radius:11px;font-size:11px;background:#e7edf2;color:#475569}.pill.ok{background:#d1fae5;color:#047857}.pill.warn{background:#fef3c7;color:#b45309}.pie{width:190px;height:190px;border-radius:50%;margin:6px auto 14px}.sw{display:inline-flex;align-items:center;gap:7px;font-size:13px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}.inp{background:white;border:1px solid #cbd5e1;border-radius:6px;padding:7px 11px;color:#94a3b8;font-size:13px}.btn{background:#1677a8;color:white;border-radius:6px;padding:8px 15px;font-size:13px;font-weight:600}.btn.ghost{background:white;color:#334155;border:1px solid #cbd5e1}.steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:#e2e8ee;font-size:12px}.steps li b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#cbd5e1;font-size:11px}.steps li.on{background:#1677a8;color:white}.steps li.on b{background:#ffffff40}.steps li.done b{background:#10b981;color:white}.why{padding:14px 16px;border-left:4px solid #1677a8;background:#eaf4fb;border-radius:6px;margin-top:14px}.why ol{margin:9px 0 0 18px;padding:0}.why li{margin:3px 0;font-size:13px}.field{margin:12px 0}.field label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}.field .h{color:#718092;font-size:12px;margin-top:4px}</style><div class="top">OPNsense · Reporting · WAN Quotas</div>
+<main class="page">
+<section class="hero"><h1>◉ WAN Intelligence</h1>
+<p>Cap one device, and say plainly when the firewall cannot do it.</p>
+<div class="ver">os-wanquota 0.17.0</div></section>
+<div class="tabs"><div class="tab">Summary</div><div class="tab">Consumers</div><div class="tab">Apps</div>
+<div class="tab active">Limits</div><div class="tab">Live sessions</div><div class="tab">Intelligence</div>
+<div class="tab">Data health</div><div class="tab">Settings</div></div>
+<div class="tabs" style="border:0;background:transparent;margin-top:10px">
+<div class="tab" style="padding:8px 14px">By service</div>
+<div class="tab active" style="padding:8px 14px">By device</div></div>
+
+<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span class="sw"><input type=checkbox checked> <b>Enable limits</b></span>
+<span class="sw"><input type=checkbox> Dry run</span>
+<span class="inp" style="min-width:190px">Search devices…</span>
+<span class="muted">45 devices</span>
+<span class="btn ghost" style="margin-left:auto">⚕ Verify</span>
+<span class="btn">Save and apply</span></div>
+
+<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #b45309;background:#fef3c7;border-radius:6px">
+<b>Upload limits are not available on this firewall.</b><br>
+<span style="font-size:13px">Zenarmor is capturing packets through netmap, which takes traffic off the kernel
+path before ipfw sees it entering the LAN interface. Upload caps cannot fire while it is bound;
+download caps are unaffected because they match on the way out to the device.</span><br>
+<span class="muted">Download limits work normally. Use Verify to see what each rule has actually matched.</span></div>
+
+<div class="card" style="margin-top:14px"><h3>Devices</h3><table>
+<thead><tr><th></th><th>Device</th><th>Matched on</th><th>Download Mbit/s</th><th>Upload Mbit/s</th></tr></thead>
+<tbody>
+<tr><td><input type=checkbox checked></td>
+<td><b>ETREBY-DESKTOP WiFi</b><br><span class="muted">192.168.1.32 · e0:8f:4c:8f:a8:d6</span></td>
+<td><span class="pill">MAC</span></td><td><span class="inp" style="width:92px">3</span></td>
+<td><span class="inp" style="width:92px;background:#f1f5f9;color:#b0bcca">unavailable</span></td></tr>
+<tr><td><input type=checkbox checked></td>
+<td><b>Living room TV</b><br><span class="muted">192.168.1.40 · aa:bb:cc:dd:ee:ff</span></td>
+<td><span class="pill">MAC</span></td><td><span class="inp" style="width:92px">6</span></td>
+<td><span class="inp" style="width:92px;background:#f1f5f9;color:#b0bcca">unavailable</span></td></tr>
+<tr><td><input type=checkbox></td>
+<td><b>TRUENAS</b><br><span class="muted">192.168.1.19 · 0c:c4:7a:11:22:33</span></td>
+<td><span class="pill">MAC</span></td><td><span class="inp" style="width:92px;color:#b0bcca">—</span></td>
+<td><span class="inp" style="width:92px;background:#f1f5f9;color:#b0bcca">unavailable</span></td></tr>
+<tr><td><input type=checkbox></td>
+<td><b>iPhone (private address)</b><br><span class="muted">192.168.1.57</span></td>
+<td><span class="pill warn">address only</span></td>
+<td><span class="inp" style="width:92px;color:#b0bcca">—</span></td>
+<td><span class="inp" style="width:92px;background:#f1f5f9;color:#b0bcca">unavailable</span></td></tr>
+</tbody></table></div>
+
+<div class="card" style="margin-top:14px"><h3>Verify — what the running rules have matched</h3><table>
+<thead><tr><th>Pipe</th><th>Kind</th><th>Matches</th><th>Packets</th><th>Matched</th></tr></thead>
+<tbody>
+<tr><td>21000</td><td>service</td><td><code>ip from 203.0.113.5 to any out via em0</code></td><td>1,200</td><td>4.5 MB</td></tr>
+<tr><td>22000</td><td>download</td><td><code>ip from any to 192.168.1.32 out via em0</code></td><td>37,009</td><td>29.1 GB</td></tr>
+<tr style="background:#fee2e2"><td>22500</td><td>upload</td><td><code>ip from 192.168.1.32 to any in via em0</code></td><td>867</td><td><span class="pill warn">nothing</span></td></tr>
+</tbody></table>
+<p class="muted">Bytes are counted since the rule was installed. A rule that has matched nothing while the
+device or service was in use is not limiting anything — on this firewall that is expected for upload rules.</p></div>
+
+<p class="muted">A device limit caps the rate to and from one device. Keying it on the MAC keeps it applying
+after DHCP changes the address; keying it on the address alone does not. The firewall itself can never be limited.</p>
+</main>
