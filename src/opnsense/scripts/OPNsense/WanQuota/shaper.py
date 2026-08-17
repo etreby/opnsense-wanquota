@@ -32,6 +32,7 @@ import os
 import sqlite3
 import sys
 
+import addresses as address_book
 import consumers
 
 STATE_DIR = "/var/db/wanquota"
@@ -163,6 +164,22 @@ def registrable(domain):
     return ".".join(parts[-2:]) if len(parts) >= 2 else (parts[0] if parts else "")
 
 
+
+def _foreign_names(suffixes, mappings):
+    """address -> names on it that do not belong to this service."""
+    wanted = [s.strip().lower().rstrip(".") for s in suffixes if s and s.strip()]
+
+    def belongs(name):
+        return any(name == suffix or name.endswith("." + suffix) for suffix in wanted)
+
+    per_address = {}
+    for domain, address in mappings or ():
+        name = (domain or "").strip().lower().rstrip(".")
+        if not belongs(name):
+            per_address.setdefault(address, set()).add(registrable(name))
+    return per_address
+
+
 def service_addresses(suffixes, mappings):
     """Addresses observed for a service, excluding any it shares with others.
 
@@ -214,8 +231,15 @@ def load_mappings(database=None):
         connection.close()
 
 
-def build_plan(limits, mappings, catalog=None):
-    """Turn configured limits into pipes and rules, with every refusal explained."""
+def build_plan(limits, mappings, catalog=None, stored=None):
+    """Turn configured limits into pipes and rules, with every refusal explained.
+
+    `stored` is the service address book: a callable taking a service key and
+    returning rows with an address and the evidence behind it. When present its
+    addresses are used in addition to whatever the DNS mappings show, which is what
+    lets a service be capped before any device happens to resolve it. Addresses
+    shared with other names are still excluded, whichever source produced them.
+    """
     catalog = catalog or STREAMING_SERVICES
     entries = []
     rejected = []
@@ -243,6 +267,23 @@ def build_plan(limits, mappings, catalog=None):
             rejected.append({"service": key, "reason": str(error)})
             continue
         addresses, shared = service_addresses(service["suffixes"], mappings)
+        # Fold in the address book, then re-check sharing so a stored address gets
+        # exactly the same scrutiny as an observed one.
+        book_rows = list(stored(key)) if stored else []
+        sources = {}
+        if book_rows:
+            known_strangers = _foreign_names(service["suffixes"], mappings)
+            for row in book_rows:
+                candidate = row["address"]
+                if candidate in shared:
+                    continue
+                if candidate in known_strangers:
+                    shared[candidate] = sorted(known_strangers[candidate])[:4]
+                    continue
+                if candidate not in addresses:
+                    addresses.append(candidate)
+                sources[candidate] = row.get("source", "resolved")
+            addresses = sorted(set(addresses))
         if not addresses:
             reason = ("no addresses observed yet for this service; nothing to match. "
                       "The list fills in as devices resolve its hostnames.")
@@ -262,6 +303,9 @@ def build_plan(limits, mappings, catalog=None):
             "address_count": len(addresses),
             "shared_excluded": len(shared),
             "shared_examples": {a: s[:3] for a, s in list(shared.items())[:3]},
+            "from_address_book": sum(1 for a in addresses if a in sources),
+            "observed_addresses": sum(
+                1 for a in addresses if sources.get(a, "observed") == "observed"),
         })
         number += 1
     return {
@@ -272,8 +316,12 @@ def build_plan(limits, mappings, catalog=None):
             "a device using encrypted DNS, a VPN or ECH is not matched and streams "
             "uncapped. Addresses shared with other services are excluded as well, since "
             "capping them would throttle unrelated traffic; shared_excluded reports how "
-            "many. A cap bounds the rate a player can sustain rather than selecting a "
-            "resolution."
+            "many. Addresses also come from the plugin's own address book, which the "
+            "firewall refreshes by resolving each service's hostnames; observed_addresses "
+            "reports how many were seen in real traffic rather than merely looked up, and "
+            "a looked-up address for a video service can be the website rather than the "
+            "delivery network. A cap bounds the rate a player can sustain rather than "
+            "selecting a resolution."
         ),
     }
 
@@ -312,7 +360,14 @@ def run():
                     "note": "Per-service limits are disabled."}
         write_plan(document)
         return document
-    plan = build_plan(cfg["limits"], load_mappings())
+    book = address_book.database()
+    try:
+        plan = build_plan(
+            cfg["limits"], load_mappings(),
+            stored=lambda key: address_book.addresses_for(key, book),
+        )
+    finally:
+        book.close()
     plan["status"] = "ok"
     plan["dry_run"] = cfg["dry_run"]
     if cfg["dry_run"]:

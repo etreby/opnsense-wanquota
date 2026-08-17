@@ -3,9 +3,11 @@
 
 import json
 
+import addresses
 import consumers
 import intelligence
 import report
+import shaper
 
 
 def main():
@@ -27,6 +29,14 @@ def main():
         except Exception as error:
             result["webhook"] = {"status": "failed", "error": str(error)}
             result["status"] = "degraded"
+    # Keep the service address book current on the same schedule as DNS collection:
+    # a limit is only as good as the addresses behind it, and waiting for a device
+    # to resolve a service by chance is what made some services uncappable.
+    try:
+        result["addresses"] = addresses.refresh(shaper.STREAMING_SERVICES, shaper.load_mappings())
+    except Exception as error:
+        result["addresses"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
     try:
         result["intelligence"] = intelligence.snapshot()
     except Exception as error:
