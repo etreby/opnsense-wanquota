@@ -1,5 +1,6 @@
 PLUGIN_NAME=        wanquota
 PLUGIN_VERSION=     0.13
+PLUGIN_REVISION=    2
 PLUGIN_REVISION=    1
 PLUGIN_COMMENT=     Configurable multi-WAN quota reporting
 PLUGIN_DEPENDS=     vnstat ntopng

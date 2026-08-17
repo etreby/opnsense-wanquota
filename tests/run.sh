@@ -23,6 +23,13 @@ grep -q '^\[deviceflush\]' "$repository/src/opnsense/service/conf/actions.d/acti
 grep -q 'devices.py' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
 grep -q 'shaper.php' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
 grep -q '^\[shaperflush\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
+# Invariants established by measuring a real cap on hardware. Each of these was
+# wrong once and produced a limit that appeared configured and shaped nothing.
+grep -q "direction = 'out'" "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+grep -q 'template reload OPNsense/IPFW' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+grep -q 'template reload OPNsense/Shaper' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+grep -q 'shaper/start.sh' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+grep -q 'function delete_pipes' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
 grep -q 'WanQuota/setup.php' "$repository/+POST_INSTALL.post"
 grep -q 'WanQuota/teardown.php' "$repository/+PRE_DEINSTALL.post"
 grep -q 'general/index#consumers' "$repository/src/opnsense/www/js/widgets/WanConsumers.js"

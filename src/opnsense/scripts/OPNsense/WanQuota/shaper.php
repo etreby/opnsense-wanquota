@@ -22,13 +22,82 @@ require_once 'util.inc';
 const ORIGIN = 'wanquota';
 const PLAN = '/var/db/wanquota/shaper-plan.json';
 
+
+/*
+ * Bring the shaper up the way OPNsense does.
+ *
+ * Two template namespaces drive it, and both gate their service on config:
+ * OPNsense/IPFW renders /etc/rc.conf.d/ipfw with firewall_enable, and
+ * OPNsense/Shaper renders /etc/rc.conf.d/dnctl with dnctl_enable. Writing pipes
+ * and rules into the configuration does not flip either, so until both are
+ * re-rendered rc still believes the services are disabled: ipfw refuses to start
+ * and dnctl never loads dummynet, which leaves the rule referring to a pipe that
+ * does not exist. That is a rule matching nothing while appearing configured.
+ *
+ * start.sh with no argument starts dnctl and then ipfw, which is the order the
+ * system's own service definitions use.
+ */
+function reload_shaper(): void
+{
+    $backend = new OPNsense\Core\Backend();
+    $backend->configdRun('template reload OPNsense/IPFW');
+    $backend->configdRun('template reload OPNsense/Shaper');
+    $backend->configdRun('ipfw reload');
+    // start.sh is the supported entry point and handles both services.
+    exec('/usr/local/opnsense/scripts/shaper/start.sh 2>&1', $ignored, $status);
+}
+
+/*
+ * Delete the pipes this plugin created from the running dummynet state.
+ *
+ * Removing a pipe from the configuration and disabling the service does not
+ * delete it from the kernel: it lingers with no rule pointing at it, shaping
+ * nothing but visible in `ipfw pipe show` and confusing anyone looking for why a
+ * limit seems to still exist. Deleting by number only touches pipes in this
+ * plugin's reserved range.
+ */
+function delete_pipes(array $numbers): void
+{
+    foreach ($numbers as $number) {
+        exec('/sbin/ipfw pipe ' . escapeshellarg((string)$number) . ' delete 2>/dev/null',
+             $ignored, $status);
+    }
+}
+
 $mode = $argv[1] ?? 'apply';
+
+/*
+ * Applying runs in two processes, not two passes.
+ *
+ * A rule's target is a ModelRelationField whose option list is resolved once per
+ * request. A pipe saved earlier in the same process is not in it, so a rule
+ * referring to that pipe fails validation with "Related pipe or queue not found"
+ * even though the pipe is on disk. Re-instantiating the model does not help;
+ * only a fresh process sees it. So 'apply' writes the pipes and then re-execs
+ * itself to write the rules.
+ */
+if ($mode === 'apply') {
+    $self = escapeshellarg(__FILE__);
+    passthru('/usr/local/bin/php ' . $self . ' pipes', $pipeStatus);
+    if ($pipeStatus !== 0) {
+        exit($pipeStatus);
+    }
+    passthru('/usr/local/bin/php ' . $self . ' rules', $ruleStatus);
+    exit($ruleStatus);
+}
 
 $model = new OPNsense\TrafficShaper\TrafficShaper();
 
-/* Remove only what previous runs created. */
+/* Remove only what previous runs created. Rules go first: they reference pipes. */
 $removed = 0;
-foreach (['rules' => 'rule', 'pipes' => 'pipe'] as $set => $item) {
+$ownedNumbers = [];
+foreach ($model->pipes->pipe->iterateItems() as $node) {
+    if ((string)$node->origin === ORIGIN) {
+        $ownedNumbers[] = (string)$node->number;
+    }
+}
+$toRemove = ($mode === 'rules') ? [] : ['rules' => 'rule', 'pipes' => 'pipe'];
+foreach ($toRemove as $set => $item) {
     $uuids = [];
     foreach ($model->$set->$item->iterateItems() as $node) {
         if ((string)$node->origin === ORIGIN) {
@@ -45,8 +114,10 @@ foreach (['rules' => 'rule', 'pipes' => 'pipe'] as $set => $item) {
 if ($mode === 'flush') {
     $model->serializeToConfig();
     OPNsense\Core\Config::getInstance()->save('Remove WAN quota per-service bandwidth limits');
-    (new OPNsense\Core\Backend())->configdRun('ipfw reload');
-    echo json_encode(['status' => 'ok', 'removed' => $removed]) . PHP_EOL;
+    reload_shaper();
+    delete_pipes($ownedNumbers);
+    echo json_encode(['status' => 'ok', 'removed' => $removed,
+                      'pipes_deleted' => $ownedNumbers]) . PHP_EOL;
     exit(0);
 }
 
@@ -61,7 +132,7 @@ if (($plan['status'] ?? '') !== 'ok' || !empty($plan['dry_run'])) {
     // switching to dry-run releases any limit already in place.
     $model->serializeToConfig();
     OPNsense\Core\Config::getInstance()->save('WAN quota per-service limits released');
-    (new OPNsense\Core\Backend())->configdRun('ipfw reload');
+    reload_shaper();
     echo json_encode([
         'status' => $plan['status'] ?? 'unknown',
         'applied' => 0,
@@ -71,8 +142,7 @@ if (($plan['status'] ?? '') !== 'ok' || !empty($plan['dry_run'])) {
     exit(0);
 }
 
-$applied = [];
-$errors = [];
+if ($mode === 'pipes') {
 foreach ($plan['pipes'] ?? [] as $entry) {
     $pipe = $model->pipes->pipe->Add();
     $pipe->number = (string)$entry['pipe'];
@@ -87,40 +157,86 @@ foreach ($plan['pipes'] ?? [] as $entry) {
     $pipe->mask = 'dst-ip';
     $pipe->description = sprintf('WAN quota: %s limited to %s Mbit/s', $entry['label'], $entry['mbit']);
     $pipe->origin = ORIGIN;
+}
 
+$messages = $model->performValidation();
+if (count($messages) > 0) {
+    $errors = [];
+    foreach ($messages as $message) {
+        $errors[] = (string)$message;
+    }
+    fwrite(STDERR, "Pipe validation failed; no change made:\n  " . implode("\n  ", $errors) . "\n");
+    exit(1);
+}
+$model->serializeToConfig();
+OPNsense\Core\Config::getInstance()->save('WAN quota per-service bandwidth pipes');
+echo json_encode(['status' => 'ok', 'phase' => 'pipes',
+                  'pipes' => count($plan['pipes'] ?? []), 'removed' => $removed]) . PHP_EOL;
+exit(0);
+}
+
+/* Map pipe number to the uuid actually stored, so a rule can target it. */
+$pipeUuids = [];
+foreach ($model->pipes->pipe->iterateItems() as $node) {
+    if ((string)$node->origin === ORIGIN) {
+        $pipeUuids[(string)$node->number] = $node->getAttributes()['uuid'];
+    }
+}
+$applied = [];
+foreach ($plan['pipes'] ?? [] as $entry) {
+    $uuid = $pipeUuids[(string)$entry['pipe']] ?? null;
+    if ($uuid === null) {
+        continue;
+    }
     $rule = $model->rules->rule->Add();
     $rule->enabled = '1';
     $rule->sequence = (string)$entry['pipe'];
     $rule->interface = 'lan';
     /*
-     * Matching on the LAN in the inbound direction catches the download side for
-     * every provider at once. A rule per WAN would have to be kept in step with
-     * the provider list, and would miss traffic on a provider not yet configured.
+     * Download traffic leaves the firewall through the LAN interface, so the rule
+     * matches 'out via <lan>' with the service as the source. Matching 'in' was
+     * reasoned about rather than checked and could never fire: packets entering
+     * the LAN interface come from local devices, which never carry the service's
+     * source address. Measuring it was what showed the rule matching nothing.
+     *
+     * One rule on the LAN side also covers every provider at once, where a rule
+     * per WAN would drift as providers are added.
      */
-    $rule->direction = 'in';
+    $rule->direction = 'out';
     $rule->proto = 'ip';
     $rule->source = implode(',', $entry['addresses']);
     $rule->destination = 'any';
-    $rule->target = (string)$pipe->getAttributes()['uuid'];
+    $rule->target = $uuid;
     $rule->description = sprintf('WAN quota: %s', $entry['label']);
     $rule->origin = ORIGIN;
-
     $applied[] = ['service' => $entry['service'], 'mbit' => $entry['mbit'],
                   'addresses' => $entry['address_count']];
 }
 
 $messages = $model->performValidation();
 if (count($messages) > 0) {
+    $errors = [];
     foreach ($messages as $message) {
         $errors[] = (string)$message;
     }
-    fwrite(STDERR, "Validation failed; no change made:\n  " . implode("\n  ", $errors) . "\n");
+    fwrite(STDERR, "Rule validation failed; pipes were saved but no rule was added:\n  "
+        . implode("\n  ", $errors) . "\n");
     exit(1);
 }
 
 $model->serializeToConfig();
 OPNsense\Core\Config::getInstance()->save('Apply WAN quota per-service bandwidth limits');
-(new OPNsense\Core\Backend())->configdRun('ipfw reload');
+/*
+ * Re-render the IPFW templates before restarting the service.
+ *
+ * /etc/rc.conf.d/ipfw is generated from a template that sets firewall_enable to
+ * YES only when an enabled shaper rule exists. Writing the rule to the config is
+ * not enough on its own: until the template is re-rendered, rc still considers
+ * ipfw disabled and the reload script stops and flushes instead of starting, so
+ * the pipes exist on paper and shape nothing. The GUI does this render as part of
+ * saving; doing it by hand means doing it here too.
+ */
+reload_shaper();
 
 echo json_encode([
     'status' => 'ok',
