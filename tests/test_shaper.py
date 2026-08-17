@@ -245,6 +245,66 @@ IPFW_LISTING = """\
 """
 
 
+class BandwidthFieldTests(unittest.TestCase):
+    """The shaper model's bandwidth is an integer field.
+
+    A fractional Mbit/s rate is refused with "Bandwidth out of range." and nothing is
+    applied at all — no pipe, no rule, and nothing in the interface saying so. A 480p
+    YouTube cap failed exactly that way on the live firewall.
+    """
+
+    def test_whole_rates_stay_in_mbit(self):
+        self.assertEqual(SHAPER.bandwidth_fields(5), (5, "Mbit"))
+        self.assertEqual(SHAPER.bandwidth_fields(3.0), (3, "Mbit"))
+
+    def test_fractional_rates_become_kbit(self):
+        self.assertEqual(SHAPER.bandwidth_fields(1.5), (1500, "Kbit"))
+        self.assertEqual(SHAPER.bandwidth_fields(0.5), (500, "Kbit"))
+        self.assertEqual(SHAPER.bandwidth_fields(2.5), (2500, "Kbit"))
+
+    def test_every_value_is_an_integer_of_at_least_one(self):
+        """What the model requires: an integer, minimum 1."""
+        for mbit in list(SHAPER.RESOLUTION_PRESETS.values()) + [0.001, 0.4, 7.25, 100]:
+            value, metric = SHAPER.bandwidth_fields(mbit)
+            self.assertIsInstance(value, int, f"{mbit} produced a non-integer")
+            self.assertGreaterEqual(value, 1, f"{mbit} produced {value}")
+            self.assertIn(metric, ("Mbit", "Kbit"))
+
+    def test_a_rate_too_small_to_express_does_not_become_zero(self):
+        """Zero would fail the model's minimum, so it clamps to the smallest rate."""
+        self.assertEqual(SHAPER.bandwidth_fields(0.0001), (1, "Kbit"))
+
+    def test_the_planned_rate_is_preserved_exactly(self):
+        for mbit in (1.5, 0.5, 5, 3.0, 15, 2.5):
+            value, metric = SHAPER.bandwidth_fields(mbit)
+            as_mbit = value if metric == "Mbit" else value / 1000
+            self.assertAlmostEqual(as_mbit, float(mbit), places=6)
+
+    def test_every_preset_reaches_the_plan_representably(self):
+        """The regression: a preset must survive planning, not just rate resolution."""
+        for name in SHAPER.RESOLUTION_PRESETS:
+            plan = SHAPER.build_plan([{"service": "netflix", "resolution": name}], MAPPINGS)
+            self.assertTrue(plan["pipes"], f"{name} produced no pipe")
+            entry = plan["pipes"][0]
+            self.assertIsInstance(entry["bandwidth"], int, f"{name} is not integral")
+            self.assertGreaterEqual(entry["bandwidth"], 1)
+            self.assertIn(entry["bandwidth_metric"], ("Mbit", "Kbit"))
+
+    def test_device_plan_carries_integral_rates_for_both_directions(self):
+        plan = SHAPER.build_device_plan(
+            [{"device": "192.168.1.32", "mbit": 1.5, "upload_mbit": 0.5}], DEVICES)
+        entry = plan["device_pipes"][0]
+        self.assertEqual((entry["bandwidth"], entry["bandwidth_metric"]), (1500, "Kbit"))
+        self.assertEqual((entry["upload_bandwidth"], entry["upload_bandwidth_metric"]),
+                         (500, "Kbit"))
+
+    def test_a_download_only_device_limit_has_no_upload_bandwidth(self):
+        plan = SHAPER.build_device_plan([{"device": "192.168.1.40", "mbit": 6}], DEVICES)
+        entry = plan["device_pipes"][0]
+        self.assertEqual((entry["bandwidth"], entry["bandwidth_metric"]), (6, "Mbit"))
+        self.assertIsNone(entry["upload_bandwidth"])
+
+
 class InterceptionTests(unittest.TestCase):
     def test_zenarmor_holding_netmap_is_detected_and_named(self):
         state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)

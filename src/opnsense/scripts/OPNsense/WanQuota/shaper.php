@@ -56,6 +56,30 @@ function reload_shaper(): void
  * limit seems to still exist. Deleting by number only touches pipes in this
  * plugin's reserved range.
  */
+/*
+ * The bandwidth and metric to write for a planned pipe.
+ *
+ * The model's bandwidth is an IntegerField, so a fractional Mbit/s rate is refused
+ * with "Bandwidth out of range." and *nothing* is applied — a 480p cap (1.5 Mbit/s)
+ * failed entirely and left no pipe, no rule and no visible error in the interface.
+ * shaper.py therefore plans an integral bandwidth with a matching metric, in kbit/s
+ * when the rate is fractional.
+ *
+ * A plan without those fields predates this and would silently reintroduce the bug,
+ * so it is refused rather than approximated.
+ */
+function bandwidth_of(array $entry, string $prefix = ''): array
+{
+    $value = $entry[$prefix . 'bandwidth'] ?? null;
+    $metric = $entry[$prefix . 'bandwidth_metric'] ?? null;
+    if ($value === null || $metric === null) {
+        fwrite(STDERR, "Plan is stale: it has no integral bandwidth for a pipe. "
+            . "Run 'configctl wanquota shaperplan' and apply again.\n");
+        exit(1);
+    }
+    return [(string)$value, (string)$metric];
+}
+
 function delete_pipes(array $numbers): void
 {
     foreach ($numbers as $number) {
@@ -155,8 +179,9 @@ foreach ($plan['pipes'] ?? [] as $entry) {
     $pipe = $model->pipes->pipe->Add();
     $pipe->number = (string)$entry['pipe'];
     $pipe->enabled = '1';
-    $pipe->bandwidth = (string)$entry['mbit'];
-    $pipe->bandwidthMetric = 'Mbit';
+    [$bandwidth, $metric] = bandwidth_of($entry);
+    $pipe->bandwidth = $bandwidth;
+    $pipe->bandwidthMetric = $metric;
     /*
      * Mask on the destination address so the cap applies per device rather than
      * to the service as a whole. Without it two televisions share one pipe and
@@ -175,8 +200,9 @@ foreach ($plan['device_pipes'] ?? [] as $entry) {
     $pipe = $model->pipes->pipe->Add();
     $pipe->number = (string)$entry['pipe'];
     $pipe->enabled = '1';
-    $pipe->bandwidth = (string)$entry['mbit'];
-    $pipe->bandwidthMetric = 'Mbit';
+    [$bandwidth, $metric] = bandwidth_of($entry);
+    $pipe->bandwidth = $bandwidth;
+    $pipe->bandwidthMetric = $metric;
     $pipe->description = sprintf('WAN quota: %s download limited to %s Mbit/s',
         $entry['name'], $entry['mbit']);
     $pipe->origin = ORIGIN;
@@ -184,8 +210,9 @@ foreach ($plan['device_pipes'] ?? [] as $entry) {
         $up = $model->pipes->pipe->Add();
         $up->number = (string)$entry['upload_pipe'];
         $up->enabled = '1';
-        $up->bandwidth = (string)$entry['upload_mbit'];
-        $up->bandwidthMetric = 'Mbit';
+        [$upBandwidth, $upMetric] = bandwidth_of($entry, 'upload_');
+        $up->bandwidth = $upBandwidth;
+        $up->bandwidthMetric = $upMetric;
         $up->description = sprintf('WAN quota: %s upload limited to %s Mbit/s',
             $entry['name'], $entry['upload_mbit']);
         $up->origin = ORIGIN;

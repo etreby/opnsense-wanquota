@@ -221,6 +221,24 @@ def resolve_rate(limit):
     )
 
 
+def bandwidth_fields(mbit):
+    """An integral bandwidth and its metric, for the shaper model.
+
+    The model's bandwidth is an IntegerField with a minimum of 1, so a fractional
+    Mbit/s rate is rejected outright: applying a 480p cap failed with "Bandwidth out
+    of range." and nothing was created at all. Two of the published presets are
+    fractional — 480p is 1.5 and audio-only is 0.5 — so both were unusable, as was
+    any hand-entered rate like 2.5.
+
+    Expressing a fractional rate in kbit/s keeps it exact and integral. Whole rates
+    stay in Mbit/s so the pipe reads the way the user configured it.
+    """
+    kbit = max(1, int(round(float(mbit) * 1000)))
+    if kbit % 1000 == 0:
+        return kbit // 1000, "Mbit"
+    return kbit, "Kbit"
+
+
 def registrable(domain):
     parts = (domain or "").strip().lower().rstrip(".").split(".")
     return ".".join(parts[-2:]) if len(parts) >= 2 else (parts[0] if parts else "")
@@ -355,10 +373,13 @@ def build_plan(limits, mappings, catalog=None, stored=None):
                           f"unrelated traffic. Nothing safe to match.")
             rejected.append({"service": key, "reason": reason})
             continue
+        bandwidth, metric = bandwidth_fields(rate)
         entries.append({
             "service": key,
             "label": service["label"],
             "mbit": rate,
+            "bandwidth": bandwidth,
+            "bandwidth_metric": metric,
             "basis": "explicit" if limit.get("mbit") else str(limit.get("resolution", "")).lower(),
             "pipe": number,
             "addresses": addresses,
@@ -552,12 +573,19 @@ def build_device_plan(limits, devices, router=None, interception=None):
                 "reason": (interception or {}).get("reason", "LAN ingress is not visible to ipfw"),
             })
             upload_rate = None
+        bandwidth, metric = bandwidth_fields(rate)
+        upload_bandwidth, upload_metric = (
+            bandwidth_fields(upload_rate) if upload_rate is not None else (None, None))
         entries.append({
             "device": row["address"],
             "name": row.get("name") or row["address"],
             "mac": row.get("mac", ""),
             "matched": key,
             "mbit": rate,
+            "bandwidth": bandwidth,
+            "bandwidth_metric": metric,
+            "upload_bandwidth": upload_bandwidth,
+            "upload_bandwidth_metric": upload_metric,
             "upload_mbit": upload_rate,
             "basis": "explicit" if limit.get("mbit") else str(limit.get("resolution", "")).lower(),
             "pipe": number,

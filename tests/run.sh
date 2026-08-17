@@ -64,6 +64,17 @@ PYCHECK
 # Upload shaping is impossible while a capture engine holds packets away from
 # ipfw's inbound hook, so the plan must be able to refuse the upload half alone
 # rather than reporting a cap that shapes nothing.
+# The model's bandwidth is an IntegerField, so writing a fractional Mbit/s rate
+# fails validation and applies nothing at all — a 480p cap (1.5 Mbit/s) created no
+# pipe, no rule, and reported no error in the interface. The bandwidth written must
+# come from the plan's integral field, never from the fractional rate.
+if grep -qE '(bandwidth|bandwidthMetric) = .*\$entry\[.(upload_)?mbit' \
+        "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"; then
+    echo "pipe bandwidth must use the plan's integral bandwidth, not the Mbit rate" >&2
+    exit 1
+fi
+grep -q 'function bandwidth_of' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.php"
+grep -q 'def bandwidth_fields' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'def netmap_interception' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'upload_rejected' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 # A disabled upload field must still render the configured rate. Saving reads
