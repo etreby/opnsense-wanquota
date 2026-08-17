@@ -744,7 +744,14 @@ function renderDeviceLimits(data) {
              +  (uploadOk ? ' placeholder="{{ lang._("optional") }}"'
                           : ' disabled title="' + esc((data.interception || {}).reason || '') + '"'
                             + ' placeholder="{{ lang._("unavailable") }}"')
-             +  ' value="' + esc(uploadOk ? row.upload_mbit : '') + '">'
+             /*
+              * Keep showing a configured rate even when the field is disabled. Saving
+              * reads disabled inputs too, so blanking it here would quietly delete a
+              * rate the user set — and if they later remove the capture engine, the
+              * limit they configured would be gone. Refusing to *apply* it is honest;
+              * erasing what they configured is not.
+              */
+             +  ' value="' + esc(row.upload_mbit) + '">'
              +  (row.upload_refused
                     ? '<br><small class="wq-pill wq-pill-warn" title="' + esc(row.upload_refused) + '">'
                       + esc('not applied') + '</small>' : '')

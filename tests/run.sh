@@ -66,6 +66,14 @@ PYCHECK
 # rather than reporting a cap that shapes nothing.
 grep -q 'def netmap_interception' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'upload_rejected' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+# A disabled upload field must still render the configured rate. Saving reads
+# disabled inputs, so blanking it would silently delete a rate the user set and
+# lose it for good if the capture engine were later removed.
+if grep -q 'uploadOk ? row.upload_mbit' \
+        "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"; then
+    echo "the disabled upload field must keep showing the configured rate" >&2
+    exit 1
+fi
 grep -q '^\[shaperverify\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q '^\[shapercapability\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'WanQuota/setup.php' "$repository/+POST_INSTALL.post"
