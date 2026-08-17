@@ -327,6 +327,24 @@ def classify_flow(row, settings):
 
 QUIC_PORTS = {443, 80}
 
+# The flow database stores the IANA protocol number while pf reports a name, so
+# both forms reach this module. Treating "6" as a protocol name produced entries
+# labelled "Other 6" for what was plainly HTTPS.
+PROTOCOL_NUMBERS = {
+    1: "icmp", 6: "tcp", 17: "udp", 41: "ipv6", 47: "gre",
+    50: "esp", 51: "ah", 58: "icmp6", 132: "sctp",
+}
+
+
+def protocol_name(protocol):
+    """A lowercase protocol name from either a name or an IANA number."""
+    value = str(protocol if protocol is not None else "").strip().lower()
+    if not value:
+        return ""
+    if value.isdigit():
+        return PROTOCOL_NUMBERS.get(int(value), value)
+    return value
+
 
 def transport_label(protocol, port):
     """Name traffic by how it was carried, when no domain is known for it.
@@ -336,7 +354,7 @@ def transport_label(protocol, port):
     from "some other protocol entirely", which is the difference between an
     expected blind spot and something worth investigating.
     """
-    name = (protocol or "").strip().lower()
+    name = protocol_name(protocol)
     try:
         number = int(port)
     except (TypeError, ValueError):
@@ -349,6 +367,9 @@ def transport_label(protocol, port):
         return "Web Browsing"
     if not name:
         return "Unknown transport"
+    if name.isdigit():
+        # An unmapped IANA number: say so rather than pretending it is a name.
+        return f"Other IP protocol {name}"
     return f"Other {name.upper()}"
 
 

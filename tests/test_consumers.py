@@ -209,5 +209,37 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(ident["192.168.1.60"]["mac"], "aa:aa:aa:aa:aa:aa")
 
 
+
+class TransportLabelTests(unittest.TestCase):
+    def test_iana_numbers_are_mapped(self):
+        # The flow database stores numbers; treating 6 as a name produced entries
+        # labelled "Other 6" for what was plainly HTTPS.
+        self.assertEqual(CONSUMERS.transport_label(6, 443), "Secure Web Browsing")
+        self.assertEqual(CONSUMERS.transport_label(17, 443), "Quic UDP Connection")
+        self.assertEqual(CONSUMERS.transport_label(6, 80), "Web Browsing")
+
+    def test_names_still_work_because_pf_reports_names(self):
+        self.assertEqual(CONSUMERS.transport_label("tcp", 443), "Secure Web Browsing")
+        self.assertEqual(CONSUMERS.transport_label("udp", 443), "Quic UDP Connection")
+
+    def test_string_numbers_are_mapped_too(self):
+        self.assertEqual(CONSUMERS.transport_label("6", 443), "Secure Web Browsing")
+
+    def test_other_ports_fall_back_to_the_protocol(self):
+        self.assertEqual(CONSUMERS.transport_label(17, 53), "Other UDP")
+        self.assertEqual(CONSUMERS.transport_label(1, 0), "Other ICMP")
+
+    def test_unmapped_number_is_labelled_as_a_number_not_a_name(self):
+        self.assertEqual(CONSUMERS.transport_label(999, 1), "Other IP protocol 999")
+
+    def test_missing_protocol_is_explicit(self):
+        self.assertEqual(CONSUMERS.transport_label(None, None), "Unknown transport")
+
+    def test_protocol_name_helper(self):
+        self.assertEqual(CONSUMERS.protocol_name(6), "tcp")
+        self.assertEqual(CONSUMERS.protocol_name("TCP"), "tcp")
+        self.assertEqual(CONSUMERS.protocol_name(""), "")
+
+
 if __name__ == "__main__":
     unittest.main()
