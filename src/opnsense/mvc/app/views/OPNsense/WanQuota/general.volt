@@ -1,6 +1,6 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -66,6 +66,12 @@
         <div id="appDrill" class="wq-section wq-table-wrap"></div>
     </div></div>
     <div id="limits" class="tab-pane fade"><div style="padding:16px">
+        <ul class="nav nav-pills wq-subtabs">
+            <li class="active"><a href="#limitsService" data-toggle="tab">{{ lang._('By service') }}</a></li>
+            <li><a href="#limitsDevice" data-toggle="tab">{{ lang._('By device') }}</a></li>
+        </ul>
+        <div class="tab-content">
+        <div id="limitsService" class="tab-pane fade in active">
         <div class="wq-action-box" style="margin-bottom:14px">
           <label class="wq-switch"><input type="checkbox" id="limitEnabled"> <b>{{ lang._('Enable per-service limits') }}</b></label>
           <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="limitDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label>
@@ -76,6 +82,20 @@
         <div id="limitStatus"></div>
         <div id="limitCards" class="wq-grid"></div>
         <p class="wq-muted">{{ lang._('A cap bounds what a player can sustain; it does not select a resolution. Coverage is partial: a device using encrypted DNS, a VPN or ECH is not matched and runs uncapped.') }}</p>
+        </div>
+        <div id="limitsDevice" class="tab-pane fade">
+            <div class="wq-action-box" style="margin-bottom:14px">
+              <label class="wq-switch"><input type="checkbox" id="deviceLimitEnabled"> <b>{{ lang._('Enable limits') }}</b></label>
+              <label class="wq-switch" style="margin-left:18px"><input type="checkbox" id="deviceLimitDryRun"> {{ lang._('Dry run') }}</label>
+              <input id="deviceLimitSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search devices…') }}">
+              <span id="deviceLimitCount" class="wq-muted"></span>
+              <button id="saveDeviceLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
+            </div>
+            <div id="deviceLimitStatus"></div>
+            <div class="wq-table-wrap"><div id="deviceLimitTable"></div></div>
+            <p class="wq-muted">{{ lang._('A device limit caps the rate to and from one device. Keying it on the MAC keeps it applying after DHCP changes the address; keying it on the address alone does not. The firewall itself can never be limited.') }}</p>
+        </div>
+        </div>
     </div></div>
     <div id="sessions" class="tab-pane fade"><div style="padding:16px">
         <div class="wq-toolbar" style="margin-bottom:12px">
@@ -659,6 +679,88 @@ function showWizardStep(index) {
     $('#wizardNext').prop('disabled', wizardStep === WIZARD_LAST);
 }
 
+let deviceLimitData = null;
+function renderDeviceLimits(data) {
+    deviceLimitData = data;
+    $('#deviceLimitEnabled').prop('checked', !!data.enabled);
+    $('#deviceLimitDryRun').prop('checked', !!data.dry_run);
+    const rows = data.devices || [];
+    if (!rows.length) {
+        $('#deviceLimitTable').html('<div class="alert alert-info">'
+            + esc('No devices are currently visible on the LAN.') + '</div>');
+        return;
+    }
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th style="width:34px"></th><th>{{ lang._("Device") }}</th>'
+             + '<th>{{ lang._("Matched on") }}</th>'
+             + '<th>{{ lang._("Download Mbit/s") }}</th><th>{{ lang._("Upload Mbit/s") }}</th>'
+             + '</tr></thead><tbody>';
+    for (const row of rows) {
+        // The MAC is offered as the key when there is one, because a limit keyed to
+        // an address quietly stops applying the moment DHCP moves the device.
+        const key = row.key || row.mac || row.address;
+        const keyLabel = row.mac
+            ? '<span class="wq-pill" title="' + esc('Survives a DHCP address change') + '">MAC</span>'
+            : '<span class="wq-pill wq-pill-warn" title="' + esc('No MAC seen, so this limit is tied to the current address') + '">' + esc('address only') + '</span>';
+        const search = (row.name + ' ' + row.address + ' ' + (row.mac || '') + ' ' + (row.hostname || '')).toLowerCase();
+        html += '<tr data-device="' + esc(key) + '" data-search="' + esc(search) + '">'
+             +  '<td><input type="checkbox" class="dev-on"' + (row.selected ? ' checked' : '') + '></td>'
+             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.address) + '\'>'
+             +  '<b>' + esc(row.name) + '</b></a><br><small class="wq-muted">' + esc(row.address)
+             +  (row.mac ? ' · ' + esc(row.mac) : '') + '</small>'
+             +  (row.refused ? '<br><small class="wq-pill wq-pill-warn" title="' + esc(row.refused) + '">'
+                    + esc('refused') + '</small>' : '')
+             +  '</td><td>' + keyLabel + '</td>'
+             +  '<td><input class="form-control dev-down" type="number" step="0.1" min="0.1" style="max-width:110px" value="' + esc(row.mbit) + '"></td>'
+             +  '<td><input class="form-control dev-up" type="number" step="0.1" min="0.1" style="max-width:110px" placeholder="{{ lang._("optional") }}" value="' + esc(row.upload_mbit) + '"></td>'
+             +  '</tr>';
+    }
+    $('#deviceLimitTable').html(html + '</tbody></table>');
+    filterDeviceLimits();
+}
+function filterDeviceLimits() {
+    const query = String($('#deviceLimitSearch').val() || '').toLowerCase().trim();
+    let shown = 0;
+    $('#deviceLimitTable tbody tr').each(function() {
+        const selected = $(this).find('.dev-on').is(':checked');
+        const match = !query || String($(this).data('search')).includes(query) || selected;
+        $(this).toggle(match);
+        if (match) shown++;
+    });
+    const total = $('#deviceLimitTable tbody tr').length;
+    $('#deviceLimitCount').text(query ? shown + ' / ' + total : total + ' {{ lang._("devices") }}');
+}
+function saveDeviceLimits() {
+    const limits = [];
+    $('#deviceLimitTable tbody tr').each(function() {
+        if (!$(this).find('.dev-on').is(':checked')) return;
+        limits.push({
+            device: $(this).data('device'),
+            mbit: $(this).find('.dev-down').val(),
+            upload_mbit: $(this).find('.dev-up').val(),
+        });
+    });
+    $('#deviceLimitStatus').html('<div class="alert alert-info">' + esc('Applying…') + '</div>');
+    $('#saveDeviceLimits').prop('disabled', true);
+    ajaxCall('/api/wanquota/limits/setDevices', {
+        enabled: $('#deviceLimitEnabled').is(':checked') ? 1 : 0,
+        dry_run: $('#deviceLimitDryRun').is(':checked') ? 1 : 0,
+        limits: limits,
+    }, function(result) {
+        $('#saveDeviceLimits').prop('disabled', false);
+        if (result.status !== 'ok') {
+            $('#deviceLimitStatus').html('<div class="alert alert-danger">'
+                + (result.errors || [result.error || 'Save failed']).map(esc).join('<br>') + '</div>');
+            return;
+        }
+        $('#deviceLimitStatus').html('<div class="alert alert-success">' + esc(result.dry_run
+            ? '{{ lang._("Saved. Dry run is on, so nothing is being shaped yet.") }}'
+            : '{{ lang._("Saved and applied.") }}') + '</div>');
+        refreshDeviceLimits();
+    });
+}
+function refreshDeviceLimits() { ajaxCall('/api/wanquota/limits/devices', {}, renderDeviceLimits); }
+
 function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));renderApps(data);$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
 function refreshIntelligence(){const period=$('#intelligencePeriod').val();ajaxCall('/api/wanquota/report/intelligence_'+period,{},renderIntelligence);}
 function filterIntelligence(){const query=String($('#intelligenceSearch').val()||'').toLowerCase();$('#intelligence [data-filter]').each(function(){$(this).toggle(!query||String($(this).data('filter')).includes(query));});}
@@ -850,6 +952,12 @@ $(document).ready(function() {
     $('#wizardBack').on('click', function() { showWizardStep(wizardStep - 1); });
     $('#wizardSteps').on('click', 'li', function() { showWizardStep(Number($(this).data('step'))); });
     $('#limitSearch').on('keyup', filterLimits);
+    $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
+    $('#saveDeviceLimits').on('click', saveDeviceLimits);
+    $('#deviceLimitTable').on('change', '.dev-on', filterDeviceLimits);
+    $('a[href="#limitsDevice"]').on('shown.bs.tab', function() {
+        if (!deviceLimitData) refreshDeviceLimits();
+    });
     $('#explainGo').on('click', function() { explainDomain($('#explainInput').val().trim()); });
     $('#explainInput').on('keydown', function(event) {
         if (event.key === 'Enter') explainDomain($(this).val().trim());

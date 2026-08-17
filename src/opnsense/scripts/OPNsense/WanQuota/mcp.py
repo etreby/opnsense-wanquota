@@ -31,6 +31,7 @@ import xml.etree.ElementTree as ET
 
 import consumers
 import explain as explain_module
+import shaper
 import health
 import sessions
 import intelligence
@@ -155,6 +156,43 @@ def tool_categories(arguments):
     breakdown["period"] = period
     breakdown["status"] = payload.get("status")
     return breakdown
+
+
+def tool_limits(_arguments):
+    """What is currently limited, and what the limits would match.
+
+    Read-only, like everything else here: an agent can report and explain the
+    limits but cannot set or clear one. Changing how traffic is shaped stays with
+    the interface and the endpoint outside the read-only privilege.
+    """
+    cfg = shaper.options()
+    plan = shaper.run() if cfg["enabled"] else None
+    document = {
+        "status": "ok",
+        "enabled": cfg["enabled"],
+        "dry_run": cfg["dry_run"],
+        "service_limits": cfg["limits"],
+        "device_limits": cfg.get("device_limits", []),
+        "note": (
+            "Reporting only. A limit shapes nothing while dry_run is true. Rates are "
+            "in Mbit/s, and a cap bounds what a client can sustain rather than "
+            "selecting a quality level."
+        ),
+    }
+    if plan is not None:
+        document["planned_services"] = [
+            {"service": p["service"], "label": p["label"], "mbit": p["mbit"],
+             "addresses": p["address_count"], "shared_excluded": p["shared_excluded"],
+             "observed_addresses": p.get("observed_addresses")}
+            for p in plan.get("pipes", [])
+        ]
+        document["planned_devices"] = [
+            {"device": p["device"], "name": p["name"], "mbit": p["mbit"],
+             "upload_mbit": p.get("upload_mbit")}
+            for p in plan.get("device_pipes", [])
+        ]
+        document["refused"] = (plan.get("rejected") or []) + (plan.get("device_rejected") or [])
+    return document
 
 
 def tool_explain_domain(arguments):
@@ -530,6 +568,18 @@ TOOLS = (
         "inputSchema": _PERIOD_SCHEMA,
         "outputSchema": CATEGORY_OUTPUT_SCHEMA,
         "handler": tool_categories,
+    },
+    {
+        "name": "wanquota_limits",
+        "title": "Configured bandwidth limits",
+        "description": (
+            "What is currently capped, per service and per device, at what rate, and "
+            "how many addresses each limit would actually match. Also reports whether "
+            "limits are enabled and whether dry-run is on, since a limit shapes nothing "
+            "while dry-run is on. Read-only: this cannot set or clear a limit."
+        ),
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_limits,
     },
     {
         "name": "wanquota_explain_domain",

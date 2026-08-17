@@ -19,6 +19,133 @@ use OPNsense\WanQuota\WanQuota;
  */
 class LimitsController extends ApiControllerBase
 {
+    /** Devices the firewall can name, with any limit already set on them. */
+    public function devicesAction(): array
+    {
+        $backend = new Backend();
+        $plan = json_decode($backend->configdRun('wanquota shaperplan'), true);
+        $known = json_decode($backend->configdRun('wanquota shaperdevices'), true);
+
+        $model = new WanQuota();
+        $configured = json_decode((string)$model->general->device_limits_json, true);
+        $configured = is_array($configured) ? $configured : [];
+        $selected = [];
+        foreach ($configured as $item) {
+            if (!empty($item['device'])) {
+                $selected[strtolower((string)$item['device'])] = $item;
+            }
+        }
+        $refused = [];
+        foreach (($plan['device_rejected'] ?? []) as $entry) {
+            $refused[strtolower((string)$entry['device'])] = $entry['reason'];
+        }
+
+        $rows = [];
+        foreach (($known['devices'] ?? []) as $device) {
+            /*
+             * A limit may be keyed on the address, the MAC or the DHCP hostname, so a
+             * row is considered configured if any of its identifiers matches. MAC is
+             * offered as the preferred key because it survives a DHCP change.
+             */
+            $choice = null;
+            $matchedOn = '';
+            foreach ([$device['address'], $device['mac'], $device['hostname'], $device['name']] as $candidate) {
+                $key = strtolower((string)$candidate);
+                if ($key !== '' && isset($selected[$key])) {
+                    $choice = $selected[$key];
+                    $matchedOn = (string)$candidate;
+                    break;
+                }
+            }
+            $rows[] = [
+                'address' => $device['address'],
+                'name' => $device['name'],
+                'mac' => $device['mac'],
+                'hostname' => $device['hostname'],
+                'name_source' => $device['name_source'],
+                'selected' => $choice !== null && ($choice['enabled'] ?? true),
+                'key' => $choice['device'] ?? ($device['mac'] ?: $device['address']),
+                'matched_on' => $matchedOn,
+                'mbit' => $choice['mbit'] ?? '',
+                'upload_mbit' => $choice['upload_mbit'] ?? '',
+                'refused' => $refused[strtolower((string)$device['address'])] ?? null,
+            ];
+        }
+        return [
+            'status' => 'ok',
+            'enabled' => (string)$model->general->shaper_enabled === '1',
+            'dry_run' => (string)$model->general->shaper_dry_run === '1',
+            'devices' => $rows,
+        ];
+    }
+
+    /** Save per-device limits and apply. */
+    public function setDevicesAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $limits = [];
+        $errors = [];
+        $seen = [];
+        foreach ((array)$this->request->getPost('limits') as $item) {
+            $key = trim((string)($item['device'] ?? ''));
+            if ($key === '') {
+                continue;
+            }
+            if (isset($seen[strtolower($key)])) {
+                $errors[] = sprintf('%s appears twice', $key);
+                continue;
+            }
+            $seen[strtolower($key)] = true;
+            $entry = ['device' => $key, 'enabled' => true];
+            foreach (['mbit' => 'download', 'upload_mbit' => 'upload'] as $field => $label) {
+                $value = trim((string)($item[$field] ?? ''));
+                if ($value === '') {
+                    continue;
+                }
+                if (!is_numeric($value) || (float)$value <= 0) {
+                    $errors[] = sprintf('%s: %s rate must be a positive number', $key, $label);
+                    continue 2;
+                }
+                $entry[$field] = (float)$value;
+            }
+            if (!isset($entry['mbit'])) {
+                $errors[] = sprintf('%s: a download rate is required', $key);
+                continue;
+            }
+            $limits[] = $entry;
+        }
+        if ($errors) {
+            return ['status' => 'failed', 'errors' => $errors];
+        }
+
+        $model = new WanQuota();
+        $model->general->device_limits_json = json_encode($limits);
+        $model->general->shaper_enabled = $this->request->getPost('enabled') ? '1' : '0';
+        $model->general->shaper_dry_run = $this->request->getPost('dry_run') ? '1' : '0';
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save('Update WAN quota per-device limits');
+
+        $backend = new Backend();
+        $backend->configdRun('wanquota shaperplan');
+        $applied = $backend->configdRun('wanquota shaperapply');
+        return [
+            'status' => 'ok',
+            'saved' => count($limits),
+            'dry_run' => (string)$model->general->shaper_dry_run === '1',
+            'result' => trim((string)$applied),
+        ];
+    }
+
     /** Catalog, presets, current selections, and how many addresses each matched. */
     public function getAction(): array
     {

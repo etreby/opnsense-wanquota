@@ -152,6 +152,15 @@ class CapabilityAndResourceTests(unittest.TestCase):
         self.assertEqual(declared, {"wanquota_health", "wanquota_device",
                                     "wanquota_site", "wanquota_categories"})
 
+    def test_limits_are_reportable_but_not_settable(self):
+        self.assertIn("wanquota_limits", MCP.TOOLS_BY_NAME)
+        names = {t["name"] for t in MCP.tool_descriptors()}
+        # Reporting a limit is fine; changing one must stay out of the tool surface.
+        for word in ("set_limit", "apply_limit", "limit_set", "shaper_apply"):
+            self.assertFalse(any(word in name for name in names), word)
+        self.assertTrue({t["name"]: t for t in MCP.tool_descriptors()}
+                        ["wanquota_limits"]["annotations"]["readOnlyHint"])
+
     def test_apps_and_sessions_tools_exist_and_are_read_only(self):
         for name in ("wanquota_apps", "wanquota_sessions"):
             self.assertIn(name, MCP.TOOLS_BY_NAME)

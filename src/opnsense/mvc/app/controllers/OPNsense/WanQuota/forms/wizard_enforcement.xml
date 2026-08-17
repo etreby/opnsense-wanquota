@@ -60,4 +60,10 @@
         <type>text</type>
         <help>Hold back this much of the allowance. The strongest action is only recommended once the remainder falls below it.</help>
     </field>
+    <field>
+        <id>wanquota.general.device_limits_json</id>
+        <label>Per-device bandwidth limits</label>
+        <type>textbox</type>
+        <help>Set these in the Limits tab, under By device. Kept editable for scripted configuration. A limit may key on address, MAC or DHCP hostname; MAC survives a DHCP change.</help>
+    </field>
 </form>

@@ -40,6 +40,9 @@ PLAN_PATH = os.path.join(STATE_DIR, "shaper-plan.json")
 
 # Pipe numbers the plugin owns. Kept high to stay clear of hand-made pipes.
 PIPE_BASE = 21000
+# A separate range for device limits, so a service pipe and a device pipe can never
+# collide and either can be rebuilt without disturbing the other.
+DEVICE_PIPE_BASE = 22000
 
 # Rates the providers publish for a sustained stream, in Mbit/s. A cap does not
 # pick a resolution — it bounds what the player can sustain, and the player picks
@@ -373,6 +376,124 @@ def build_plan(limits, mappings, catalog=None, stored=None):
     }
 
 
+
+def device_identities(config_path=None):
+    """Current address for every device the firewall can name.
+
+    Returns rows carrying address, MAC and DHCP hostname so a limit can be matched
+    on whichever the user configured. A limit keyed to an address alone stops
+    applying the moment DHCP moves the device, which is the whole reason MAC and
+    hostname are accepted.
+    """
+    saved = consumers.CONFIG_PATH
+    if config_path:
+        consumers.CONFIG_PATH = config_path
+    try:
+        _settings, static_names = consumers.settings_and_names()
+    except (OSError, ValueError):
+        return []
+    finally:
+        consumers.CONFIG_PATH = saved
+    leases = {**consumers.kea_leases(), **consumers.dnsmasq_leases()}
+    ident = consumers.identities(static_names, leases, consumers.arp_macs())
+    return [{"address": address, **entry} for address, entry in sorted(ident.items())]
+
+
+def match_device(limit, devices):
+    """The device a limit refers to, by address, MAC or DHCP hostname."""
+    wanted = str(limit.get("device") or "").strip().lower()
+    if not wanted:
+        return None
+    for row in devices:
+        candidates = {
+            str(row.get("address") or "").lower(),
+            str(row.get("mac") or "").lower(),
+            str(row.get("hostname") or "").lower(),
+            str(row.get("name") or "").lower(),
+        }
+        candidates.discard("")
+        if wanted in candidates:
+            return row
+    return None
+
+
+def build_device_plan(limits, devices, router=None):
+    """Turn per-device limits into pipes, with every refusal explained.
+
+    A device cap is gentler than blocking, but the firewall itself is still never
+    limited: throttling the router would degrade every service it provides,
+    including the interface used to undo the mistake.
+    """
+    entries = []
+    rejected = []
+    seen = {}
+    number = DEVICE_PIPE_BASE
+    for limit in limits or []:
+        if not limit.get("enabled", True):
+            continue
+        key = str(limit.get("device") or "").strip()
+        if not key:
+            rejected.append({"device": "(unnamed)", "reason": "no device given"})
+            continue
+        row = match_device(limit, devices)
+        if row is None:
+            rejected.append({
+                "device": key,
+                "reason": "no device on the network matches that address, MAC or hostname",
+            })
+            continue
+        if router and row["address"] == router:
+            rejected.append({"device": key, "reason": "refused: this is the firewall itself"})
+            continue
+        try:
+            rate = resolve_rate(limit)
+        except ValueError as error:
+            rejected.append({"device": key, "reason": str(error)})
+            continue
+        upload = limit.get("upload_mbit")
+        try:
+            upload_rate = float(upload) if upload not in (None, "", 0) else None
+        except (TypeError, ValueError):
+            rejected.append({"device": key, "reason": "upload_mbit must be a number"})
+            continue
+        if upload_rate is not None and upload_rate <= 0:
+            rejected.append({"device": key, "reason": "upload_mbit must be greater than zero"})
+            continue
+        # Two entries can name the same device by different identifiers — an address
+        # and a MAC, say. Building both would give one device two pipes competing
+        # over the same traffic, so the later entry is refused rather than silently
+        # producing a rate nobody configured.
+        if row["address"] in seen:
+            rejected.append({
+                "device": key,
+                "reason": f"already limited by the entry for {seen[row['address']]!r}; "
+                          f"one device can carry one limit",
+            })
+            continue
+        seen[row["address"]] = key
+        entries.append({
+            "device": row["address"],
+            "name": row.get("name") or row["address"],
+            "mac": row.get("mac", ""),
+            "matched": key,
+            "mbit": rate,
+            "upload_mbit": upload_rate,
+            "basis": "explicit" if limit.get("mbit") else str(limit.get("resolution", "")).lower(),
+            "pipe": number,
+            "upload_pipe": number + 500 if upload_rate is not None else None,
+        })
+        number += 1
+    return {
+        "device_pipes": entries,
+        "device_rejected": rejected,
+        "device_note": (
+            "A device limit caps the rate to and from one device, matched on its current "
+            "address. Because the address is resolved at apply time, a limit keyed to a "
+            "MAC or DHCP hostname keeps applying after the address changes; one keyed to "
+            "an address alone does not."
+        ),
+    }
+
 def write_plan(document):
     os.makedirs(STATE_DIR, mode=0o750, exist_ok=True)
     with open(PLAN_PATH, "w", encoding="utf-8") as handle:
@@ -393,10 +514,16 @@ def options():
         limits = limits if isinstance(limits, list) else []
     except json.JSONDecodeError:
         limits = []
+    try:
+        device_limits = json.loads(consumers.node_text(general, "device_limits_json", "[]"))
+        device_limits = device_limits if isinstance(device_limits, list) else []
+    except json.JSONDecodeError:
+        device_limits = []
     return {
         "enabled": consumers.node_text(general, "shaper_enabled", "0") == "1",
         "dry_run": consumers.node_text(general, "shaper_dry_run", "1") == "1",
         "limits": limits,
+        "device_limits": device_limits,
     }
 
 
@@ -404,7 +531,8 @@ def run():
     cfg = options()
     if not cfg["enabled"]:
         document = {"status": "disabled", "pipes": [], "rejected": [],
-                    "note": "Per-service limits are disabled."}
+                    "device_pipes": [], "device_rejected": [],
+                    "note": "Per-service and per-device limits are disabled."}
         write_plan(document)
         return document
     book = address_book.database()
@@ -415,6 +543,13 @@ def run():
         )
     finally:
         book.close()
+    router = None
+    try:
+        settings, _names = consumers.settings_and_names()
+        router = settings["router"]
+    except (OSError, ValueError, KeyError):
+        pass
+    plan.update(build_device_plan(cfg["device_limits"], device_identities(), router))
     plan["status"] = "ok"
     plan["dry_run"] = cfg["dry_run"]
     if cfg["dry_run"]:
@@ -425,6 +560,10 @@ def run():
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "plan"
+    if mode == "devices":
+        print(json.dumps({"status": "ok", "devices": device_identities()},
+                         separators=(",", ":")))
+        return
     if mode == "catalog":
         print(json.dumps({
             "services": [{"service": key, "label": item["label"],

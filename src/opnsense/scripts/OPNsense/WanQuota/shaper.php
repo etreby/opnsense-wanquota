@@ -159,6 +159,31 @@ foreach ($plan['pipes'] ?? [] as $entry) {
     $pipe->origin = ORIGIN;
 }
 
+/*
+ * Device pipes. A download cap and an upload cap are separate pipes because they
+ * shape opposite directions and dummynet applies a pipe to one direction at a time.
+ */
+foreach ($plan['device_pipes'] ?? [] as $entry) {
+    $pipe = $model->pipes->pipe->Add();
+    $pipe->number = (string)$entry['pipe'];
+    $pipe->enabled = '1';
+    $pipe->bandwidth = (string)$entry['mbit'];
+    $pipe->bandwidthMetric = 'Mbit';
+    $pipe->description = sprintf('WAN quota: %s download limited to %s Mbit/s',
+        $entry['name'], $entry['mbit']);
+    $pipe->origin = ORIGIN;
+    if (!empty($entry['upload_pipe'])) {
+        $up = $model->pipes->pipe->Add();
+        $up->number = (string)$entry['upload_pipe'];
+        $up->enabled = '1';
+        $up->bandwidth = (string)$entry['upload_mbit'];
+        $up->bandwidthMetric = 'Mbit';
+        $up->description = sprintf('WAN quota: %s upload limited to %s Mbit/s',
+            $entry['name'], $entry['upload_mbit']);
+        $up->origin = ORIGIN;
+    }
+}
+
 $messages = $model->performValidation();
 if (count($messages) > 0) {
     $errors = [];
@@ -171,7 +196,9 @@ if (count($messages) > 0) {
 $model->serializeToConfig();
 OPNsense\Core\Config::getInstance()->save('WAN quota per-service bandwidth pipes');
 echo json_encode(['status' => 'ok', 'phase' => 'pipes',
-                  'pipes' => count($plan['pipes'] ?? []), 'removed' => $removed]) . PHP_EOL;
+                  'pipes' => count($plan['pipes'] ?? []),
+                  'device_pipes' => count($plan['device_pipes'] ?? []),
+                  'removed' => $removed]) . PHP_EOL;
 exit(0);
 }
 
@@ -213,6 +240,48 @@ foreach ($plan['pipes'] ?? [] as $entry) {
                   'addresses' => $entry['address_count']];
 }
 
+/*
+ * Device rules. Download is traffic heading to the device, so it matches on the way
+ * out of the LAN interface with the device as destination; upload is the reverse.
+ * Getting this backwards produces a rule that can never fire, which is how the
+ * service rules were wrong before being measured.
+ */
+$appliedDevices = [];
+foreach ($plan['device_pipes'] ?? [] as $entry) {
+    $downUuid = $pipeUuids[(string)$entry['pipe']] ?? null;
+    if ($downUuid !== null) {
+        $rule = $model->rules->rule->Add();
+        $rule->enabled = '1';
+        $rule->sequence = (string)$entry['pipe'];
+        $rule->interface = 'lan';
+        $rule->direction = 'out';
+        $rule->proto = 'ip';
+        $rule->source = 'any';
+        $rule->destination = $entry['device'];
+        $rule->target = $downUuid;
+        $rule->description = sprintf('WAN quota: %s download', $entry['name']);
+        $rule->origin = ORIGIN;
+    }
+    if (!empty($entry['upload_pipe'])) {
+        $upUuid = $pipeUuids[(string)$entry['upload_pipe']] ?? null;
+        if ($upUuid !== null) {
+            $rule = $model->rules->rule->Add();
+            $rule->enabled = '1';
+            $rule->sequence = (string)$entry['upload_pipe'];
+            $rule->interface = 'lan';
+            $rule->direction = 'in';
+            $rule->proto = 'ip';
+            $rule->source = $entry['device'];
+            $rule->destination = 'any';
+            $rule->target = $upUuid;
+            $rule->description = sprintf('WAN quota: %s upload', $entry['name']);
+            $rule->origin = ORIGIN;
+        }
+    }
+    $appliedDevices[] = ['device' => $entry['device'], 'name' => $entry['name'],
+                         'mbit' => $entry['mbit'], 'upload_mbit' => $entry['upload_mbit']];
+}
+
 $messages = $model->performValidation();
 if (count($messages) > 0) {
     $errors = [];
@@ -241,6 +310,8 @@ reload_shaper();
 echo json_encode([
     'status' => 'ok',
     'applied' => $applied,
+    'applied_devices' => $appliedDevices,
     'removed' => $removed,
     'rejected' => $plan['rejected'] ?? [],
+    'device_rejected' => $plan['device_rejected'] ?? [],
 ]) . PHP_EOL;
