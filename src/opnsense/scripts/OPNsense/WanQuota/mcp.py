@@ -40,7 +40,7 @@ PROTOCOL_VERSION = "2024-11-05"
 # version we do not implement would be a false statement of capability.
 SUPPORTED_PROTOCOL_VERSIONS = ("2024-11-05", "2025-03-26", "2025-06-18")
 SERVER_NAME = "wanquota"
-SERVER_VERSION = "0.12"
+SERVER_VERSION = "0.13"
 
 PERIODS = ("today", "week", "thirty", "month")
 

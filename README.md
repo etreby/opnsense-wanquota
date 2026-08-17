@@ -39,6 +39,8 @@ quota reporting and top-consumer visibility.
 - Device names resolved from DHCP leases as well as static mappings, and device
   identity tracked by MAC so budgets and history survive an address change.
 - Optional per-device budget enforcement, disabled and dry-run by default.
+- Per-service bandwidth limits for streaming services, using the OPNsense traffic
+  shaper, disabled and dry-run by default.
 - App categories breakdown: share of attributed traffic per category as a pie
   chart with a ranked Top 10, an explicit Uncategorised slice, and the tail rolled
   into Others.
@@ -221,6 +223,62 @@ reports both figures rather than implying they agree.
 
 Agents can read the same data through `wanquota_categories` and drill in with
 `wanquota_category`.
+
+## Per-service bandwidth limits
+
+Cap a named streaming service to a chosen rate so it stops reaching for the highest
+bitrate, without touching the rest of the household. Configure it in Settings with
+a JSON array:
+
+```json
+[{"service":"netflix","resolution":"1080p"},{"service":"youtube","mbit":3}]
+```
+
+`resolution` uses the rate the provider publishes for a sustained stream; `mbit`
+sets an exact figure.
+
+| Preset | Rate |
+|---|---|
+| `4k` | 15 Mbit/s |
+| `1080p` | 5 Mbit/s |
+| `720p` | 3 Mbit/s |
+| `480p` | 1.5 Mbit/s |
+| `audio_only` | 0.5 Mbit/s |
+
+**A cap does not select a resolution.** It bounds what the player can sustain, and
+the player picks a rung of its own ladder that fits. Setting 2 Mbit/s does not give
+1080p — at that rate Netflix will settle around 480p–720p and may rebuffer. If the
+goal is "1080p, not 4K", `1080p` (5 Mbit/s) is the preset that expresses it.
+
+### Coverage is partial by construction
+
+A shaper matches addresses, not names. The addresses come from the same DNS answers
+that drive domain attribution, so **a device using encrypted DNS (DoH/DoT), a VPN,
+or ECH is never matched and streams uncapped.** The plan reports how many addresses
+each service matched, so a limit is never mistaken for a guarantee.
+
+Only services on dedicated hostnames are offered. Shared CDNs are refused rather
+than approximated, because an address shared with unrelated services would have
+that traffic throttled too — a worse outcome than not capping.
+
+### Safety
+
+Disabled by default, and dry-run when first enabled. Dry run records the pipes and
+rules it would create to `/var/db/wanquota/shaper-plan.json` and touches nothing.
+Everything created is tagged `origin=wanquota`, so a sync replaces only what the
+plugin owns and never disturbs a hand-made pipe or rule. Disabling the feature, or
+switching back to dry-run, releases the limits on the next apply.
+`configctl wanquota shaperflush` removes them immediately, and uninstalling removes
+them too.
+
+Pipes are masked on the destination address, so the cap is per device rather than
+shared: two televisions streaming get the configured rate each, not half of it.
+
+Applying goes through the OPNsense shaper model rather than calling `ipfw` directly.
+That is a safety requirement, not a preference: `ipfw` is not loaded on a stock
+system and loading it by hand installs a default deny rule that would cut all
+traffic. OPNsense brings it up through the system's own rc scripts, which set the
+accept default and synchronise the pf/ipfw load order.
 
 ## Per-device budget enforcement
 

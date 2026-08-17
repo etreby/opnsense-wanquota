@@ -147,6 +147,24 @@
       <type>checkbox</type>
       <help>Record which devices would be blocked without changing the firewall table. Leave enabled until the recorded membership matches what you intend to block.</help>
     </field>
+    <field>
+      <id>wanquota.general.shaper_enabled</id>
+      <label>Per-service bandwidth limits</label>
+      <type>checkbox</type>
+      <help>Cap named streaming services to a chosen rate using the OPNsense traffic shaper. Addresses come from recently observed DNS answers, so a device using encrypted DNS, a VPN or ECH is not matched and streams uncapped.</help>
+    </field>
+    <field>
+      <id>wanquota.general.shaper_dry_run</id>
+      <label>Per-service limits dry-run mode</label>
+      <type>checkbox</type>
+      <help>Record the pipes and rules that would be created without touching the shaper. Leave enabled until the recorded plan matches what you intend to limit.</help>
+    </field>
+    <field>
+      <id>wanquota.general.service_limits_json</id>
+      <label>Per-service limits</label>
+      <type>textbox</type>
+      <help>JSON array, for example [{"service":"netflix","resolution":"1080p"},{"service":"youtube","mbit":3}]. Use resolution for a published rate (4k 15, 1080p 5, 720p 3, 480p 1.5, audio_only 0.5 Mbit/s) or mbit for an exact figure. A cap bounds what a player can sustain; it does not select a resolution.</help>
+    </field>
     <field><id>wanquota.general.enforcement_policy</id><label>Maximum automatic policy</label><type>dropdown</type></field>
     <field><id>wanquota.general.guardrail_thresholds</id><label>Guardrail thresholds (%)</label><type>text</type></field>
     <field><id>wanquota.general.emergency_reserve_gb</id><label>Emergency reserve (GB)</label><type>text</type></field>

@@ -33,6 +33,19 @@ if ($removed > 0) {
 echo "Removed {$removed} WAN quota scheduler job(s)\n";
 
 /*
+ * Remove the shaper pipes and rules this plugin created. A bandwidth cap left
+ * behind by a plugin that no longer exists would throttle traffic with nothing to
+ * explain why.
+ */
+$shaper = '/usr/local/opnsense/scripts/OPNsense/WanQuota/shaper.php';
+if (is_file($shaper)) {
+    exec('/usr/local/bin/php ' . escapeshellarg($shaper) . ' flush 2>&1', $shaperOut, $shaperStatus);
+    echo $shaperStatus === 0
+        ? "Removed per-service bandwidth limits\n"
+        : "WARNING: could not remove per-service bandwidth limits; check Firewall > Shaper\n";
+}
+
+/*
  * Release per-device enforcement before the plugin goes away. Leaving members in
  * the pf table would keep devices blocked by a rule whose owner no longer exists,
  * which is the one uninstall outcome that must not happen.
