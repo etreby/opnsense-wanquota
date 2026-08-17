@@ -216,6 +216,22 @@ transport, and the payload note says so.
 A domain matching no known application is listed under its own registrable name
 rather than folded away, so the tail stays inspectable.
 
+## Identifying a domain
+
+A breakdown shows that a domain moved traffic but not what the domain *is*. The
+**What is this domain?** box on the Apps tab answers that, and there is a `why?`
+link beside every domain in the reports.
+
+It reports which limitable service owns the name (Netflix, YouTube, Windows Update
+and so on), which application and category it is reported under, how much it moved,
+which devices used it, and whether its addresses are exclusive enough to be capped
+— **naming the rule behind every conclusion**, so the answer can be checked rather
+than trusted.
+
+This is deterministic suffix matching over the plugin's own catalogs, not a model
+guessing, and the payload says so. Agents can ask the same question through the
+`wanquota_explain_domain` tool.
+
 ## Live sessions
 
 The **Live sessions** tab answers a different question from every other report:
@@ -263,9 +279,21 @@ Agents can read the same data through `wanquota_categories` and drill in with
 
 ## Per-service bandwidth limits
 
-Cap a named streaming service to a chosen rate so it stops reaching for the highest
-bitrate, without touching the rest of the household. Configure it in Settings with
-a JSON array:
+Cap a named service so it stops reaching for the highest bitrate, without touching
+the rest of the household.
+
+**Set it in the Limits tab.** Each service gets a switch, a quality preset or an
+exact rate, and a badge showing how many addresses were actually matched — a limit
+on a service with no observed addresses looks configured and does nothing, so the
+count is shown rather than assumed. Master switches enable the feature and toggle
+dry-run, and Save applies in one step.
+
+Fourteen services can be capped, including bulk downloads that are usually more
+welcome to limit than streaming: **Windows Update**, **Apple software update**,
+**Linux distribution updates** and **Steam downloads**, alongside Netflix, YouTube,
+Twitch, TikTok, Disney+, Prime Video, Spotify, Apple TV+, Shahid and OSN+.
+
+The same settings can be written directly as a JSON array if preferred:
 
 ```json
 [{"service":"netflix","resolution":"1080p"},{"service":"youtube","mbit":3}]
@@ -294,9 +322,14 @@ that drive domain attribution, so **a device using encrypted DNS (DoH/DoT), a VP
 or ECH is never matched and streams uncapped.** The plan reports how many addresses
 each service matched, so a limit is never mistaken for a guarantee.
 
-Only services on dedicated hostnames are offered. Shared CDNs are refused rather
-than approximated, because an address shared with unrelated services would have
-that traffic throttled too — a worse outcome than not capping.
+Only services on dedicated hostnames are offered, and **individual addresses are
+checked too**. An address is used only when every name observed on it belongs to
+that service. Suffix matching alone was not enough: on a live network eight of
+twenty Netflix addresses also served `amazonaws.com`, and twenty-five of ninety
+YouTube addresses were shared, one of them with `google.com` itself. Capping those
+would have throttled unrelated traffic that merely shares an address. The plan
+reports how many addresses were excluded, because narrowing coverage silently would
+be its own kind of dishonesty.
 
 ### Safety
 
