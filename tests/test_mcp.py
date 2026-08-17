@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
+import os
 import unittest
 
 SOURCE_DIR = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota"
@@ -67,13 +68,38 @@ class ToolSurfaceTests(unittest.TestCase):
             self.assertIn("description", tool)
             self.assertEqual(tool["inputSchema"]["type"], "object")
 
-    def test_every_tool_declares_itself_read_only(self):
-        # Without the hint a cautious client prompts before each call, which
-        # wastes the guarantee the whole surface was designed around.
+    # The tools that may change configuration. The server was read-only until the
+    # owner asked for full control, so this list is the boundary: a tool that writes
+    # has to be named here deliberately, and anything not named must still declare
+    # itself read-only. That keeps "which of these can change my firewall?" a
+    # question with an answer in one place.
+    WRITERS = {
+        "wanquota_set_settings",
+        "wanquota_set_service_limit",
+        "wanquota_remove_service_limit",
+        "wanquota_set_device_limit",
+        "wanquota_remove_device_limit",
+    }
+    REMOVERS = {"wanquota_remove_service_limit", "wanquota_remove_device_limit"}
+
+    def test_only_the_declared_writers_are_not_read_only(self):
         for tool in MCP.handle(request("tools/list"))["result"]["tools"]:
-            self.assertTrue(tool["annotations"]["readOnlyHint"], tool["name"])
-            self.assertFalse(tool["annotations"]["destructiveHint"], tool["name"])
-            self.assertTrue(tool["annotations"]["title"], tool["name"])
+            name = tool["name"]
+            expected = name not in self.WRITERS
+            self.assertEqual(tool["annotations"]["readOnlyHint"], expected, name)
+            self.assertTrue(tool["annotations"]["title"], name)
+
+    def test_removing_a_limit_is_flagged_destructive(self):
+        # A client should be able to prompt before discarding something the user set,
+        # and not prompt for a report.
+        for tool in MCP.handle(request("tools/list"))["result"]["tools"]:
+            self.assertEqual(tool["annotations"]["destructiveHint"],
+                             tool["name"] in self.REMOVERS, tool["name"])
+
+    def test_every_writer_exists_on_the_surface(self):
+        names = {tool["name"] for tool in MCP.tool_descriptors()}
+        for writer in self.WRITERS:
+            self.assertIn(writer, names)
 
     def test_no_argument_schemas_survive_as_objects(self):
         # These serialise to {} and a transport that turns them into [] breaks
@@ -81,7 +107,10 @@ class ToolSurfaceTests(unittest.TestCase):
         for tool in MCP.handle(request("tools/list"))["result"]["tools"]:
             self.assertIsInstance(tool["inputSchema"]["properties"], dict, tool["name"])
 
-    def test_tool_surface_is_read_only(self):
+    def test_routing_guardrails_stay_off_the_tool_surface(self):
+        # Limits and settings are now writable, but the guardrail that changes
+        # routing is not: shaping traffic is recoverable, moving a household onto a
+        # different WAN is a decision with a bill attached.
         names = {tool["name"] for tool in MCP.tool_descriptors()}
         self.assertNotIn("wanquota_override", names)
         self.assertFalse(any("override" in name or "enforce" in name for name in names))
@@ -387,11 +416,15 @@ class DrillToolTests(unittest.TestCase):
         finally:
             MCP.intelligence.options = original
 
-    def test_drill_tools_are_still_read_only(self):
-        for tool in ("wanquota_device", "wanquota_site"):
-            self.assertIn(tool, MCP.TOOLS_BY_NAME)
+    def test_drill_tools_are_read_only(self):
+        """The drill-downs answer questions; they must not change anything."""
+        for name in ("wanquota_device", "wanquota_site"):
+            self.assertIn(name, MCP.TOOLS_BY_NAME)
+            self.assertTrue(
+                MCP.TOOLS_BY_NAME[name].get("annotations", MCP.READ_ONLY_ANNOTATIONS)
+                ["readOnlyHint"], name)
         names = {t["name"] for t in MCP.tool_descriptors()}
-        self.assertFalse(any("override" in n or "enforce" in n or "set" in n for n in names))
+        self.assertFalse(any("override" in n or "enforce" in n for n in names))
 
 
 LAN_CONFIG = """<?xml version="1.0"?>
@@ -539,3 +572,127 @@ class TransportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WriteToolTests(unittest.TestCase):
+    """The tools that change configuration.
+
+    Each records the instruction it would hand to configure.php rather than running
+    it, so argument handling is tested without writing to a real firewall. The PHP
+    side does the validating, and these check that it is asked the right question.
+    """
+
+    def capture(self):
+        seen = {}
+
+        def runner(script, instruction):
+            seen["script"] = script
+            seen["instruction"] = instruction
+            return {"status": "ok", "action": instruction.get("action")}
+
+        return seen, runner
+
+    def call(self, name, arguments, runner):
+        original = MCP.configure
+        try:
+            MCP.configure = lambda instruction: runner(MCP.CONFIGURE_SCRIPT, instruction)
+            return MCP.TOOLS_BY_NAME[name]["handler"](arguments)
+        finally:
+            MCP.configure = original
+
+    def test_a_service_cap_by_preset(self):
+        seen, runner = self.capture()
+        result = self.call("wanquota_set_service_limit",
+                           {"service": "youtube", "resolution": "480p", "enabled": True,
+                            "dry_run": False}, runner)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(seen["instruction"]["action"], "set_service_limit")
+        self.assertEqual(seen["instruction"]["service"], "youtube")
+        self.assertEqual(seen["instruction"]["resolution"], "480p")
+        self.assertIs(seen["instruction"]["enabled"], True)
+        self.assertIs(seen["instruction"]["dry_run"], False)
+
+    def test_a_service_cap_by_rate(self):
+        seen, runner = self.capture()
+        self.call("wanquota_set_service_limit", {"service": "netflix", "mbit": 5}, runner)
+        self.assertEqual(seen["instruction"]["mbit"], 5)
+
+    def test_an_unknown_service_is_refused_before_writing(self):
+        seen, runner = self.capture()
+        with self.assertRaises(MCP.InvalidParams):
+            self.call("wanquota_set_service_limit",
+                      {"service": "nosuchservice", "mbit": 5}, runner)
+        self.assertEqual(seen, {}, "nothing may be written for an unknown service")
+
+    def test_a_service_cap_with_no_rate_is_refused(self):
+        seen, runner = self.capture()
+        with self.assertRaises(MCP.InvalidParams):
+            self.call("wanquota_set_service_limit", {"service": "youtube"}, runner)
+        self.assertEqual(seen, {})
+
+    def test_the_shaper_state_is_left_alone_when_not_given(self):
+        """Recording a limit must not silently turn shaping on."""
+        seen, runner = self.capture()
+        self.call("wanquota_set_service_limit", {"service": "youtube", "mbit": 3}, runner)
+        self.assertNotIn("enabled", seen["instruction"])
+        self.assertNotIn("dry_run", seen["instruction"])
+
+    def test_a_device_cap(self):
+        seen, runner = self.capture()
+        self.call("wanquota_set_device_limit",
+                  {"device": "e0:8f:4c:8f:a8:d6", "mbit": 3, "upload_mbit": 1}, runner)
+        self.assertEqual(seen["instruction"]["action"], "set_device_limit")
+        self.assertEqual(seen["instruction"]["device"], "e0:8f:4c:8f:a8:d6")
+        self.assertEqual(seen["instruction"]["mbit"], 3)
+        self.assertEqual(seen["instruction"]["upload_mbit"], 1)
+
+    def test_a_device_cap_needs_a_device_and_a_rate(self):
+        for arguments in ({"mbit": 3}, {"device": "192.168.1.5"}):
+            seen, runner = self.capture()
+            with self.assertRaises(MCP.InvalidParams):
+                self.call("wanquota_set_device_limit", arguments, runner)
+            self.assertEqual(seen, {})
+
+    def test_removals_pass_the_identifier_through(self):
+        for name, key, value in (("wanquota_remove_service_limit", "service", "youtube"),
+                                 ("wanquota_remove_device_limit", "device", "192.168.1.5")):
+            seen, runner = self.capture()
+            self.call(name, {key: value}, runner)
+            self.assertEqual(seen["instruction"][key], value)
+            self.assertTrue(seen["instruction"]["action"].startswith("remove_"))
+
+    def test_settings_require_a_non_empty_object(self):
+        for bad in ({}, {"fields": {}}, {"fields": "shaper_enabled=1"}):
+            seen, runner = self.capture()
+            with self.assertRaises(MCP.InvalidParams):
+                self.call("wanquota_set_settings", bad, runner)
+            self.assertEqual(seen, {})
+
+    def test_settings_are_passed_through_unchanged(self):
+        seen, runner = self.capture()
+        self.call("wanquota_set_settings",
+                  {"fields": {"shaper_enabled": True, "top_limit": 20}}, runner)
+        self.assertEqual(seen["instruction"]["fields"],
+                         {"shaper_enabled": True, "top_limit": 20})
+
+    def test_the_credential_is_never_returned(self):
+        import tempfile
+        config = """<?xml version="1.0"?>
+<opnsense><OPNsense><WanQuota><general>
+  <enabled>1</enabled>
+  <smtp_host>mail.example.invalid</smtp_host>
+  <smtp_password>a-real-secret</smtp_password>
+</general></WanQuota></OPNsense></opnsense>"""
+        with tempfile.NamedTemporaryFile("w", suffix=".xml", delete=False) as handle:
+            handle.write(config)
+            path = handle.name
+        original = MCP.consumers.CONFIG_PATH
+        try:
+            MCP.consumers.CONFIG_PATH = path
+            document = MCP.TOOLS_BY_NAME["wanquota_settings"]["handler"]({})
+        finally:
+            MCP.consumers.CONFIG_PATH = original
+            os.unlink(path)
+        self.assertEqual(document["settings"]["smtp_host"], "mail.example.invalid")
+        self.assertEqual(document["settings"]["smtp_password"], "(withheld)")
+        self.assertNotIn("a-real-secret", json.dumps(document))

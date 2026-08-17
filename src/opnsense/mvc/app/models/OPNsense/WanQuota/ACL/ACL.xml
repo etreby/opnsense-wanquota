@@ -6,11 +6,17 @@
             <pattern>api/wanquota/*</pattern>
         </patterns>
     </page-services-wanquota>
+    <!--
+        The MCP endpoint is deliberately absent from the read-only privilege. It was
+        listed here while every MCP tool only read; the server can now change settings
+        and limits, so granting it under a privilege named "read only" would hand a
+        read-only account the ability to reconfigure the plugin. An account that
+        should drive MCP needs the full privilege above.
+    -->
     <page-services-wanquota-readonly>
         <name>Services: WAN Quotas (read only)</name>
         <patterns>
             <pattern>api/wanquota/report/*</pattern>
-            <pattern>api/wanquota/mcp/*</pattern>
         </patterns>
     </page-services-wanquota-readonly>
 </acl>

@@ -1,9 +1,19 @@
 #!/usr/local/bin/python3
-"""Model Context Protocol server exposing WAN quota reports to AI agents.
+"""Model Context Protocol server exposing WAN quota data and controls to AI agents.
 
-Read-only by design: every tool maps to an existing report path. Guardrail
-overrides stay out of the tool surface so an agent can never change routing,
-matching the advisory-first posture of the rest of the plugin.
+Most tools read. A named few write: settings, per-service limits and per-device
+limits can be changed through this server, because the owner asked for full control
+rather than a reporting window. Each tool declares which it is, so a client can
+prompt before a change and not before a report, and the set of writers is asserted
+in the tests rather than left to inspection.
+
+Two things stay off the surface on purpose. The guardrail that changes routing is
+absent: shaping traffic is recoverable, moving a household onto a different WAN has
+a bill attached. Credentials can be set but never read back.
+
+Writes go through configure.php, which validates them with the same model the web
+interface uses, so a value the interface would reject is rejected here too and
+nothing is half-applied.
 
 Two transports share one dispatcher:
   mcp.py --stdio                     newline-delimited JSON-RPC on stdin/stdout
@@ -26,6 +36,8 @@ import base64
 import binascii
 import ipaddress
 import json
+import os
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -702,12 +714,12 @@ TOOLS = (
     },
 )
 
-TOOLS_BY_NAME = {tool["name"]: tool for tool in TOOLS}
-
-
-# Every tool only reads. Declaring it lets a cautious client call them without
-# asking the user to approve each one, which is the whole point of a read-only
-# surface: the guarantee is worth nothing if clients cannot see it.
+# A reading tool declares itself read-only so a cautious client can call it without
+# asking the user to approve each one. The hint is only worth stating because it is
+# not true of every tool any more: this server can change configuration, and a client
+# that cannot tell the two apart would have to treat reports as dangerous or edits as
+# safe. Every tool therefore carries its own annotations, and the default is the
+# careful one.
 READ_ONLY_ANNOTATIONS = {
     "readOnlyHint": True,
     "destructiveHint": False,
@@ -715,13 +727,294 @@ READ_ONLY_ANNOTATIONS = {
     "openWorldHint": False,
 }
 
+# A writing tool. Not idempotent in general — setting a limit twice is harmless, but
+# the client should not assume a retry is free.
+WRITE_ANNOTATIONS = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+# A writing tool that removes something the user configured.
+REMOVE_ANNOTATIONS = {
+    "readOnlyHint": False,
+    "destructiveHint": True,
+    "idempotentHint": False,
+    "openWorldHint": False,
+}
+
+
+CONFIGURE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configure.php")
+
+# Never returned to a caller. Reading configuration is useful; handing out the SMTP
+# password because it happens to live in the same model is not.
+REDACTED_SETTINGS = ("smtp_password",)
+
+
+def configure(instruction, script=None, runner=None):
+    """Apply one configuration change through the model, and report what it did.
+
+    Writes go through configure.php because the configuration lives in a PHP model
+    that validates it. Reimplementing that validation here would mean an agent could
+    write values the interface would reject.
+    """
+    invoke = runner or _run_configure
+    return invoke(script or CONFIGURE_SCRIPT, instruction)
+
+
+def _run_configure(script, instruction):
+    try:
+        done = subprocess.run(["/usr/local/bin/php", script],
+                              input=json.dumps(instruction), capture_output=True,
+                              text=True, timeout=180)
+    except Exception as error:
+        return {"status": "failed", "error": str(error)}
+    text = (done.stdout or "").strip()
+    try:
+        return json.loads(text.splitlines()[-1]) if text else {
+            "status": "failed", "error": (done.stderr or "no output").strip()[:400]}
+    except (ValueError, IndexError):
+        return {"status": "failed", "error": text[:400] or "unreadable result"}
+
+
+def tool_settings(_arguments):
+    """Current plugin settings, with credentials withheld."""
+    try:
+        root = ET.parse(consumers.CONFIG_PATH).getroot()
+    except (OSError, ET.ParseError) as error:
+        return {"status": "failed", "error": f"could not read the configuration: {error}"}
+    general = root.find("./OPNsense/WanQuota/general")
+    if general is None:
+        return {"status": "failed", "error": "the plugin has no saved configuration yet"}
+    values = {}
+    for child in general:
+        name = child.tag
+        values[name] = "(withheld)" if name in REDACTED_SETTINGS else (child.text or "")
+    return {
+        "status": "ok",
+        "settings": values,
+        "note": (
+            "Values as stored. Booleans are '1' or '0'. A credential is reported as "
+            "(withheld) and cannot be read through this server, though it can be set."
+        ),
+    }
+
+
+def tool_set_settings(arguments):
+    fields = arguments.get("fields")
+    if not isinstance(fields, dict) or not fields:
+        raise InvalidParams("fields must be a non-empty object of setting names to values")
+    return configure({"action": "set_settings", "fields": fields})
+
+
+def _limit_state(arguments):
+    """The optional shaper switches shared by the limit-editing tools."""
+    state = {}
+    for key in ("enabled", "dry_run"):
+        if arguments.get(key) is not None:
+            state[key] = bool(arguments[key])
+    return state
+
+
+def tool_set_service_limit(arguments):
+    service = str(arguments.get("service") or "").strip().lower()
+    if not service:
+        raise InvalidParams("service is required")
+    if service not in shaper.STREAMING_SERVICES:
+        raise InvalidParams(
+            f"unknown service: {service}. Call wanquota_limits for the catalogue.")
+    if arguments.get("mbit") is None and not str(arguments.get("resolution") or "").strip():
+        raise InvalidParams("either mbit or resolution is required")
+    return configure({"action": "set_service_limit", "service": service,
+                      "mbit": arguments.get("mbit"),
+                      "resolution": arguments.get("resolution"),
+                      **_limit_state(arguments)})
+
+
+def tool_remove_service_limit(arguments):
+    service = str(arguments.get("service") or "").strip().lower()
+    if not service:
+        raise InvalidParams("service is required")
+    return configure({"action": "remove_service_limit", "service": service,
+                      **_limit_state(arguments)})
+
+
+def tool_set_device_limit(arguments):
+    device = str(arguments.get("device") or "").strip()
+    if not device:
+        raise InvalidParams("device is required: an address, MAC or DHCP hostname")
+    if arguments.get("mbit") is None:
+        raise InvalidParams("mbit is required")
+    return configure({"action": "set_device_limit", "device": device,
+                      "mbit": arguments.get("mbit"),
+                      "upload_mbit": arguments.get("upload_mbit"),
+                      **_limit_state(arguments)})
+
+
+def tool_remove_device_limit(arguments):
+    device = str(arguments.get("device") or "").strip()
+    if not device:
+        raise InvalidParams("device is required")
+    return configure({"action": "remove_device_limit", "device": device,
+                      **_limit_state(arguments)})
+
+
+_STATE_PROPERTIES = {
+    "enabled": {"type": "boolean",
+                "description": "Turn limits on or off. Omit to leave the current state."},
+    "dry_run": {"type": "boolean",
+                "description": "When true a limit is recorded and nothing is shaped. "
+                               "Omit to leave the current state."},
+}
+
+WRITE_TOOLS = (
+    {
+        "name": "wanquota_settings",
+        "title": "Read plugin settings",
+        "description": (
+            "Every plugin setting as currently stored: providers and their quotas, "
+            "reporting and retention, alerting, enforcement and limit state. Booleans "
+            "are '1' or '0'. Credentials are withheld. Read this before changing a "
+            "setting so the value being replaced is known."
+        ),
+        "inputSchema": _NO_ARGUMENTS,
+        "handler": tool_settings,
+    },
+    {
+        "name": "wanquota_set_settings",
+        "title": "Change plugin settings",
+        "description": (
+            "Set one or more plugin settings. Pass `fields` as an object of setting "
+            "name to value, using the names wanquota_settings returns; booleans accept "
+            "true/false or '1'/'0'. The whole change is validated by the same model the "
+            "web interface uses, and a rejected value changes nothing and returns the "
+            "reason. An unknown setting name is an error rather than a silent no-op."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "fields": {"type": "object",
+                           "description": "Setting name to value, e.g. "
+                                          "{\"shaper_enabled\": true, \"top_limit\": 20}."},
+            },
+            "required": ["fields"],
+            "additionalProperties": False,
+        },
+        "annotations": WRITE_ANNOTATIONS,
+        "handler": tool_set_settings,
+    },
+    {
+        "name": "wanquota_set_service_limit",
+        "title": "Cap a service",
+        "description": (
+            "Cap a catalogued service's bandwidth. Give either `mbit` for an explicit "
+            "rate or `resolution` for a published preset (4k, 1080p, 720p, 480p, "
+            "audio_only). Setting a limit for a service that already has one replaces "
+            "it. The limit is applied immediately unless dry-run is on, and the result "
+            "reports how many addresses it matched — a cap matching none shapes "
+            "nothing. Coverage is partial by construction: a device using encrypted "
+            "DNS or a VPN is not matched."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "service": {"type": "string",
+                            "description": "Catalogue key, e.g. netflix, youtube, windows_update."},
+                "mbit": {"type": "number", "description": "Rate in Mbit/s. Wins over resolution."},
+                "resolution": {"type": "string",
+                               "enum": sorted(shaper.RESOLUTION_PRESETS),
+                               "description": "A published quality preset."},
+                **_STATE_PROPERTIES,
+            },
+            "required": ["service"],
+            "additionalProperties": False,
+        },
+        "annotations": WRITE_ANNOTATIONS,
+        "handler": tool_set_service_limit,
+    },
+    {
+        "name": "wanquota_remove_service_limit",
+        "title": "Remove a service cap",
+        "description": (
+            "Remove the bandwidth cap on a service. The limit is released immediately. "
+            "Removing a limit that is not set is an error, so a caller is told rather "
+            "than believing it removed something."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "service": {"type": "string", "description": "Catalogue key."},
+                **_STATE_PROPERTIES,
+            },
+            "required": ["service"],
+            "additionalProperties": False,
+        },
+        "annotations": REMOVE_ANNOTATIONS,
+        "handler": tool_remove_service_limit,
+    },
+    {
+        "name": "wanquota_set_device_limit",
+        "title": "Cap a device",
+        "description": (
+            "Cap one device's bandwidth. Identify it by address, MAC or DHCP hostname; "
+            "a MAC is preferred because it keeps applying after DHCP changes the "
+            "address. `mbit` caps download and `upload_mbit` caps upload. Unlike a "
+            "service cap this does not depend on identifying addresses, so it is the "
+            "reliable way to limit a device. The firewall itself is always refused. "
+            "Upload caps do not work on a firewall whose LAN ingress is intercepted by "
+            "a netmap capture engine; check upload_supported from wanquota_limits."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "device": {"type": "string",
+                           "description": "Address, MAC or DHCP hostname. MAC is preferred."},
+                "mbit": {"type": "number", "description": "Download cap in Mbit/s."},
+                "upload_mbit": {"type": "number",
+                                "description": "Upload cap in Mbit/s. Optional."},
+                **_STATE_PROPERTIES,
+            },
+            "required": ["device", "mbit"],
+            "additionalProperties": False,
+        },
+        "annotations": WRITE_ANNOTATIONS,
+        "handler": tool_set_device_limit,
+    },
+    {
+        "name": "wanquota_remove_device_limit",
+        "title": "Remove a device cap",
+        "description": (
+            "Remove the bandwidth cap on a device, identified the same way it was set. "
+            "The limit is released immediately. Removing one that is not set is an "
+            "error."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "device": {"type": "string", "description": "Address, MAC or DHCP hostname."},
+                **_STATE_PROPERTIES,
+            },
+            "required": ["device"],
+            "additionalProperties": False,
+        },
+        "annotations": REMOVE_ANNOTATIONS,
+        "handler": tool_remove_device_limit,
+    },
+)
+
+TOOLS = TOOLS + WRITE_TOOLS
+
+TOOLS_BY_NAME = {tool["name"]: tool for tool in TOOLS}
+
 
 def tool_descriptors():
     descriptors = []
     for tool in TOOLS:
         descriptor = {
             **{key: tool[key] for key in ("name", "description", "inputSchema")},
-            "annotations": {"title": tool["title"], **READ_ONLY_ANNOTATIONS},
+            "annotations": {"title": tool["title"],
+                            **tool.get("annotations", READ_ONLY_ANNOTATIONS)},
         }
         if "outputSchema" in tool:
             descriptor["outputSchema"] = tool["outputSchema"]

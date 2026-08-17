@@ -81,6 +81,21 @@ grep -q 'def bandwidth_fields' "$repository/src/opnsense/scripts/OPNsense/WanQuo
 # the CDN rotates.
 grep -q 'shaper.sync()' "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
 grep -q 'def plan_fingerprint' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+# The MCP server can change settings and limits, so it must not be reachable under
+# a privilege named "read only": that would let a read-only account reconfigure the
+# plugin. Reports stay readable there.
+python3 - "$repository/src/opnsense/mvc/app/models/OPNsense/WanQuota/ACL/ACL.xml" <<'PYCHECK'
+import sys
+import xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+readonly = root.find("./page-services-wanquota-readonly/patterns")
+patterns = [node.text for node in readonly]
+assert "api/wanquota/mcp/*" not in patterns, \
+    "the MCP endpoint can write; it must not sit under the read-only privilege"
+assert "api/wanquota/report/*" in patterns, "reports must stay readable"
+PYCHECK
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/configure.php"
+grep -q 'CONFIGURE_SCRIPT' "$repository/src/opnsense/scripts/OPNsense/WanQuota/mcp.py"
 grep -q '^\[shapersync\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q 'co_delivery' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
 grep -q 'def netmap_interception' "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
