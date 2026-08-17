@@ -155,6 +155,26 @@ def tool_categories(arguments):
     return breakdown
 
 
+def tool_category(arguments):
+    """One category's sites and the devices behind them."""
+    wanted = _require(arguments, "category")
+    period = _period(arguments)
+    payload = consumers.report(period)
+    cfg_categories = intelligence.options()["categories"]
+    detail = intelligence.category_detail(
+        wanted, payload.get("domains") or [], payload.get("device_domains") or [],
+        cfg_categories,
+    )
+    if not detail["found"]:
+        breakdown = intelligence.category_breakdown(payload.get("domains") or [], cfg_categories)
+        known = [row["name"] for row in breakdown["categories"] if row["name"] != "Others"]
+        if known:
+            detail["available_categories"] = known
+    detail["period"] = period
+    detail["status"] = payload.get("status")
+    return detail
+
+
 def _require(arguments, key):
     if key not in arguments or arguments[key] is None:
         raise InvalidParams(f"{key} is required")
@@ -487,6 +507,24 @@ TOOLS = (
         "inputSchema": _PERIOD_SCHEMA,
         "outputSchema": CATEGORY_OUTPUT_SCHEMA,
         "handler": tool_categories,
+    },
+    {
+        "name": "wanquota_category",
+        "title": "One app category's contents",
+        "description": (
+            "What one app category is made of: the sites in it ranked by bytes, and the "
+            "devices that used them. Use after wanquota_categories to explain a share. "
+            "'Others' is a rollup rather than a category and returns nothing."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Category name, e.g. Media Streaming."},
+                "period": _PERIOD_SCHEMA["properties"]["period"],
+            },
+            "required": ["category"],
+        },
+        "handler": tool_category,
     },
     {
         "name": "wanquota_device",

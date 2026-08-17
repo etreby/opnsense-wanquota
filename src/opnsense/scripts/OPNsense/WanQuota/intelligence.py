@@ -315,6 +315,67 @@ def category_breakdown(domains, categories, top_n=CATEGORY_TOP_N):
         ),
     }
 
+
+def category_detail(name, domains, device_domains, categories, top_n=None):
+    """Everything behind one category: its domains, and the devices that used them.
+
+    Kept separate from category_breakdown so a caller can ask about one slice
+    without receiving every slice's contents, and so the rollup stays a summary.
+
+    `Others` is not a real category — it is the fold of everything past the top
+    slice — so asking for it returns the categories it covers rather than pretending
+    to be one.
+    """
+    label = (name or "").strip()
+    matching = []
+    for domain in domains:
+        category = domain.get("category")
+        if category is None:
+            category = suffix_category(domain.get("domain") or "", categories)
+            if category == "Other":
+                category = UNCATEGORISED_LABEL
+        if category.lower() == label.lower():
+            matching.append(domain)
+    matching.sort(key=lambda item: item.get("total") or 0, reverse=True)
+
+    names = {item.get("domain") for item in matching}
+    devices = {}
+    for row in device_domains or []:
+        if row.get("domain") in names:
+            key = row.get("device")
+            entry = devices.setdefault(key, {
+                "device": key, "name": row.get("name", key), "total": 0, "domains": 0,
+            })
+            entry["total"] += row.get("total") or 0
+            entry["domains"] += 1
+    device_rows = sorted(devices.values(), key=lambda item: item["total"], reverse=True)
+
+    total = sum(item.get("total") or 0 for item in matching)
+    return {
+        "category": label,
+        "total": total,
+        "domain_count": len(matching),
+        "domains": [
+            {"domain": item.get("domain"), "total": item.get("total") or 0,
+             "first_seen": item.get("first_seen"), "last_seen": item.get("last_seen")}
+            for item in (matching[:top_n] if top_n else matching)
+        ],
+        "devices": device_rows[:top_n] if top_n else device_rows,
+        "found": bool(matching),
+        "empty_reason": None if matching else (
+            f"No attributed traffic in {label!r} for this period. The name may be "
+            f"misspelled, or nothing matched that category. 'Others' is a rollup of the "
+            f"categories below the top slice rather than a category itself."
+        ),
+        "devices_total": sum(row["total"] for row in device_rows),
+        "device_note": (
+            "Device totals count only this category's domains, so they are not each "
+            "device's overall usage. They can also sum to less than the category total: "
+            "the device/domain matrix is capped, so a domain counted in the category may "
+            "have no matrix row. Compare devices_total with total to see the shortfall."
+        ),
+    }
+
 def group_for(address, groups):
     for group in groups:
         for member in group.get("members", []):
@@ -600,7 +661,10 @@ def dashboard(period="thirty"):
     except sqlite3.Error:
         pass
     for domain in consumer.get("domains", []):
-        category = suffix_category(domain["domain"], cfg["categories"]); categories[category] = categories.get(category, 0) + domain["total"]
+        category = suffix_category(domain["domain"], cfg["categories"])
+        if category == "Other":
+            category = UNCATEGORISED_LABEL
+        categories[category] = categories.get(category, 0) + domain["total"]
         domain["category"] = category
         domain.update(domain_seen.get(domain["domain"], {}))
     for item in summary.get("providers", []):

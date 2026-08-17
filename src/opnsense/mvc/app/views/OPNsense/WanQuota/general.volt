@@ -46,7 +46,7 @@
     </div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Monthly traffic trend') }}</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
-    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="categoryDrill" class="wq-section wq-table-wrap"></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade">
         <div class="content-box" style="padding-bottom:1.5em">
@@ -145,12 +145,7 @@ function renderCategoryBreakdown(data) {
         }
     };
     chartOpts.onClick = (event, elements) => {
-        // A category is a set of domains, so the useful drill-down is the domain
-        // list; jump there rather than inventing a category-only view.
-        if (elements.length) {
-            $('a[href="#consumers"]').tab('show');
-            document.getElementById('domainConsumers').scrollIntoView({behavior:'smooth', block:'center'});
-        }
+        if (elements.length) showCategory(rows[elements[0].index].name);
     };
     makeChart('categoryChart', {
         type:'pie',
@@ -161,15 +156,85 @@ function renderCategoryBreakdown(data) {
     rows.forEach((row, index) => {
         const others = row.name === 'Others' || row.name === 'Uncategorised';
         const folded = row.categories_folded ? ' (' + row.categories_folded + ')' : '';
+        const clickable = row.name !== 'Others';
         html += '<div class="wq-share-row' + (others ? ' wq-share-others' : '') + '">'
              +  '<span class="wq-share-dot" style="background:' + colors[index] + '"></span>'
-             +  '<span class="wq-share-name">' + esc(row.name + folded) + '</span>'
+             +  '<span class="wq-share-name">'
+             +  (clickable
+                 ? '<a href="#" class="wq-drill" data-drill="category" data-value=\'' + esc(row.name) + '\'>' + esc(row.name) + '</a>'
+                 : esc(row.name + folded))
+             +  '</span>'
              +  '<span class="wq-muted">' + gb(row.total) + '</span>'
              +  '<span class="wq-share-pct">' + row.percent.toFixed(1) + '%</span>'
              +  '</div>';
     });
     if (breakdown.note) html += '<div class="wq-muted" style="margin-top:8px">' + esc(breakdown.note) + '</div>';
     $('#categoryShares').html(html);
+}
+
+function categoryDetail(name) {
+    // Built from the payload already loaded for this tab: every domain carries its
+    // category and the device/domain matrix is present, so no extra request.
+    const consumer = (currentIntelligenceData && currentIntelligenceData.consumers) || {};
+    const wanted = String(name || '').toLowerCase();
+    const domains = (consumer.domains || []).filter(d => String(d.category || '').toLowerCase() === wanted)
+        .sort((a, b) => b.total - a.total);
+    const names = new Set(domains.map(d => d.domain));
+    const devices = {};
+    for (const row of consumer.device_domains || []) {
+        if (!names.has(row.domain)) continue;
+        const entry = devices[row.device] || (devices[row.device] = {device: row.device, name: row.name, total: 0, domains: 0});
+        entry.total += row.total;
+        entry.domains += 1;
+    }
+    return {
+        domains,
+        devices: Object.values(devices).sort((a, b) => b.total - a.total),
+        total: domains.reduce((sum, d) => sum + d.total, 0),
+    };
+}
+function showCategory(name) {
+    if (!name || name === 'Others') return;
+    const detail = categoryDetail(name);
+    const breakdown = (currentIntelligenceData && currentIntelligenceData.category_breakdown) || {};
+    const share = (breakdown.categories || []).find(c => c.name === name);
+    let html = drillHeader(name, 'what this category is made of',
+        gb(detail.total), share ? share.percent.toFixed(1) + '% of attributed traffic' : 'attributed traffic');
+    html += '<button id="categoryClear" class="btn btn-default btn-sm" style="margin-bottom:10px"><i class="fa fa-times"></i> '
+         +  '{{ lang._("Clear") }}</button>';
+    if (!detail.domains.length) {
+        return $('#categoryDrill').html(html + '<div class="alert alert-info">'
+            + esc('No attributed traffic in this category for this period.') + '</div>');
+    }
+    const top = detail.domains[0].total || 1;
+    html += '<div class="wq-grid"><div class="wq-card"><h3>{{ lang._("Sites in this category") }}</h3>'
+         +  '<table class="table table-condensed table-striped"><thead><tr><th>{{ lang._("Site") }}</th>'
+         +  '<th style="width:28%">{{ lang._("Share") }}</th><th>{{ lang._("Traffic") }}</th></tr></thead><tbody>';
+    for (const d of detail.domains) {
+        html += '<tr><td><a href="#" class="wq-drill" data-drill="domain" data-value=\'' + esc(d.domain) + '\'>'
+             +  esc(d.domain) + '</a></td><td>' + shareBar(d.total / top, '#8b5cf6') + '</td><td><b>'
+             +  gb(d.total) + '</b></td></tr>';
+    }
+    html += '</tbody></table></div><div class="wq-card"><h3>{{ lang._("Devices using it") }}</h3>';
+    if (!detail.devices.length) {
+        html += '<div class="wq-muted">' + esc('No device could be attributed to these sites.') + '</div>';
+    } else {
+        const topDevice = detail.devices[0].total || 1;
+        html += '<table class="table table-condensed table-striped"><thead><tr><th>{{ lang._("Device") }}</th>'
+             +  '<th style="width:28%">{{ lang._("Share") }}</th><th>{{ lang._("Traffic") }}</th></tr></thead><tbody>';
+        for (const dev of detail.devices) {
+            html += '<tr><td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(dev.device) + '\'>'
+                 +  '<b>' + esc(dev.name) + '</b></a><br><small class="wq-muted">' + esc(dev.device)
+                 +  ' · ' + dev.domains + ' {{ lang._("site(s)") }}</small></td><td>'
+                 +  shareBar(dev.total / topDevice, '#3b82f6') + '</td><td><b>' + gb(dev.total) + '</b></td></tr>';
+        }
+        html += '</tbody></table>';
+    }
+    html += '</div></div><div class="wq-muted">'
+         +  esc('Device totals count only this category\'s sites, so they are not each device\'s overall usage. They can sum to less than the category total, because the device/site matrix is capped and a site counted here may have no matrix row.')
+         +  '</div>';
+    $('#categoryDrill').html(html);
+    document.getElementById('categoryDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function renderIntelligence(data){currentIntelligenceData=data;if(/^#[0-9a-f]{6}$/i.test(data?.settings?.accent||''))document.querySelector('.wq-shell').style.setProperty('--wq-blue',data.settings.accent);$('#intelligenceCards').html(intelligenceCards(data));$('#intelligenceDetails').html(intelligenceDetails(data));const groups=data.groups||[],categories=data.categories||[],providers=data?.summary?.providers||[],archives=data.archives||[];$('#overrideProvider').html(providers.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join(''));makeChart('groupChart',{type:'bar',data:{labels:groups.map(x=>x.name),datasets:[{label:'Usage GB',data:groups.map(x=>x.total/1e9),backgroundColor:data?.settings?.accent||'#3b82f6'},{label:'Budget GB',data:groups.map(x=>x.budget?x.budget/1e9:null),backgroundColor:'rgba(128,128,128,.28)'}]},options:chartOptions(true)});renderCategoryBreakdown(data);const qualityOptions=chartOptions(false);qualityOptions.scales.y1={beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Cycle usage GB'}};makeChart('qualityChart',{type:'bar',data:{labels:providers.map(x=>x.name),datasets:[{label:'Latency ms',data:providers.map(x=>x.quality?.latency||0),backgroundColor:'#06b6d4'},{label:'Loss %',data:providers.map(x=>x.quality?.loss||0),backgroundColor:'#ef4444'},{type:'line',label:'Cycle usage GB',data:providers.map(x=>x.used/1e9),borderColor:'#8b5cf6',backgroundColor:'#8b5cf6',yAxisID:'y1',tension:.25}]},options:qualityOptions});makeChart('cycleChart',{type:'bar',data:{labels:archives.map(x=>x.provider+' '+x.start).slice(0,12),datasets:[{label:'Used GB',data:archives.map(x=>x.used/1e9).slice(0,12),backgroundColor:'#8b5cf6'},{label:'Unused GB',data:archives.map(x=>Math.max(0,x.quota-x.used)/1e9).slice(0,12),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});filterIntelligence();}
@@ -355,6 +420,15 @@ $(document).ready(function() {
         event.preventDefault();
         drillTo($(this).data('drill'), $(this).data('value'));
     });
+    $('#intelligence').on('click', 'a.wq-drill', function(event) {
+        event.preventDefault();
+        const kind = $(this).data('drill'), value = $(this).data('value');
+        if (kind === 'category') { showCategory(value); return; }
+        // device and domain live on the Consumers tab; show it, then drill there.
+        $('a[href="#consumers"]').tab('show');
+        drillTo(kind, value);
+    });
+    $('#intelligence').on('click', '#categoryClear', function() { $('#categoryDrill').empty(); });
     $('#drillClear').on('click', function() {
         $('#drillDevice').val('');
         $('#drillDomain').val('');

@@ -152,6 +152,11 @@ class CapabilityAndResourceTests(unittest.TestCase):
         self.assertEqual(declared, {"wanquota_health", "wanquota_device",
                                     "wanquota_site", "wanquota_categories"})
 
+    def test_the_category_drill_tool_exists_and_requires_a_category(self):
+        self.assertIn("wanquota_category", MCP.TOOLS_BY_NAME)
+        schema = MCP.TOOLS_BY_NAME["wanquota_category"]["inputSchema"]
+        self.assertEqual(schema["required"], ["category"])
+
     def test_big_payload_tools_deliberately_declare_no_output_schema(self):
         # Left undeclared on purpose: an approximate schema a client enforces is
         # worse than none, because it rejects valid data.
