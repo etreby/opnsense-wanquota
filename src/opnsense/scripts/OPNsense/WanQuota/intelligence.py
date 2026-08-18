@@ -509,20 +509,42 @@ def explain_domain(domain, domains=None, device_domains=None, categories=None,
         reasoning.append(f"Counted in the '{category}' category.")
 
     # What it actually moved, and who moved it.
-    row = next((d for d in (domains or [])
-                if (d.get("domain") or "").strip().lower().rstrip(".") == name), None)
-    total = float(row.get("total") or 0) if row else 0
+    #
+    # Asking about a registrable domain used to answer "no attributed traffic": the
+    # traffic sits on hostnames beneath it. nflxso.net reported nothing while
+    # occ-0-3310-1490.1.nflxso.net under it carried 749 MB. So an exact match is
+    # preferred, and failing that the subdomains are summed and named, because "nothing"
+    # was the one answer that was certainly wrong.
+    def matches(value):
+        text = (value or "").strip().lower().rstrip(".")
+        return text == name or text.endswith("." + name)
+
+    exact = [d for d in (domains or [])
+             if (d.get("domain") or "").strip().lower().rstrip(".") == name]
+    beneath = [d for d in (domains or []) if matches(d.get("domain")) and d not in exact]
+    counted = exact or beneath
+    total = sum(float(d.get("total") or 0) for d in counted)
+    row = counted[0] if counted else None
     devices = sorted(
         ({"device": r.get("device"), "name": r.get("name"), "total": r.get("total") or 0}
-         for r in (device_domains or [])
-         if (r.get("domain") or "").strip().lower().rstrip(".") == name),
+         for r in (device_domains or []) if matches(r.get("domain"))),
         key=lambda item: item["total"], reverse=True)
-    if row:
+    subdomains = sorted(
+        ({"domain": (d.get("domain") or "").strip().lower().rstrip("."),
+          "total": float(d.get("total") or 0)} for d in counted),
+        key=lambda item: item["total"], reverse=True)
+    if exact:
         reasoning.append(
             f"Attributed {total / 1e9:.3f} GB in this period"
             + (f", led by {devices[0]['name']}." if devices else "."))
+    elif beneath:
+        reasoning.append(
+            f"Nothing is attributed to '{name}' itself, but {len(beneath)} hostname(s) "
+            f"beneath it moved {total / 1e9:.3f} GB"
+            + (f", the largest being {subdomains[0]['domain']}." if subdomains else "."))
     else:
-        reasoning.append("No attributed traffic for this domain in this period.")
+        reasoning.append("No attributed traffic for this domain or anything beneath it "
+                         "in this period.")
 
     # Addresses, and whether capping them would hit anything else.
     addresses, shared = [], {}
@@ -559,6 +581,7 @@ def explain_domain(domain, domains=None, device_domains=None, categories=None,
         "application": app,
         "category": category,
         "total": total,
+        "hostnames": subdomains[:20],
         "devices": devices,
         "exclusive_addresses": addresses,
         "shared_addresses": shared,

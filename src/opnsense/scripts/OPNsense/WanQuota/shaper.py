@@ -80,7 +80,12 @@ RESOLUTION_PRESETS = {
 STREAMING_SERVICES = {
     "netflix": {
         "label": "Netflix",
-        "suffixes": ("nflxvideo.net", "nflximg.net", "netflix.com"),
+        # nflxso.net was missing and cost real coverage: on a live network
+        # occ-0-3310-1490.1.nflxso.net alone carried 749 MB in thirty days, entirely
+        # outside the Netflix cap. Its addresses are shared with sec-oc.netflix.com and
+        # nothing else, so they are Netflix's own Open Connect appliances — the "occ"
+        # in the hostname — and capping them belongs with the rest of Netflix.
+        "suffixes": ("nflxvideo.net", "nflximg.net", "netflix.com", "nflxso.net"),
     },
     "youtube": {
         "label": "YouTube",

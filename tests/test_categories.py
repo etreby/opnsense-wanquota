@@ -284,3 +284,63 @@ class ExplainDomainTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExplainSubdomainTests(unittest.TestCase):
+    """Asking about a registrable domain must not answer "nothing".
+
+    nflxso.net reported no attributed traffic while occ-0-3310-1490.1.nflxso.net
+    beneath it carried 749 MB on a live network. The traffic lives on hostnames under
+    the name, so "nothing" was the one answer that was certainly wrong.
+    """
+
+    DOMAINS = [
+        {"domain": "occ-0-3310-1490.1.nflxso.net", "total": 749_300_000},
+        {"domain": "occ.a.nflxso.net", "total": 1_000_000},
+        {"domain": "unrelated.example.test", "total": 5_000_000},
+    ]
+
+    def test_subdomain_traffic_is_summed_and_named(self):
+        result = INTEL.explain_domain("nflxso.net", self.DOMAINS)
+        self.assertEqual(result["total"], 750_300_000)
+        self.assertEqual(result["hostnames"][0]["domain"], "occ-0-3310-1490.1.nflxso.net")
+        joined = " ".join(result["reasoning"])
+        self.assertIn("beneath it", joined)
+        self.assertIn("occ-0-3310-1490.1.nflxso.net", joined)
+
+    def test_an_exact_match_is_preferred_over_summing(self):
+        domains = self.DOMAINS + [{"domain": "nflxso.net", "total": 42}]
+        result = INTEL.explain_domain("nflxso.net", domains)
+        self.assertEqual(result["total"], 42, "the name itself wins when it has traffic")
+
+    def test_an_unrelated_name_is_not_swept_in(self):
+        result = INTEL.explain_domain("nflxso.net", self.DOMAINS)
+        names = [h["domain"] for h in result["hostnames"]]
+        self.assertNotIn("unrelated.example.test", names)
+
+    def test_a_domain_with_nothing_anywhere_says_so(self):
+        result = INTEL.explain_domain("nothing.example.test", self.DOMAINS)
+        self.assertEqual(result["total"], 0)
+        self.assertIn("or anything beneath it", " ".join(result["reasoning"]))
+
+    def test_a_partial_name_is_not_treated_as_a_suffix(self):
+        """flxso.net must not match nflxso.net."""
+        result = INTEL.explain_domain("flxso.net", self.DOMAINS)
+        self.assertEqual(result["total"], 0)
+
+
+class NetflixCoverageTests(unittest.TestCase):
+    def test_the_open_connect_domain_is_part_of_netflix(self):
+        """749 MB on occ-*.nflxso.net sat outside the Netflix cap until this was added.
+
+        Its addresses were shared with sec-oc.netflix.com and nothing else, so they are
+        Netflix's own Open Connect appliances.
+        """
+        import importlib.util
+        from pathlib import Path
+        source = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
+        spec = importlib.util.spec_from_file_location("wq_shaper_cov", source)
+        shaper = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shaper)
+        self.assertIn("nflxso.net", shaper.STREAMING_SERVICES["netflix"]["suffixes"])
+        self.assertFalse(shaper.is_shared_cdn("nflxso.net"))
