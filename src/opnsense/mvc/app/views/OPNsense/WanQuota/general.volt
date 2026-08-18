@@ -1,6 +1,6 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -19,7 +19,9 @@
 </ul>
 
 <div class="tab-content content-box tab-content">
-    <div id="summary" class="tab-pane fade in active"><div style="padding:16px"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div id="liveThroughput" class="wq-live"></div><div class="wq-grid" id="quotaCards"></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Provider quota comparison') }}</h3><div class="wq-chart"><canvas id="quotaChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Download and upload mix') }}</h3><div class="wq-chart"><canvas id="trafficMixChart"></canvas></div></div></div><div id="summaryReport" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="summary" class="tab-pane fade in active"><div style="padding:16px">
+        <div class="wq-detail" id="summaryDetail" style="display:none"></div>
+        <div class="wq-overview" id="summaryOverview"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div id="liveThroughput" class="wq-live"></div><div class="wq-grid" id="quotaCards"></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Provider quota comparison') }}</h3><div class="wq-chart"><canvas id="quotaChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Download and upload mix') }}</h3><div class="wq-chart"><canvas id="trafficMixChart"></canvas></div></div></div><div id="summaryReport" class="wq-section wq-table-wrap"></div></div></div></div>
     <div id="consumers" class="tab-pane fade">
         <div style="padding:16px">
             <!-- A drill-down replaces the overview and offers a way back; see openDrill. -->
@@ -386,7 +388,7 @@ function renderCategoryBreakdown(data) {
         }
     };
     chartOpts.onClick = (event, elements) => {
-        if (elements.length) showCategory(rows[elements[0].index].name);
+        if (elements.length) openDrillByKind('category', rows[elements[0].index].name);
     };
     makeChart('categoryChart', {
         type:'pie',
@@ -495,7 +497,7 @@ function renderApps(data) {
                 const row = rows[ctx.dataIndex];
                 return ' ' + row.name + ' — ' + row.percent.toFixed(1) + '% (' + gb(row.total) + ')';
             }}}},
-            onClick: (event, elements) => { if (elements.length) showApp(rows[elements[0].index].name); }
+            onClick: (event, elements) => { if (elements.length) openDrillByKind('app', rows[elements[0].index].name); }
         }
     });
     let shares = '<div class="wq-muted" style="margin-bottom:6px">' + esc('Top ' + (breakdown.top_n || 10)) + '</div>';
@@ -919,7 +921,21 @@ function renderLimits(data) {
     renderLimitState(data);
     const presets = Object.keys(data.resolutions || {});
     let html = '';
+    /*
+     * The backend orders built-ins before discovered services; the heading makes that
+     * visible rather than leaving it as an ordering a reader has to infer. A discovered
+     * entry carries less certainty than a curated one and is labelled as such.
+     */
+    let seenDiscovered = false;
     for (const service of data.services || []) {
+        if (service.discovered && !seenDiscovered) {
+            seenDiscovered = true;
+            html += '<div class="wq-catalogue-split">'
+                 +  '<b>' + esc('{{ lang._("Discovered on this network") }}') + '</b> '
+                 +  '<span class="wq-muted">'
+                 +  esc('{{ lang._("Added from what your devices resolved, not shipped with the plugin.") }}')
+                 +  '</span></div>';
+        }
         // Each card states how well the service can actually be matched, because a
         // limit on a service with no observed addresses would do nothing at all.
         let badge;
@@ -935,6 +951,11 @@ function renderLimits(data) {
                   + '{{ lang._("nothing to match yet") }}</span>';
         } else {
             badge = '<span class="wq-pill">{{ lang._("not limited") }}</span>';
+        }
+        if (service.discovered) {
+            badge += ' <span class="wq-pill" title="'
+                  + esc('Found on this network and accepted, rather than shipped with the plugin')
+                  + '">' + esc('{{ lang._("discovered") }}') + '</span>';
         }
         const options = ['<option value="">{{ lang._("Custom rate") }}</option>'].concat(
             presets.map(p => '<option value="' + esc(p) + '"' + (service.resolution === p ? ' selected' : '') + '>'
@@ -1477,19 +1498,28 @@ function refreshMatrix() {
  * report has not been fetched yet, fetches it before drilling — otherwise the panel
  * would report "no attributed traffic" purely because nothing had loaded.
  */
-function openProvider(name) {
-    $('a[href="#consumers"]').tab('show');
-    if (currentConsumerData) { providerDrill(name); return; }
+function openProvider(name, pane) {
+    /*
+     * The ranking is built from the consumers report, so it is fetched first if it has
+     * not loaded — otherwise the panel would report no attributed traffic purely
+     * because nothing had been fetched. The view itself opens wherever the reader was.
+     */
+    const show = function () {
+        openDrill('provider', name, function (value, container) {
+            providerDrill(value, container);
+        }, pane);
+    };
+    if (currentConsumerData) { show(); return; }
     ajaxCall('/api/wanquota/report/consumers_' + $('#consumerPeriod').val(), {}, function(data) {
         currentConsumerData = data;
-        providerDrill(name);
+        show();
     });
 }
-function providerDrill(name) {
+function providerDrill(name, container) {
     const provider = (currentConsumerData?.providers || [])
         .find(item => String(item.name) === String(name));
     if (!provider) {
-        $('#consumersDetail').html('<div class="alert alert-info">'
+        $(container || '#consumersDetail').html('<div class="alert alert-info">'
             + esc('No attributed traffic is recorded for that WAN in this period.') + '</div>');
         return;
     }
@@ -1502,7 +1532,7 @@ function providerDrill(name) {
              + esc(provider.logical_interface + ' → ' + provider.interface
                    + ' · ' + gb(provider.total) + ' attributed in this period') + '</div>';
     if (!devices.length) {
-        $('#consumersDetail').html(html + '<div class="alert alert-info">'
+        $(container || '#consumersDetail').html(html + '<div class="alert alert-info">'
             + esc('No device on this WAN has attributable flow data.') + '</div>');
         return;
     }
@@ -1523,7 +1553,7 @@ function providerDrill(name) {
          +  esc('Ranking uses attributed flow totals, so a device using encrypted DNS or a '
                + 'VPN may be under-represented. Direction splits are not available per WAN.')
          +  '</p>';
-    $('#consumersDetail').html(html);
+    $(container || '#consumersDetail').html(html);
 }
 /*
  * One drill-down mechanism for the whole page.
@@ -1544,9 +1574,11 @@ const DRILL_VIEWS = {
     category: {pane: 'intelligence', title: '{{ lang._("Category") }}'},
 };
 const PANE_DETAIL = {sessions: '#sessionDetail', consumers: '#consumersDetail',
-                     apps: '#appsDetail', intelligence: '#intelligenceDetail'};
+                     apps: '#appsDetail', intelligence: '#intelligenceDetail',
+                     summary: '#summaryDetail'};
 const PANE_OVERVIEW = {sessions: '#sessionOverview', consumers: '#consumersOverview',
-                       apps: '#appsOverview', intelligence: '#intelligenceOverview'};
+                       apps: '#appsOverview', intelligence: '#intelligenceOverview',
+                       summary: '#summaryOverview'};
 let activeDrill = null;
 /* Set while the hash is being written, so reacting to our own change does not loop. */
 let drillHashLock = false;
@@ -1567,38 +1599,43 @@ function setDrillHash(value) {
     }
     setTimeout(function () { drillHashLock = false; }, 0);
 }
-function openDrill(kind, value, render) {
+function openDrill(kind, value, render, pane) {
     const view = DRILL_VIEWS[kind];
     if (!view) return;
-    activeDrill = {kind: kind, value: value, render: render};
-    $('a[href="#' + view.pane + '"]').tab('show');
-    $(PANE_OVERVIEW[view.pane]).hide();
-    $(PANE_DETAIL[view.pane]).show();
-    render(value, PANE_DETAIL[view.pane]);
-    setDrillHash(view.pane + '/' + kind + '/' + encodeURIComponent(value));
+    /*
+     * Open it where it was started from when that pane can host a detail. A WAN clicked
+     * on Summary used to move the reader to Consumers, which is the tab-switch the
+     * drill-down was supposed to replace.
+     */
+    const target = (pane && PANE_DETAIL[pane]) ? pane : view.pane;
+    activeDrill = {kind: kind, value: value, render: render, pane: target};
+    $('a[href="#' + target + '"]').tab('show');
+    $(PANE_OVERVIEW[target]).hide();
+    $(PANE_DETAIL[target]).show();
+    render(value, PANE_DETAIL[target]);
+    setDrillHash(target + '/' + kind + '/' + encodeURIComponent(value));
     // The detail replaces the overview, so the reader is already at the top of it.
     window.scrollTo({top: 0, behavior: 'smooth'});
 }
 function closeDrill(keepHash) {
     if (!activeDrill) return;
-    const view = DRILL_VIEWS[activeDrill.kind];
-    $(PANE_DETAIL[view.pane]).hide().empty();
-    $(PANE_OVERVIEW[view.pane]).show();
-    const pane = view.pane;
+    const pane = activeDrill.pane || DRILL_VIEWS[activeDrill.kind].pane;
+    $(PANE_DETAIL[pane]).hide().empty();
+    $(PANE_OVERVIEW[pane]).show();
     activeDrill = null;
     if (!keepHash) setDrillHash(pane);
 }
 /* Re-render the open drill after a refresh, so a live view keeps updating. */
 function refreshDrill() {
     if (!activeDrill) return;
-    const view = DRILL_VIEWS[activeDrill.kind];
-    activeDrill.render(activeDrill.value, PANE_DETAIL[view.pane]);
+    const pane = activeDrill.pane || DRILL_VIEWS[activeDrill.kind].pane;
+    activeDrill.render(activeDrill.value, PANE_DETAIL[pane]);
 }
 function openDrillByKind(kind, value) {
     if (kind === 'device') {
         openDrill('device', value, renderDeviceDetail);
     } else if (kind === 'provider') {
-        openDrill('provider', value, function (name) { providerDrill(name); });
+        openDrill('provider', value, function (name, container) { providerDrill(name, container); });
     } else if (kind === 'app') {
         openDrill('app', value, function (name) { showApp(name); });
     } else if (kind === 'category') {
@@ -1694,8 +1731,8 @@ $(document).ready(function() {
         drillFromHash();
     }
     $('#maintabs a').on('shown.bs.tab', function(event) {
-        if (activeDrill && DRILL_VIEWS[activeDrill.kind]
-                && '#' + DRILL_VIEWS[activeDrill.kind].pane !== event.target.hash) {
+        if (activeDrill && '#' + (activeDrill.pane
+                || DRILL_VIEWS[activeDrill.kind].pane) !== event.target.hash) {
             closeDrill(true);
         }
         history.replaceState(null, '', event.target.hash);
@@ -1782,7 +1819,7 @@ $(document).ready(function() {
     // drillTo, so binding it here too would run the drill twice.
     $('#summary').on('click', 'a.wq-drill[data-drill="provider"]', function(event) {
         event.preventDefault();
-        openProvider($(this).data('value'));
+        openProvider($(this).data('value'), 'summary');
     });
     /*
      * Reload on tab entry as well as after a save. A change can also arrive from
@@ -1828,7 +1865,7 @@ $(document).ready(function() {
     $('#apps,#sessions').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();
         const kind = $(this).data('drill'), value = $(this).data('value');
-        if (kind === 'app') { showApp(value); return; }
+        if (kind === 'app') { openDrillByKind('app', value); return; }
         if (kind === 'explain') { $('a[href="#apps"]').tab('show'); explainDomain(value); return; }
         $('a[href="#consumers"]').tab('show');
         drillTo(kind, value);
@@ -1841,7 +1878,7 @@ $(document).ready(function() {
     $('#intelligence').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();
         const kind = $(this).data('drill'), value = $(this).data('value');
-        if (kind === 'category') { showCategory(value); return; }
+        if (kind === 'category') { openDrillByKind('category', value); return; }
         if (kind === 'explain') { $('a[href="#apps"]').tab('show'); explainDomain(value); return; }
         // device and domain live on the Consumers tab; show it, then drill there.
         $('a[href="#consumers"]').tab('show');

@@ -300,3 +300,50 @@ class ListingOrderTests(unittest.TestCase):
         self.assertEqual(order, ["viber.com", "cloudflare.net"])
         filtered = [row["domain"] for row in DISCOVERY.listing("new", self.connection)]
         self.assertEqual(filtered, ["viber.com", "cloudflare.net"])
+
+
+class PruneTests(unittest.TestCase):
+    """A candidate a service now claims is stale and must stop being offered.
+
+    nflxso.net stayed on the discovery list as "Unclassified, likely part of netflix"
+    after being added to the Netflix catalogue entry — the panel exists to say what is
+    *not* accounted for, so listing something that now is says the opposite of the truth.
+    """
+
+    def setUp(self):
+        self.connection, self.path = fresh_db()
+
+    def tearDown(self):
+        self.connection.close()
+        os.unlink(self.path)
+
+    def store(self, domain):
+        DISCOVERY.record([{"domain": domain, "label": domain, "category": "Unclassified",
+                           "named_from": "x", "hostnames": [], "hostname_count": 0,
+                           "addresses": 2, "shared": 0, "cappable": True,
+                           "infrastructure": False, "belongs_to": "netflix",
+                           "bytes_seen": 100, "first_seen": 1, "last_seen": 1}],
+                         self.connection)
+
+    def test_a_domain_the_catalogue_now_claims_is_dropped(self):
+        self.store("nflxso.net")
+        self.assertEqual(len(DISCOVERY.listing(connection=self.connection, prune=False)), 1)
+        dropped = DISCOVERY.prune_covered(self.connection)
+        self.assertIn("nflxso.net", dropped)
+        self.assertEqual(DISCOVERY.listing(connection=self.connection, prune=False), [])
+
+    def test_listing_prunes_by_default(self):
+        self.store("nflxso.net")
+        self.assertEqual(DISCOVERY.listing(connection=self.connection), [])
+
+    def test_a_domain_nothing_claims_is_kept(self):
+        self.store("viber.com")
+        kept = [row["domain"] for row in DISCOVERY.listing(connection=self.connection)]
+        self.assertEqual(kept, ["viber.com"])
+
+    def test_an_accepted_candidate_is_not_pruned_by_its_own_acceptance(self):
+        """Otherwise accepting a service would delete the record that makes it cappable."""
+        self.store("viber.com")
+        DISCOVERY.set_status("viber.com", "accepted", self.connection)
+        DISCOVERY.prune_covered(self.connection)
+        self.assertIn("viber_com", DISCOVERY.accepted_services(self.connection))

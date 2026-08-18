@@ -813,3 +813,39 @@ class VerifyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CatalogueOrderTests(unittest.TestCase):
+    """Built-in services come first, then discovered ones.
+
+    A reader looking for Netflix should not have to pass a domain they accepted last
+    week to reach it, and a discovered entry carries less certainty than a curated one,
+    so it belongs after.
+    """
+
+    def ordered(self, catalog):
+        return [key for key, _ in sorted(
+            catalog.items(),
+            key=lambda pair: (bool(pair[1].get("discovered")), pair[1]["label"].lower()))]
+
+    def test_discovered_entries_sort_after_built_ins(self):
+        catalog = {
+            "zzz_builtin": {"label": "Zzz Builtin", "suffixes": ("z.test",)},
+            "aaa_found": {"label": "Aaa Found", "suffixes": ("a.test",), "discovered": True},
+            "mmm_builtin": {"label": "Mmm Builtin", "suffixes": ("m.test",)},
+        }
+        self.assertEqual(self.ordered(catalog),
+                         ["mmm_builtin", "zzz_builtin", "aaa_found"])
+
+    def test_each_group_is_alphabetical_by_label(self):
+        catalog = {
+            "b": {"label": "Beta", "suffixes": ("b.test",)},
+            "a": {"label": "Alpha", "suffixes": ("a.test",)},
+            "d": {"label": "Delta", "suffixes": ("d.test",), "discovered": True},
+            "c": {"label": "Charlie", "suffixes": ("c.test",), "discovered": True},
+        }
+        self.assertEqual(self.ordered(catalog), ["a", "b", "c", "d"])
+
+    def test_the_shipped_catalogue_has_no_discovered_entries(self):
+        for key, entry in SHAPER.STREAMING_SERVICES.items():
+            self.assertFalse(entry.get("discovered"), key)

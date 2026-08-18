@@ -327,7 +327,39 @@ def record(found, connection=None, now=None):
     return {"added": added, "updated": updated}
 
 
-def listing(status=None, connection=None):
+def prune_covered(connection=None, catalog=None, apps=None):
+    """Forget candidates that a service now claims.
+
+    A candidate is stored when nothing accounted for it. Once something does — because
+    it was added to the catalogue, or accepted, or the app classifier gained it — the
+    row is stale and listing it says the opposite of the truth. nflxso.net stayed on the
+    list as 'Unclassified, likely part of netflix' after being added to Netflix, which is
+    exactly the confusion the discovery panel exists to remove.
+    """
+    known = covered_domains(catalog, apps)
+    owned = connection or database()
+    try:
+        rows = [row["domain"] for row in
+                owned.execute("SELECT domain FROM discovered_services").fetchall()]
+        stale = [domain for domain in rows if domain in known]
+        if stale:
+            with owned:
+                owned.executemany("DELETE FROM discovered_services WHERE domain=?",
+                                  [(domain,) for domain in stale])
+    finally:
+        if connection is None:
+            owned.close()
+    return stale
+
+
+def listing(status=None, connection=None, prune=True):
+    # A row for a domain a service now claims is stale, so it is dropped rather than
+    # shown: the panel is meant to answer "what is not accounted for".
+    if prune:
+        try:
+            prune_covered(connection)
+        except Exception:
+            pass
     owned = connection or database()
     try:
         if status:
@@ -382,7 +414,9 @@ def accepted_services(connection=None):
     Limits tab can cap, rather than an entry on a list.
     """
     services = {}
-    for item in listing("accepted", connection):
+    # No pruning here: this is called while the shaper builds its catalogue, and a
+    # database write on every plan would be wasted work.
+    for item in listing("accepted", connection, prune=False):
         key = item["domain"].replace(".", "_")
         services[key] = {
             "label": item["label"],

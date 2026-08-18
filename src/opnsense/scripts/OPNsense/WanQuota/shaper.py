@@ -1108,10 +1108,16 @@ def main():
         return
     if mode == "catalog":
         print(json.dumps({
+            # Built-in services first, then discovered ones, each alphabetically. A
+            # reader looking for Netflix should not have to pass a domain they accepted
+            # last week to reach it.
             "services": [{"service": key, "label": item["label"],
                           "suffixes": list(item["suffixes"]),
                           "discovered": bool(item.get("discovered"))}
-                         for key, item in sorted(full_catalog().items())],
+                         for key, item in sorted(
+                             full_catalog().items(),
+                             key=lambda pair: (bool(pair[1].get("discovered")),
+                                               pair[1]["label"].lower()))],
             "resolutions": RESOLUTION_PRESETS,
         }, separators=(",", ":")))
         return
