@@ -122,6 +122,7 @@ def database(path=None):
             belongs_to  TEXT NOT NULL DEFAULT '',
             cappable    INTEGER NOT NULL DEFAULT 0,
             infrastructure INTEGER NOT NULL DEFAULT 0,
+            blocked_reason TEXT NOT NULL DEFAULT '',
             addresses   INTEGER NOT NULL DEFAULT 0,
             shared      INTEGER NOT NULL DEFAULT 0,
             hostnames   TEXT NOT NULL DEFAULT '[]',
@@ -263,6 +264,15 @@ def candidates(mappings, domain_totals, catalog=None, apps=None, custom=None,
         # top by traffic, so it is flagged and sorted below real candidates rather than
         # dominating the list.
         infrastructure = shaper.is_shared_cdn(key)
+        if infrastructure:
+            blocked = "shared infrastructure: capping it would throttle unrelated traffic"
+        elif not exclusive and shared:
+            blocked = (f"every address seen for it is shared with other names "
+                       f"({len(shared)} of them), so none can be capped safely")
+        elif not exclusive:
+            blocked = "no addresses observed for it yet, so a limit would match nothing"
+        else:
+            blocked = ""
         found.append({
             "domain": key,
             "label": label,
@@ -275,12 +285,14 @@ def candidates(mappings, domain_totals, catalog=None, apps=None, custom=None,
             # Whether accepting it would produce a limit that can actually match.
             "cappable": bool(exclusive) and not infrastructure,
             "infrastructure": infrastructure,
+            "blocked_reason": blocked,
             "belongs_to": belongs,
             "bytes_seen": int(moved),
             "first_seen": now,
             "last_seen": now,
         })
-    found.sort(key=lambda item: (item["infrastructure"], -item["bytes_seen"]))
+    found.sort(key=lambda item: (not item["cappable"], item["infrastructure"],
+                                 -item["bytes_seen"]))
     return found
 
 
@@ -299,12 +311,13 @@ def record(found, connection=None, now=None):
                     owned.execute(
                         """INSERT INTO discovered_services
                            (domain,label,category,named_from,status,belongs_to,cappable,
-                            infrastructure,addresses,shared,hostnames,hostname_count,
-                            bytes_seen,first_seen,last_seen)
-                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?,?,?)""",
+                            infrastructure,blocked_reason,addresses,shared,hostnames,
+                            hostname_count,bytes_seen,first_seen,last_seen)
+                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?,?,?,?)""",
                         (item["domain"], item["label"], item["category"], item["named_from"],
                          item["belongs_to"], int(item["cappable"]),
-                         int(item.get("infrastructure", False)), item["addresses"],
+                         int(item.get("infrastructure", False)),
+                         item.get("blocked_reason", ""), item["addresses"],
                          item["shared"], json.dumps(item["hostnames"]),
                          int(item.get("hostname_count") or len(item["hostnames"])),
                          item["bytes_seen"], now, now))
@@ -314,12 +327,13 @@ def record(found, connection=None, now=None):
                     # ignored candidate stays ignored instead of returning every run.
                     owned.execute(
                         """UPDATE discovered_services SET label=?,category=?,named_from=?,
-                               belongs_to=?,cappable=?,infrastructure=?,addresses=?,
-                               shared=?,hostnames=?,hostname_count=?,bytes_seen=?,
-                               last_seen=? WHERE domain=?""",
+                               belongs_to=?,cappable=?,infrastructure=?,blocked_reason=?,
+                               addresses=?,shared=?,hostnames=?,hostname_count=?,
+                               bytes_seen=?,last_seen=? WHERE domain=?""",
                         (item["label"], item["category"], item["named_from"],
                          item["belongs_to"], int(item["cappable"]),
-                         int(item.get("infrastructure", False)), item["addresses"],
+                         int(item.get("infrastructure", False)),
+                         item.get("blocked_reason", ""), item["addresses"],
                          item["shared"], json.dumps(item["hostnames"]),
                          int(item.get("hostname_count") or len(item["hostnames"])),
                          item["bytes_seen"], now, item["domain"]))
@@ -368,12 +382,12 @@ def listing(status=None, connection=None, prune=True):
         if status:
             rows = owned.execute(
                 """SELECT * FROM discovered_services WHERE status=?
-                   ORDER BY infrastructure ASC, bytes_seen DESC""",
+                   ORDER BY cappable DESC, infrastructure ASC, bytes_seen DESC""",
                 (status,)).fetchall()
         else:
             rows = owned.execute(
                 """SELECT * FROM discovered_services
-                   ORDER BY infrastructure ASC, bytes_seen DESC""").fetchall()
+                   ORDER BY cappable DESC, infrastructure ASC, bytes_seen DESC""").fetchall()
     finally:
         if connection is None:
             owned.close()

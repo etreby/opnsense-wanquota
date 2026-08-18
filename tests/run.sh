@@ -208,6 +208,22 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# A cap target the planner would refuse must not be offered as though it worked, and a
+# candidate that cannot be limited must not lead the discovery list. Both were true on a
+# live network: cloudflare.net was offered as a session cap target, and a domain whose
+# every address is shared topped the discovery list with a bare "no".
+grep -q 'def cap_hint' "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
+grep -q 'blocked_reason' "$repository/src/opnsense/scripts/OPNsense/WanQuota/discovery.py"
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+assert "row.cap_hint" in source, "the session row must use the backend's cap hint"
+assert "hint.allowed" in source, "a refused target must render differently"
+assert "row.cappable" in source and "blocked" in source, \
+    "the discovery panel must separate what can be limited from what cannot"
+assert "row.remote_registrable" not in source or "hint" in source, \
+    "the raw registrable domain must not be offered without its hint"
+PYCHECK
 # On the Limits tab the services come before the discovery proposals. Someone opening
 # it is almost always there to limit a service they already know, and putting proposals
 # first pushed Netflix below the fold.
@@ -300,9 +316,17 @@ PYCHECK
 grep -q '"key": "|".join' "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
 grep -q 'before\[row.key\]' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
 # Capping offers the registrable domain, never the per-session hostname: one appliance
-# for one session is useless as a cap target.
+# for one session is useless as a cap target. The interface reads it from the backend's
+# cap hint, which also carries whether it may be capped at all.
 grep -q 'remote_registrable' "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
-grep -q 'row.remote_registrable' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+grep -q 'row.cap_hint' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+start = source.index("def cap_hint(")
+body = source[start:source.index("\ndef ", start + 10)]
+assert "shaper.registrable" in body, "the hint must resolve to the registrable domain"
+PYCHECK
 # No two top-level functions in the view may share a name. JavaScript keeps the last
 # declaration silently, so a duplicate does not fail to load — it replaces the other
 # one. A second rate() defined for the live sessions table overwrote the one formatting

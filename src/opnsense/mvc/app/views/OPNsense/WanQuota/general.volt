@@ -669,12 +669,28 @@ function sessionTable(data) {
          * Offer the registrable domain, not the hostname: a per-session name matches
          * one appliance for one session, while the registrable domain keeps matching.
          */
-        const capTarget = row.remote_registrable;
-        const cap = capTarget
-            ? '<button class="btn btn-xs btn-default wq-cap-session" data-domain=\'' + esc(capTarget) + '\''
-              + ' title="' + esc('Add ' + capTarget + ' to a service so this traffic is capped with it') + '">'
-              + esc(capTarget) + '</button>'
-            : '<small class="wq-muted">' + esc('no name to cap') + '</small>';
+        const hint = row.cap_hint;
+        let cap;
+        if (!hint) {
+            cap = '<small class="wq-muted">' + esc('no name to cap') + '</small>';
+        } else if (hint.allowed) {
+            cap = '<button class="btn btn-xs btn-default wq-cap-session" data-domain=\''
+                + esc(hint.domain) + '\' title="'
+                + esc('Add ' + hint.domain + ' to a service so this traffic is capped with it')
+                + '">' + esc(hint.domain) + '</button>';
+        } else if (hint.service) {
+            /* Already covered: say which service, rather than offering a no-op. */
+            cap = '<span class="wq-pill wq-pill-ok" title="' + esc(hint.reason) + '">'
+                + esc(hint.service) + '</span>';
+        } else {
+            /*
+             * Offered and refused is worse than not offered: the reader would only find
+             * out after picking a service and applying.
+             */
+            cap = '<button class="btn btn-xs btn-default" disabled title="' + esc(hint.reason)
+                + '">' + esc(hint.domain) + '</button>'
+                + '<br><small class="wq-muted">' + esc('cannot be capped') + '</small>';
+        }
         html += '<tr data-device="' + esc(row.device) + '" data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service + ' ' + (row.remote_port || '')).toLowerCase()) + '">'
              +  '<td><a href="#" class="wq-session-device" data-device=\'' + esc(row.device) + '\''
              +  ' title="' + esc('Show only this device') + '"><b>' + esc(row.name) + '</b></a>'
@@ -840,6 +856,32 @@ function renderDiscovered(data) {
             + '</div>');
         return;
     }
+    /*
+     * Candidates that cannot be limited are collapsed rather than listed first. On a
+     * live network the top entry by traffic was a domain whose every address is shared
+     * with a CDN, so the list opened with something nobody could act on.
+     */
+    const usable = rows.filter(row => row.cappable);
+    const blocked = rows.filter(row => !row.cappable);
+    let html = discoveredTable(usable, false);
+    if (!usable.length) {
+        html = '<div class="alert alert-info">'
+             + esc('Nothing new that could be limited. Anything found is shown below.')
+             + '</div>';
+    }
+    if (blocked.length) {
+        html += '<div style="margin-top:10px"><a href="#" id="showBlockedDiscovery">'
+             +  esc(blocked.length + ' more that cannot be limited') + '</a>'
+             +  ' <span class="wq-muted">'
+             +  esc('shared addresses or a CDN, so capping them would hit unrelated traffic')
+             +  '</span></div>'
+             +  '<div id="blockedDiscovery" style="display:none;margin-top:8px">'
+             +  discoveredTable(blocked, true) + '</div>';
+    }
+    $('#discoveredServices').html(html);
+}
+function discoveredTable(rows, blocked) {
+    if (!rows.length) return '';
     let html = '<table class="table table-condensed table-striped"><thead><tr>'
              + '<th>{{ lang._("Service") }}</th><th>{{ lang._("Traffic") }}</th>'
              + '<th>{{ lang._("Evidence") }}</th><th>{{ lang._("Can be limited") }}</th>'
@@ -867,15 +909,19 @@ function renderDiscovered(data) {
              +  '</small></td>'
              +  '<td>' + (row.cappable
                     ? '<span class="wq-pill wq-pill-ok">' + esc('yes') + '</span>'
-                    : '<span class="wq-pill wq-pill-warn" title="'
-                      + esc('Its addresses are shared with unrelated traffic, so a limit would be refused.')
-                      + '">' + esc('no') + '</span>') + '</td>'
-             +  '<td><button class="btn btn-xs btn-primary wq-accept" data-domain=\'' + esc(row.domain) + '\'>'
-             +  esc('Accept') + '</button> '
+                    : '<span class="wq-pill wq-pill-warn" title="' + esc(row.blocked_reason || '')
+                      + '">' + esc('no') + '</span>'
+                      + '<br><small class="wq-muted">' + esc(row.blocked_reason || '') + '</small>')
+             +  '</td>'
+             +  '<td>'
+             +  (row.cappable
+                    ? '<button class="btn btn-xs btn-primary wq-accept" data-domain=\'' + esc(row.domain) + '\'>'
+                      + esc('Accept') + '</button> '
+                    : '')
              +  '<button class="btn btn-xs btn-default wq-ignore" data-domain=\'' + esc(row.domain) + '\'>'
              +  esc('Ignore') + '</button></td></tr>';
     }
-    $('#discoveredServices').html(html + '</tbody></table>');
+    return html + '</tbody></table>';
 }
 function refreshDiscovered(rescan) {
     if (rescan) {
@@ -1831,6 +1877,14 @@ $(document).ready(function() {
         if (String(this.id).indexOf('_enabled') > 0) applyFieldVisibility();
     });
     $('#rescanDiscovery').on('click', function() { refreshDiscovered(true); });
+    $('#limits').on('click', '#showBlockedDiscovery', function(event) {
+        event.preventDefault();
+        $('#blockedDiscovery').toggle();
+        $(this).text($('#blockedDiscovery').is(':visible')
+            ? '{{ lang._("Hide the ones that cannot be limited") }}'
+            : $('#blockedDiscovery').find('tbody tr').length
+              + ' {{ lang._("more that cannot be limited") }}');
+    });
     $('#discoveredServices').on('click', '.wq-accept', function() {
         decideService($(this).data('domain'), 'accept');
     });

@@ -385,3 +385,56 @@ class StoredFieldTests(unittest.TestCase):
                       "hostname_count", "bytes_seen"):
             self.assertIn(field, row, field)
             self.assertIsNotNone(row[field], field)
+
+
+class ActionableFirstTests(unittest.TestCase):
+    """A list whose top entry cannot be acted on reads badly.
+
+    pypi.org led the live list at 1 GB with a bare "no" against it and no explanation:
+    every address seen for it is shared with a CDN, so none can be capped. Candidates
+    that can be acted on come first, and the rest carry the reason.
+    """
+
+    PAIRS = [
+        ("media.viber.com", "203.0.113.1"), ("cdn.viber.com", "203.0.113.2"),
+        ("files.pythonhosted.test", "198.51.100.9"), ("x.fastly.net", "198.51.100.9"),
+        ("a.cloudflare.net", "198.51.100.20"), ("b.cloudflare.net", "198.51.100.21"),
+    ]
+    TOTALS = [
+        {"domain": "files.pythonhosted.test", "total": 1000 * MB},
+        {"domain": "a.cloudflare.net", "total": 2400 * MB},
+        {"domain": "media.viber.com", "total": 50 * MB},
+    ]
+
+    def found(self):
+        return DISCOVERY.candidates(self.PAIRS, self.TOTALS, minimum_bytes=5 * MB, now=1)
+
+    def test_a_cappable_candidate_comes_first_despite_less_traffic(self):
+        order = [item["domain"] for item in self.found()]
+        self.assertEqual(order[0], "viber.com", order)
+
+    def test_a_candidate_whose_addresses_are_all_shared_says_so(self):
+        item = next(i for i in self.found() if i["domain"] == "pythonhosted.test")
+        self.assertFalse(item["cappable"])
+        self.assertIn("shared with other names", item["blocked_reason"])
+
+    def test_infrastructure_says_it_would_throttle_unrelated_traffic(self):
+        item = next(i for i in self.found() if i["domain"] == "cloudflare.net")
+        self.assertIn("throttle unrelated traffic", item["blocked_reason"])
+
+    def test_a_cappable_candidate_has_no_reason_against_it(self):
+        item = next(i for i in self.found() if i["domain"] == "viber.com")
+        self.assertTrue(item["cappable"])
+        self.assertEqual(item["blocked_reason"], "")
+
+    def test_the_reason_survives_the_round_trip(self):
+        connection, path = fresh_db()
+        try:
+            DISCOVERY.record(self.found(), connection)
+            rows = {r["domain"]: r for r in DISCOVERY.listing(connection=connection, prune=False)}
+            self.assertIn("shared with other names", rows["pythonhosted.test"]["blocked_reason"])
+            order = [r["domain"] for r in DISCOVERY.listing(connection=connection, prune=False)]
+            self.assertEqual(order[0], "viber.com", "the stored order must match too")
+        finally:
+            connection.close()
+            os.unlink(path)

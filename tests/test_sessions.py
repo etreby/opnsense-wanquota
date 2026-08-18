@@ -121,3 +121,51 @@ class DocumentTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CapHintTests(unittest.TestCase):
+    """A cap target the planner would refuse must not be offered as if it worked.
+
+    Offering it is worse than offering nothing: the reader only finds out after choosing
+    a service and applying, and a shared CDN would throttle unrelated traffic.
+    """
+
+    CATALOG = {
+        "netflix": {"label": "Netflix", "suffixes": ("nflxvideo.net", "nflxso.net")},
+        "youtube": {"label": "YouTube", "suffixes": ("googlevideo.com",),
+                    "co_delivery": ("gvt1.com",)},
+    }
+
+    def owners(self):
+        return SESSIONS.cap_targets(self.CATALOG)
+
+    def test_a_new_domain_can_be_capped(self):
+        hint = SESSIONS.cap_hint("media.viber.com", self.owners())
+        self.assertTrue(hint["allowed"])
+        self.assertEqual(hint["domain"], "viber.com")
+
+    def test_a_shared_cdn_is_refused_with_the_reason(self):
+        hint = SESSIONS.cap_hint("x.gw.samsungapps.com.cdn.cloudflare.net", self.owners())
+        self.assertFalse(hint["allowed"])
+        self.assertIn("throttle unrelated traffic", hint["reason"])
+
+    def test_a_domain_a_service_already_claims_says_which(self):
+        hint = SESSIONS.cap_hint("occ-0-1.nflxso.net", self.owners())
+        self.assertFalse(hint["allowed"])
+        self.assertEqual(hint["service"], "Netflix")
+        self.assertIn("already part of Netflix", hint["reason"])
+
+    def test_a_co_delivery_domain_counts_as_claimed(self):
+        hint = SESSIONS.cap_hint("rr4.sn-x.gvt1.com", self.owners())
+        self.assertFalse(hint["allowed"])
+        self.assertEqual(hint["service"], "YouTube")
+
+    def test_a_destination_with_no_name_has_no_hint(self):
+        self.assertIsNone(SESSIONS.cap_hint(None, self.owners()))
+        self.assertIsNone(SESSIONS.cap_hint("", self.owners()))
+
+    def test_owners_are_built_once_from_suffixes_and_co_delivery(self):
+        owners = self.owners()
+        self.assertEqual(owners["nflxso.net"], "Netflix")
+        self.assertEqual(owners["gvt1.com"], "YouTube")
+        self.assertNotIn("", owners)

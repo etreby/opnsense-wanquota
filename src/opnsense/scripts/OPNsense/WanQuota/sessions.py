@@ -137,9 +137,48 @@ def parse_states(output):
     return list(records.values())
 
 
-def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT):
+def cap_targets(catalog=None):
+    """registrable domain -> the service that already claims it.
+
+    Built once rather than per session: the catalogue is small but a state table is not,
+    and rebuilding it five hundred times would be five hundred scans for one answer.
+    """
+    entries = catalog if catalog is not None else shaper.full_catalog()
+    owners = {}
+    for key, entry in entries.items():
+        for suffix in tuple(entry.get("suffixes", ())) + tuple(entry.get("co_delivery", ())):
+            owners[shaper.registrable(suffix)] = entry.get("label", key)
+    owners.pop("", None)
+    return owners
+
+
+def cap_hint(domain, owners):
+    """Whether this destination could be added to a service, and if not, why.
+
+    Offering a target the planner will refuse is worse than offering nothing: the reader
+    only finds out after choosing a service and applying. A shared CDN is refused because
+    capping it throttles unrelated traffic, and a domain a service already claims does
+    not need adding.
+    """
+    if not domain:
+        return None
+    registrable = shaper.registrable(domain)
+    if not registrable:
+        return None
+    if shaper.is_shared_cdn(registrable):
+        return {"domain": registrable, "allowed": False, "service": "",
+                "reason": "a shared CDN: capping it would throttle unrelated traffic"}
+    owner = owners.get(registrable)
+    if owner:
+        return {"domain": registrable, "allowed": False, "service": owner,
+                "reason": f"already part of {owner}"}
+    return {"domain": registrable, "allowed": True, "service": "", "reason": ""}
+
+
+def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT, owners=None):
     """Sessions originating from a LAN device, largest first, named where possible."""
     rows = []
+    owners = owners if owners is not None else cap_targets()
     for state in states:
         device = state["device"]
         if device == router or not consumers.is_local(device, network):
@@ -157,6 +196,8 @@ def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT):
             # while nflxso.net is the name that keeps matching — so the registrable
             # domain is offered alongside it.
             "remote_registrable": shaper.registrable(remote_domain) if remote_domain else None,
+            # Whether that name could be added to a service, and if not, why.
+            "cap_hint": cap_hint(remote_domain, owners),
             "service": consumers.transport_label(state["protocol"], state["remote_port"]),
             # A stable identity for the flow, so a reader can match the same session
             # across refreshes and measure how fast it is actually moving. Rebuilding
