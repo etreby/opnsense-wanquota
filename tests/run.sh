@@ -408,8 +408,11 @@ def handler_after(marker):
 for endpoint in ("/api/wanquota/limits/set'", "/api/wanquota/limits/setDevices'"):
     assert "loadSettings()" in handler_after(endpoint), \
         f"saving via {endpoint} must refresh the settings form"
-assert "refreshLimitViews()" in handler_after("/api/wanquota/settings/set'"), \
-    "saving settings must refresh the limits views"
+# Anchored on the wizard's save, not on the endpoint: the quota card posts to the
+# same endpoint with three provider fields the limits views do not render, and
+# matching that one first would test the wrong handler.
+assert "refreshLimitViews()" in handler_after("saveFormToEndpoint('/api/wanquota/settings/set'"), \
+    "saving the settings form must refresh the limits views"
 PYCHECK
 grep -q '^\[shaperverify\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
 grep -q '^\[shapercapability\]' "$repository/src/opnsense/service/conf/actions.d/actions_wanquota.conf"
@@ -458,3 +461,49 @@ PY
     node --check "$extracted"
     rm -rf "$scratch"
 fi
+
+# The baseline stands for days vnStat never recorded, so it must not reach the
+# rate. Dividing it by the measured days charged five days with a fortnight of
+# traffic and projected a 35%-used provider past its quota, which is the exact
+# comparison the projection alert fires on.
+grep -q 'rate = (rx + tx) / measured_days' "$repository/src/opnsense/scripts/OPNsense/WanQuota/report.py"
+if grep -q 'rate = used / measured_days' "$repository/src/opnsense/scripts/OPNsense/WanQuota/report.py"; then
+    echo "the projection rate is back to dividing baseline-inclusive used by measured days" >&2
+    exit 1
+fi
+# Only enabled slots are listed, so a provider's position is not its slot number.
+# Anything writing a provider's settings back needs the slot to address the right one.
+grep -q '"slot": index' "$repository/src/opnsense/scripts/OPNsense/WanQuota/report.py"
+
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+
+view = open(sys.argv[1], encoding="utf-8").read()
+
+def body_of(name):
+    """One function's body: from its definition to the next top-level one."""
+    rest = view[view.index("function " + name):]
+    end = rest.find("\nfunction ")
+    return rest[:end if end > 0 else len(rest)]
+
+# The card asks for the two figures an ISP portal shows and derives the baseline
+# itself. Asking for a baseline directly is the thing this replaced: nobody reads
+# one off a portal, and getting it wrong misstates the whole cycle.
+assert 'class="wq-kebab"' in view, "the quota card offers no way to adjust the allowance"
+assert "allowance - left - measuredThisCycle(p)" in view, "the baseline is no longer derived from allowance and remaining"
+# A baseline only applies to the cycle it was taken from; report.py compares it
+# against the cycle start, so an unstamped baseline is silently ignored.
+assert "_baseline_cycle'] = p.start" in view, "the saved baseline is not stamped with the cycle it belongs to"
+# Saving must re-read rather than patch the card: the rate, the projection and
+# the health wording are all recomputed from the new baseline.
+assert "refreshReports();" in body_of("saveQuota"), "saving the quota does not refresh the report"
+
+# One WAN needs no total; it would restate the only card. Several do, and the
+# cycles need not align, so the total leads with what is left rather than a
+# percentage of a period none of them share.
+assert "if (providers.length < 2) return '';" in view, "the total card is not conditional on having several providers"
+assert "grid-column:1/-1" in view, "the total card does not span the card grid"
+total = body_of("quotaTotalCard")
+assert "total('remaining')" in total, "the total card does not total what is left"
+assert "new Set(providers.map(p => p.start)).size === 1" in total, "the total card does not check whether the cycles align"
+PYCHECK

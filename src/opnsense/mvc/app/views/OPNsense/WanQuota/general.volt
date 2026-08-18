@@ -1,6 +1,7 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
 .wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}
+.wq-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.wq-card-head h3{flex:1 1 auto}.wq-kebab{border:none;background:none;padding:1px 6px;line-height:1;font-size:17px;color:inherit;opacity:.45;cursor:pointer;border-radius:4px;flex:0 0 auto}.wq-kebab:hover,.wq-kebab:focus,.wq-kebab[aria-expanded=true]{opacity:1;background:rgba(128,128,128,.16)}.wq-quota-edit{margin-top:13px;padding-top:12px;border-top:1px solid rgba(128,128,128,.2)}.wq-quota-edit label{display:block;font-size:11px;font-weight:600;opacity:.75;margin:0 0 3px}.wq-quota-field{margin-bottom:9px}.wq-quota-edit input{width:100%}.wq-quota-preview{font-size:12px;margin:0 0 10px;font-variant-numeric:tabular-nums}.wq-quota-warn{display:block;color:var(--wq-amber);margin-top:4px}.wq-total-card{grid-column:1/-1;border-left:4px solid var(--wq-blue)}.wq-total-split{display:flex;flex-wrap:wrap;gap:24px;margin-top:11px}.wq-total-part{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}.wq-total-part b{display:block;font-size:17px;opacity:1;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -297,7 +298,144 @@ function startThroughput() {
 function stopThroughput() {
     if (livePoll) { clearInterval(livePoll); livePoll = null; }
 }
-function quotaCards(data) { return (data.providers||[]).map((p,i)=>{const pct=Math.min(100,Number(p.percent||0)), color=pct>=90?'#ef4444':pct>=75?'#f59e0b':wqColors[i%wqColors.length];return `<div class="wq-card"><div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div><h3><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3><div class="wq-metric">${pct.toFixed(1)}%</div><div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div><div><b>${gb(p.remaining)}</b> remaining</div><div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div></div>`}).join(''); }
+/* The traffic this cycle that vnStat actually recorded, which the baseline sits
+ * beside rather than inside. Both the preview and the save derive from it. */
+function measuredThisCycle(p) { return (Number(p.rx || 0) + Number(p.tx || 0)) / 1e9; }
+function providerBySlot(slot) {
+    return ((currentSummaryData || {}).providers || []).find(p => Number(p.slot) === Number(slot));
+}
+/*
+ * A person reads two numbers off an ISP portal: what the plan allows, and what
+ * is left. The report needs a third, the baseline standing for the days vnStat
+ * never saw, and nobody thinks in those. So the card asks for the two that exist
+ * and derives the third, showing its work before anything is saved.
+ */
+function quotaEditor(p) {
+    return `<div class="wq-quota-edit" id="quotaEdit${p.slot}" style="display:none">
+        <div class="wq-quota-field">
+            <label>{{ lang._("Total allowance this cycle (GB)") }}</label>
+            <input type="number" class="form-control wq-quota-input" data-slot="${p.slot}"
+                   id="quotaAllowance${p.slot}" min="1" max="100000" step="1" value="${Number(p.quota_gb)}">
+        </div>
+        <div class="wq-quota-field">
+            <label>{{ lang._("Your ISP says this much is left (GB)") }}</label>
+            <input type="number" class="form-control wq-quota-input" data-slot="${p.slot}"
+                   id="quotaLeft${p.slot}" min="0" step="0.01" value="${(Number(p.remaining) / 1e9).toFixed(2)}">
+        </div>
+        <div class="wq-quota-preview" id="quotaPreview${p.slot}"></div>
+        <button type="button" class="btn btn-primary btn-sm wq-quota-save" data-slot="${p.slot}">{{ lang._("Save") }}</button>
+        <button type="button" class="btn btn-default btn-sm wq-quota-cancel" data-slot="${p.slot}">{{ lang._("Cancel") }}</button>
+        <span class="wq-muted" id="quotaStatus${p.slot}"></span>
+    </div>`;
+}
+function renderQuotaPreview(slot) {
+    const p = providerBySlot(slot);
+    const target = $('#quotaPreview' + slot);
+    if (!p || !target.length) return;
+    const allowance = Number($('#quotaAllowance' + slot).val());
+    const left = Number($('#quotaLeft' + slot).val());
+    if (!isFinite(allowance) || allowance < 1 || !isFinite(left) || left < 0) {
+        target.html('<span class="wq-quota-warn">{{ lang._("Enter an allowance of at least 1 GB and a remaining figure.") }}</span>');
+        return;
+    }
+    const measured = measuredThisCycle(p);
+    const raw = allowance - left - measured;
+    const baseline = Math.max(0, Math.round(raw));
+    let html = '{{ lang._("Measured here since") }} ' + esc(p.first_seen || p.start) + ': <b>'
+             + measured.toFixed(2) + ' GB</b>. {{ lang._("Baseline for the days before that") }}: <b>'
+             + baseline + ' GB</b>.';
+    if (raw < -0.5) {
+        // Left plus measured already exceeds the allowance, so no baseline can
+        // reconcile them. Say which number has to move rather than silently
+        // clamping to zero and reporting a total nobody can account for.
+        html += '<span class="wq-quota-warn">' + left.toFixed(2) + ' GB left plus '
+             +  measured.toFixed(2) + ' GB measured is ' + Math.abs(raw).toFixed(2)
+             +  ' GB past an allowance of ' + allowance
+             +  ' GB. {{ lang._("Saving records a zero baseline; check the allowance.") }}</span>';
+    }
+    target.html(html);
+}
+function saveQuota(slot) {
+    const p = providerBySlot(slot);
+    if (!p) return;
+    const allowance = Math.round(Number($('#quotaAllowance' + slot).val()));
+    const left = Number($('#quotaLeft' + slot).val());
+    const status = $('#quotaStatus' + slot);
+    if (!(allowance >= 1) || !(left >= 0)) {
+        status.html('<span class="wq-quota-warn">{{ lang._("Both figures are needed.") }}</span>');
+        return;
+    }
+    const fields = {};
+    fields['provider' + slot + '_quota_gb'] = String(allowance);
+    fields['provider' + slot + '_baseline_gb'] = String(Math.max(0, Math.round(allowance - left - measuredThisCycle(p))));
+    // A baseline only counts for the cycle it was taken from, so it is stamped
+    // with this provider's cycle start rather than left for the reader to match.
+    fields['provider' + slot + '_baseline_cycle'] = p.start;
+    const button = $('.wq-quota-save[data-slot="' + slot + '"]').prop('disabled', true);
+    status.text('{{ lang._("Saving...") }}');
+    ajaxCall('/api/wanquota/settings/set', {wanquota: {general: fields}}, function(result) {
+        button.prop('disabled', false);
+        if (!result || result.result !== 'saved') {
+            const problems = Object.values((result || {}).validations || {});
+            status.html('<span class="wq-quota-warn">'
+                + esc(problems.length ? problems.join(' ') : '{{ lang._("Save failed") }}') + '</span>');
+            return;
+        }
+        // Re-reading beats patching the card in place: the report recomputes the
+        // rate, the projection and the health wording from the new baseline.
+        refreshReports();
+    });
+}
+/*
+ * With one WAN a total is the card again. With several it is the only figure that
+ * answers "how much have we got left" without the reader adding up cards.
+ */
+function quotaTotalCard(providers) {
+    if (providers.length < 2) return '';
+    const total = key => providers.reduce((sum, p) => sum + Number(p[key] || 0), 0);
+    const remaining = total('remaining'), quota = total('quota'), used = total('used');
+    const pct = quota ? Math.min(100, used / quota * 100) : 0;
+    const color = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : '#3b82f6';
+    // Cycles that begin on different days cannot be added into one percentage
+    // without inventing a period none of them covers. What is left right now is
+    // true whenever each cycle started, so that is the headline.
+    const aligned = new Set(providers.map(p => p.start)).size === 1;
+    const note = aligned
+        ? '{{ lang._("All cycles cover the same period.") }}'
+        : '{{ lang._("These cycles start on different days, so this is what is left right now rather than one shared period.") }}';
+    return `<div class="wq-card wq-total-card">
+        <div class="wq-muted">{{ lang._("All providers") }} · ${providers.length} {{ lang._("WANs") }}</div>
+        <h3>{{ lang._("Total remaining") }}</h3>
+        <div class="wq-metric">${gb(remaining)}</div>
+        <div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div>
+        <div class="wq-total-split">
+            <div class="wq-total-part">{{ lang._("Used") }}<b>${gb(used)}</b></div>
+            <div class="wq-total-part">{{ lang._("Combined allowance") }}<b>${gb(quota)}</b></div>
+            <div class="wq-total-part">{{ lang._("Of allowance") }}<b>${pct.toFixed(1)}%</b></div>
+        </div>
+        <div class="wq-muted" style="margin-top:9px">${note}</div>
+    </div>`;
+}
+function quotaCards(data) {
+    const providers = data.providers || [];
+    return quotaTotalCard(providers) + providers.map((p, i) => {
+        const pct = Math.min(100, Number(p.percent || 0));
+        const color = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : wqColors[i % wqColors.length];
+        return `<div class="wq-card">
+            <div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div>
+            <div class="wq-card-head">
+                <h3><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3>
+                <button type="button" class="wq-kebab" data-slot="${esc(p.slot)}" aria-expanded="false"
+                        title="{{ lang._("Adjust allowance and remaining") }}">&#8942;</button>
+            </div>
+            <div class="wq-metric">${pct.toFixed(1)}%</div>
+            <div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div>
+            <div><b>${gb(p.remaining)}</b> remaining</div>
+            <div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div>
+            ${quotaEditor(p)}
+        </div>`;
+    }).join('');
+}
 function renderPluginVersion(data){const v=data&&data.plugin_version;$('#pluginVersion').text(v?('os-wanquota '+v):'');}
 function renderSummaryCharts(data){renderPluginVersion(data);const p=data.providers||[];$('#quotaCards').html(quotaCards(data));makeChart('quotaChart',{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{label:'Used GB',data:p.map(x=>x.used/1e9),backgroundColor:wqColors},{label:'Remaining GB',data:p.map(x=>x.remaining/1e9),backgroundColor:'rgba(128,128,128,.25)'}]},options:chartOptions(false)});makeChart('trafficMixChart',{type:'doughnut',data:{labels:p.flatMap(x=>[x.name+' download',x.name+' upload']),datasets:[{data:p.flatMap(x=>[x.rx/1e9,x.tx/1e9]),backgroundColor:p.flatMap((x,i)=>[wqColors[i%wqColors.length],wqColors[(i+3)%wqColors.length]])}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom'}}}});}
 function renderConsumerCharts(data){const hosts=(data.hosts||[]).slice(0,10),domains=(data.domains||[]).slice(0,10),hostOptions=chartOptions(true),domainOptions=chartOptions(true);hostOptions.onClick=(event,elements)=>{if(elements.length)drillTo('device',hosts[elements[0].index].ip);};domainOptions.onClick=(event,elements)=>{if(elements.length)drillTo('domain',domains[elements[0].index].domain);};makeChart('hostChart',{type:'bar',data:{labels:hosts.map(x=>x.name),datasets:[{label:'Download GB',data:hosts.map(x=>x.download/1e9),backgroundColor:'#3b82f6'},{label:'Upload GB',data:hosts.map(x=>x.upload/1e9),backgroundColor:'#06b6d4'}]},options:hostOptions});makeChart('domainChart',{type:'bar',data:{labels:domains.map(x=>x.domain),datasets:[{label:'Attributed GB',data:domains.map(x=>x.total/1e9),backgroundColor:'#8b5cf6'}]},options:domainOptions});}
@@ -1819,6 +1957,28 @@ $(document).ready(function() {
         drillTo($(this).data('drill'), $(this).data('value'));
     });
     showWizardStep(0);
+    // Bound on the container, which survives every re-render of the cards inside it.
+    $('#quotaCards').on('click', '.wq-kebab', function() {
+        const slot = $(this).data('slot');
+        const panel = $('#quotaEdit' + slot), opening = !panel.is(':visible');
+        $(this).attr('aria-expanded', opening ? 'true' : 'false');
+        panel.toggle(opening);
+        if (opening) { renderQuotaPreview(slot); $('#quotaAllowance' + slot).trigger('focus'); }
+    });
+    $('#quotaCards').on('input', '.wq-quota-input', function() { renderQuotaPreview($(this).data('slot')); });
+    $('#quotaCards').on('click', '.wq-quota-save', function() { saveQuota($(this).data('slot')); });
+    $('#quotaCards').on('click', '.wq-quota-cancel', function() {
+        const slot = $(this).data('slot');
+        $('#quotaEdit' + slot).hide();
+        $('.wq-kebab[data-slot="' + slot + '"]').attr('aria-expanded', 'false');
+        // Discard the edit rather than leaving half-typed figures to be reopened.
+        const p = providerBySlot(slot);
+        if (p) {
+            $('#quotaAllowance' + slot).val(Number(p.quota_gb));
+            $('#quotaLeft' + slot).val((Number(p.remaining) / 1e9).toFixed(2));
+        }
+        $('#quotaStatus' + slot).text('');
+    });
     $('#wizardNext').on('click', function() { showWizardStep(wizardStep + 1); });
     $('#wizardBack').on('click', function() { showWizardStep(wizardStep - 1); });
     $('#wizardSteps').on('click', 'li', function() { showWizardStep(Number($(this).data('step'))); });
