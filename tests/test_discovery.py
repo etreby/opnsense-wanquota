@@ -347,3 +347,41 @@ class PruneTests(unittest.TestCase):
         DISCOVERY.set_status("viber.com", "accepted", self.connection)
         DISCOVERY.prune_covered(self.connection)
         self.assertIn("viber_com", DISCOVERY.accepted_services(self.connection))
+
+
+class StoredFieldTests(unittest.TestCase):
+    """Every field the panel displays must survive the round trip.
+
+    hostname_count was computed for a fresh candidate and never stored, so a row read
+    back from the database had none and the panel printed "undefined hostname(s)".
+    """
+
+    def setUp(self):
+        self.connection, self.path = fresh_db()
+
+    def tearDown(self):
+        self.connection.close()
+        os.unlink(self.path)
+
+    def test_hostname_count_survives_the_round_trip(self):
+        DISCOVERY.record([{"domain": "viber.com", "label": "Viber", "category": "Messaging",
+                           "named_from": "known domain",
+                           "hostnames": ["a.viber.com", "b.viber.com"], "hostname_count": 7,
+                           "addresses": 2, "shared": 1, "cappable": True,
+                           "infrastructure": False, "belongs_to": "",
+                           "bytes_seen": 100, "first_seen": 1, "last_seen": 1}],
+                         self.connection)
+        row = DISCOVERY.listing(connection=self.connection, prune=False)[0]
+        self.assertEqual(row["hostname_count"], 7)
+
+    def test_every_field_the_panel_reads_is_present(self):
+        candidates = DISCOVERY.candidates(
+            [("a.viber.com", "203.0.113.1"), ("b.viber.com", "203.0.113.2")],
+            [{"domain": "a.viber.com", "total": 50 * MB}], minimum_bytes=5 * MB, now=1)
+        DISCOVERY.record(candidates, self.connection)
+        row = DISCOVERY.listing(connection=self.connection, prune=False)[0]
+        for field in ("domain", "label", "category", "named_from", "status", "belongs_to",
+                      "cappable", "infrastructure", "addresses", "shared", "hostnames",
+                      "hostname_count", "bytes_seen"):
+            self.assertIn(field, row, field)
+            self.assertIsNotNone(row[field], field)

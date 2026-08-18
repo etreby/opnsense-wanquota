@@ -125,6 +125,7 @@ def database(path=None):
             addresses   INTEGER NOT NULL DEFAULT 0,
             shared      INTEGER NOT NULL DEFAULT 0,
             hostnames   TEXT NOT NULL DEFAULT '[]',
+            hostname_count INTEGER NOT NULL DEFAULT 0,
             bytes_seen  INTEGER NOT NULL DEFAULT 0,
             first_seen  INTEGER NOT NULL,
             last_seen   INTEGER NOT NULL
@@ -298,14 +299,15 @@ def record(found, connection=None, now=None):
                     owned.execute(
                         """INSERT INTO discovered_services
                            (domain,label,category,named_from,status,belongs_to,cappable,
-                            infrastructure,addresses,shared,hostnames,bytes_seen,
-                            first_seen,last_seen)
-                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?,?)""",
+                            infrastructure,addresses,shared,hostnames,hostname_count,
+                            bytes_seen,first_seen,last_seen)
+                           VALUES(?,?,?,?,'new',?,?,?,?,?,?,?,?,?,?)""",
                         (item["domain"], item["label"], item["category"], item["named_from"],
                          item["belongs_to"], int(item["cappable"]),
                          int(item.get("infrastructure", False)), item["addresses"],
-                         item["shared"], json.dumps(item["hostnames"]), item["bytes_seen"],
-                         now, now))
+                         item["shared"], json.dumps(item["hostnames"]),
+                         int(item.get("hostname_count") or len(item["hostnames"])),
+                         item["bytes_seen"], now, now))
                     added += 1
                 else:
                     # The evidence is refreshed; the decision is not revisited, so an
@@ -313,13 +315,14 @@ def record(found, connection=None, now=None):
                     owned.execute(
                         """UPDATE discovered_services SET label=?,category=?,named_from=?,
                                belongs_to=?,cappable=?,infrastructure=?,addresses=?,
-                               shared=?,hostnames=?,bytes_seen=?,last_seen=?
-                           WHERE domain=?""",
+                               shared=?,hostnames=?,hostname_count=?,bytes_seen=?,
+                               last_seen=? WHERE domain=?""",
                         (item["label"], item["category"], item["named_from"],
                          item["belongs_to"], int(item["cappable"]),
                          int(item.get("infrastructure", False)), item["addresses"],
-                         item["shared"], json.dumps(item["hostnames"]), item["bytes_seen"],
-                         now, item["domain"]))
+                         item["shared"], json.dumps(item["hostnames"]),
+                         int(item.get("hostname_count") or len(item["hostnames"])),
+                         item["bytes_seen"], now, item["domain"]))
                     updated += 1
     finally:
         if connection is None:

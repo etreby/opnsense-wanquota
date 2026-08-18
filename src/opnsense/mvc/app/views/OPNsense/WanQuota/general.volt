@@ -101,14 +101,21 @@
           <button id="saveLimits" class="btn btn-primary" style="margin-left:auto"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
         </div>
         <div id="limitStatus"></div>
-        <div class="wq-action-box" style="margin-bottom:12px">
-          <b>{{ lang._('Discovered services') }}</b>
-          <span class="wq-muted">{{ lang._('Found from observed DNS answers and attributed traffic on this firewall. Accepting one adds it to the catalogue so it can be limited.') }}</span>
-          <button id="rescanDiscovery" class="btn btn-default" style="margin-left:auto"><i class="fa fa-search"></i> {{ lang._('Look again') }}</button>
-        </div>
-        <div id="discoveredServices" class="wq-table-wrap" style="margin-bottom:16px"></div>
         <div id="limitCards" class="wq-grid"></div>
         <p class="wq-muted">{{ lang._('A cap bounds what a player can sustain; it does not select a resolution. Coverage is partial: a device using encrypted DNS, a VPN or ECH is not matched and runs uncapped.') }}</p>
+        <!--
+            Discovery sits after the services themselves. Someone opening this tab is
+            almost always here to set a limit on a service they already know; proposals
+            are secondary, and putting them first pushed Netflix below the fold.
+        -->
+        <div class="wq-section">
+          <div class="wq-action-box" style="margin-bottom:12px">
+            <b>{{ lang._('Discovered services') }}</b>
+            <span class="wq-muted">{{ lang._('Found from observed DNS answers and attributed traffic on this firewall. Accepting one adds it to the list above so it can be limited.') }}</span>
+            <button id="rescanDiscovery" class="btn btn-default" style="margin-left:auto"><i class="fa fa-search"></i> {{ lang._('Look again') }}</button>
+          </div>
+          <div id="discoveredServices" class="wq-table-wrap"></div>
+          </div>
         </div>
         <div id="limitsDevice" class="tab-pane fade">
             <div class="wq-action-box" style="margin-bottom:14px">
@@ -476,7 +483,6 @@ function showCategory(name) {
          +  esc('Device totals count only this category\'s sites, so they are not each device\'s overall usage. They can sum to less than the category total, because the device/site matrix is capped and a site counted here may have no matrix row.')
          +  '</div>';
     $('#intelligenceDetail').html(html);
-    document.getElementById('categoryDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 function renderApps(data) {
@@ -554,7 +560,6 @@ function showApp(name) {
              +  gb(d.total) + '</b></td></tr>';
     }
     $('#appsDetail').html(html + '</tbody></table>');
-    document.getElementById('appDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 let sessionPrevious = null, sessionTimer = null;
 function rate(bytes, seconds) {
@@ -1568,7 +1573,9 @@ function providerDrill(name, container) {
  * out and the browser's takes the reader off the page entirely.
  */
 const DRILL_VIEWS = {
-    device: {pane: 'sessions', title: '{{ lang._("Device") }}'},
+    device: {pane: 'sessions', title: '{{ lang._("Device — live sessions") }}'},
+    host: {pane: 'consumers', title: '{{ lang._("Device") }}'},
+    domain: {pane: 'consumers', title: '{{ lang._("Site") }}'},
     provider: {pane: 'consumers', title: '{{ lang._("WAN") }}'},
     app: {pane: 'apps', title: '{{ lang._("Application") }}'},
     category: {pane: 'intelligence', title: '{{ lang._("Category") }}'},
@@ -1631,8 +1638,27 @@ function refreshDrill() {
     const pane = activeDrill.pane || DRILL_VIEWS[activeDrill.kind].pane;
     activeDrill.render(activeDrill.value, PANE_DETAIL[pane]);
 }
+/*
+ * The historical device and site views live on Consumers and are built from the
+ * consumers report, so it is fetched first when it has not loaded.
+ */
+function openConsumerDrill(kind, value) {
+    const show = function () {
+        openDrill(kind, value, function (name, container) {
+            $(container).html(drillBackBar(kind)
+                + (kind === 'host' ? devicePanel(name) : domainPanel(name)));
+        });
+    };
+    if (currentConsumerData) { show(); return; }
+    ajaxCall('/api/wanquota/report/consumers_' + $('#consumerPeriod').val(), {}, function (data) {
+        currentConsumerData = data;
+        show();
+    });
+}
 function openDrillByKind(kind, value) {
-    if (kind === 'device') {
+    if (kind === 'host' || kind === 'domain') {
+        openConsumerDrill(kind, value);
+    } else if (kind === 'device') {
         openDrill('device', value, renderDeviceDetail);
     } else if (kind === 'provider') {
         openDrill('provider', value, function (name, container) { providerDrill(name, container); });
@@ -1659,13 +1685,13 @@ function drillFromHash() {
 function drillTo(kind, value) {
     if (kind === 'provider') { openProvider(value); return; }
     if (kind === 'provider-close') { closeDrill(); return; }
-    const target = kind === 'device' ? '#drillDevice' : '#drillDomain';
-    const other = kind === 'device' ? '#drillDomain' : '#drillDevice';
-    if (!$(target + " option[value='" + String(value).replace(/'/g, "\\'") + "']").length) return;
-    $(other).val('');
-    $(target).val(value);
-    refreshMatrix();
-    document.getElementById('deviceDomainMatrix').scrollIntoView({behavior: 'smooth', block: 'center'});
+    /*
+     * A device or a site opens its own view. This used to set the matrix selects and
+     * scroll down to them, which left the reader hunting for what had changed and gave
+     * them nothing to come back from. The selects remain for filtering by hand.
+     */
+    if (kind === 'device') { openConsumerDrill('host', value); return; }
+    if (kind === 'domain') { openConsumerDrill('domain', value); return; }
 }
 function healthTable(data) {
     if (!data || !data.checks) return '<div class="alert alert-danger">Health report unavailable</div>';

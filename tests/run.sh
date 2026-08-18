@@ -208,6 +208,16 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# On the Limits tab the services come before the discovery proposals. Someone opening
+# it is almost always there to limit a service they already know, and putting proposals
+# first pushed Netflix below the fold.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+cards = source.index('id="limitCards"')
+found = source.index('id="discoveredServices"')
+assert cards < found, "the service cards must come before the discovered services panel"
+PYCHECK
 # Drill-downs are one pattern, not four. Every pane that has one must hold an overview
 # and a detail container, the old per-drill containers must be gone, and the mechanism
 # must record the drill in the address bar and react to the browser's back button —
@@ -223,6 +233,10 @@ for pane in ("sessionDetail", "consumersDetail", "appsDetail", "intelligenceDeta
 for gone in ("providerDrill", "appDrill", "categoryDrill"):
     assert f'id="{gone}"' not in source, \
         f"{gone} is a per-drill container; the shared detail view replaces it"
+    # A leftover reference to a removed container is a null dereference at runtime,
+    # not a missing feature: two scrollIntoView calls survived the conversion.
+    assert f"getElementById('{gone}')" not in source, \
+        f"{gone} no longer exists; getElementById on it returns null"
 for needed in ("function openDrill", "function closeDrill", "function drillFromHash",
                "popstate hashchange", "wq-drill-back"):
     assert needed in source, f"the shared drill mechanism is missing {needed}"
