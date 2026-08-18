@@ -208,6 +208,20 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# No two top-level functions in the view may share a name. JavaScript keeps the last
+# declaration silently, so a duplicate does not fail to load — it replaces the other
+# one. A second rate() defined for the live sessions table overwrote the one formatting
+# per-WAN throughput, and because it returns null when called with one argument, the
+# live cards rendered with empty numbers while every layer beneath them was correct.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import collections
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+names = re.findall(r"^function ([A-Za-z_$][\w$]*)\s*\(", source, re.M)
+duplicated = [name for name, n in collections.Counter(names).items() if n > 1]
+assert not duplicated, f"these view functions are declared more than once: {duplicated}"
+PYCHECK
 # A provider's fields are shown only when that provider is on: two of the four slots
 # are normally off, so most of the settings page was configuration for WANs that do not
 # exist. Nothing is removed, so a disabled slot keeps its stored values.

@@ -198,8 +198,15 @@ const wqCharts = {};
 const wqColors = ['#3b82f6','#06b6d4','#10b981','#f59e0b','#8b5cf6','#ef4444','#64748b'];
 function makeChart(id, config) { if (wqCharts[id]) wqCharts[id].destroy(); const canvas=document.getElementById(id); if(canvas) wqCharts[id]=new Chart(canvas,config); }
 function chartOptions(horizontal=false) { return {responsive:true,maintainAspectRatio:false,indexAxis:horizontal?'y':'x',plugins:{legend:{display:true,position:'bottom'}},scales:{x:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}}}}; }
-/* A bit rate at whatever scale it is, so a quiet link is not shown as 0.00 Mbit/s. */
-function rate(bps) {
+/*
+ * A bit rate at whatever scale it is, so a quiet link is not shown as 0.00 Mbit/s.
+ *
+ * Named bitRate, not rate: the live sessions table already defines rate(bytes, seconds),
+ * and the later declaration wins. Calling that one with a single argument returns null,
+ * so the per-WAN cards rendered with empty numbers and the feature looked broken while
+ * every layer beneath it was correct.
+ */
+function bitRate(bps) {
     const value = Number(bps) || 0;
     if (value >= 1e9) return (value / 1e9).toFixed(2) + ' Gbit/s';
     if (value >= 1e6) return (value / 1e6).toFixed(2) + ' Mbit/s';
@@ -234,9 +241,9 @@ function renderLiveThroughput(data) {
              +  ' <small class="wq-muted">' + esc(wan.interface) + '</small></div>'
              +  '<div class="wq-live-pair">'
              +  '<span class="wq-live-down" title="' + esc('Download') + '">&#9660; '
-             +  esc(rate(wan.download_bps)) + '</span>'
+             +  esc(bitRate(wan.download_bps)) + '</span>'
              +  '<span class="wq-live-up" title="' + esc('Upload') + '">&#9650; '
-             +  esc(rate(wan.upload_bps)) + '</span>'
+             +  esc(bitRate(wan.upload_bps)) + '</span>'
              +  '</div></div>';
     }
     html += '</div>';
