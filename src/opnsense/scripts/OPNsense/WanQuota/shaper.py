@@ -85,11 +85,17 @@ STREAMING_SERVICES = {
         # outside the Netflix cap. Its addresses are shared with sec-oc.netflix.com and
         # nothing else, so they are Netflix's own Open Connect appliances — the "occ"
         # in the hostname — and capping them belongs with the rest of Netflix.
-        "suffixes": ("nflxvideo.net", "nflximg.net", "netflix.com", "nflxso.net"),
+        # nflxext.com was missing the same way, and costs two more appliances:
+        # 45.57.90.1 and 45.57.91.1 answer assets.nflxext.com, occ.a.nflxso.net and
+        # sec-oc.netflix.com, so while nflxext.com was a stranger those addresses were
+        # excluded as shared even though every name on them is Netflix's. Measured on a
+        # live network the cappable set went 27 -> 29 -> 31 as each was added.
+        "suffixes": ("nflxvideo.net", "nflximg.net", "netflix.com", "nflxso.net",
+                     "nflxext.com"),
     },
     "youtube": {
         "label": "YouTube",
-        "suffixes": ("googlevideo.com", "youtube.com", "ytimg.com"),
+        "suffixes": ("googlevideo.com", "youtube.com", "ytimg.com", "youtu.be"),
         # Google's cache nodes answer to both names: the address serving a live 720p
         # stream resolved from rr4.sn-vg5obxxb-j5pk.googlevideo.com *and*
         # rr4.sn-vg5obxxb-j5pk.gvt1.com. Without this, those nodes are treated as

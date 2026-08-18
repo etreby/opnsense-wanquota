@@ -144,6 +144,48 @@ class AddressTests(unittest.TestCase):
         self.assertEqual(plan["pipes"][0]["shared_excluded"], 1)
 
 
+class CatalogueCoverageTests(unittest.TestCase):
+    """A domain the app classifier assigns to a service must be cappable as that service.
+
+    The classifier and the shaper catalogue are separate lists, and they drifted. Netflix
+    was classified on nflxext.com while the shaper did not know it, so addresses carrying
+    nothing but Netflix names were excluded as shared and the cap missed them: measured on
+    a live network the cappable set went 27 to 29 to 31 as nflxso.net and nflxext.com were
+    added.
+    """
+
+    # Divergences that are deliberate. fbcdn.net carries both Facebook and Instagram
+    # media, so it is its own service; folding it into Facebook would quietly cap
+    # Instagram as well.
+    INTENTIONAL = {("Facebook", "fbcdn.net")}
+
+    def test_no_classified_domain_is_missing_from_its_service(self):
+        import importlib.util
+        from pathlib import Path
+        source = Path(__file__).parents[1] / "src/opnsense/scripts/OPNsense/WanQuota/intelligence.py"
+        spec = importlib.util.spec_from_file_location("wq_intel_cov", source)
+        intel = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(intel)
+        by_label = {entry["label"]: set(entry["suffixes"]) | set(entry.get("co_delivery", ()))
+                    for entry in SHAPER.STREAMING_SERVICES.values()}
+        gaps = []
+        for app, suffixes in intel.APP_DEFINITIONS.items():
+            if app not in by_label:
+                continue
+            for suffix in suffixes:
+                if suffix in by_label[app] or SHAPER.is_shared_cdn(suffix):
+                    continue
+                if (app, suffix) in self.INTENTIONAL:
+                    continue
+                gaps.append(f"{app} is classified on {suffix} but cannot be capped on it")
+        self.assertEqual(gaps, [], "; ".join(gaps))
+
+    def test_the_netflix_open_connect_domains_are_covered(self):
+        suffixes = SHAPER.STREAMING_SERVICES["netflix"]["suffixes"]
+        for domain in ("nflxso.net", "nflxext.com", "nflxvideo.net"):
+            self.assertIn(domain, suffixes)
+
+
 class CoDeliveryTests(unittest.TestCase):
     """Nodes that serve a service under a second name of the same operator.
 
