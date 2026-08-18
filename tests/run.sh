@@ -208,6 +208,25 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# Drill-downs are one pattern, not four. Every pane that has one must hold an overview
+# and a detail container, the old per-drill containers must be gone, and the mechanism
+# must record the drill in the address bar and react to the browser's back button —
+# otherwise back leaves the plugin entirely, which is worse than not recording it.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+for pane in ("sessionOverview", "consumersOverview", "appsOverview", "intelligenceOverview"):
+    assert f'id="{pane}"' in source, f"{pane} is missing: the pane cannot be swapped out"
+for pane in ("sessionDetail", "consumersDetail", "appsDetail", "intelligenceDetail"):
+    assert f'id="{pane}"' in source, f"{pane} is missing: the drill has nowhere to render"
+for gone in ("providerDrill", "appDrill", "categoryDrill"):
+    assert f'id="{gone}"' not in source, \
+        f"{gone} is a per-drill container; the shared detail view replaces it"
+for needed in ("function openDrill", "function closeDrill", "function drillFromHash",
+               "popstate hashchange", "wq-drill-back"):
+    assert needed in source, f"the shared drill mechanism is missing {needed}"
+PYCHECK
 # Both tables on the live sessions page must filter to a device when its name is
 # clicked, not navigate to the historical report. Only the sessions table was changed
 # the first time, and the device summary table above it — the one a reader clicks first

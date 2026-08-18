@@ -22,6 +22,9 @@
     <div id="summary" class="tab-pane fade in active"><div style="padding:16px"><div class="btn-group pull-right"><button id="exportSummaryCsv" class="btn btn-default" type="button"><i class="fa fa-download"></i> CSV</button><button id="exportSummaryJson" class="btn btn-default" type="button"><i class="fa fa-download"></i> JSON</button></div><div id="liveThroughput" class="wq-live"></div><div class="wq-grid" id="quotaCards"></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Provider quota comparison') }}</h3><div class="wq-chart"><canvas id="quotaChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Download and upload mix') }}</h3><div class="wq-chart"><canvas id="trafficMixChart"></canvas></div></div></div><div id="summaryReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="consumers" class="tab-pane fade">
         <div style="padding:16px">
+            <!-- A drill-down replaces the overview and offers a way back; see openDrill. -->
+            <div class="wq-detail" id="consumersDetail" style="display:none"></div>
+            <div class="wq-overview" id="consumersOverview">
             <div class="form-inline" style="margin-bottom:12px">
                 <label for="consumerPeriod">{{ lang._('Period') }}:&nbsp;</label>
                 <select id="consumerPeriod" class="form-control">
@@ -37,7 +40,6 @@
             <div class="wq-section wq-table-wrap"><div id="hostConsumers"></div></div><div class="wq-section wq-table-wrap"><div id="domainConsumers"></div></div>
             <div id="domainCoverage"></div>
             <h3>{{ lang._('Per-WAN attributed traffic') }}</h3><div id="wanConsumers"></div>
-            <div id="providerDrill" class="wq-section wq-table-wrap"></div>
             <h3>{{ lang._('Device and domain drill-down') }}</h3>
             <div class="form-inline" style="margin-bottom:10px">
                 <label for="drillDevice">{{ lang._('Device') }}:&nbsp;</label><select id="drillDevice" class="form-control"><option value="">All devices</option></select>
@@ -46,11 +48,14 @@
             </div>
             <p class="wq-muted">{{ lang._('Click any device or site above to see what it exchanged traffic with.') }}</p>
             <div id="deviceDomainMatrix"></div>
+            </div>
         </div>
     </div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Monthly traffic trend') }}</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="apps" class="tab-pane fade"><div style="padding:16px">
+        <div class="wq-detail" id="appsDetail" style="display:none"></div>
+        <div class="wq-overview" id="appsOverview">
         <div class="wq-grid">
           <div class="wq-card"><h3>{{ lang._('Apps breakdown') }}</h3><div class="wq-chart"><canvas id="appChart"></canvas></div></div>
           <div class="wq-card"><h3>{{ lang._('Top apps') }}</h3><div id="appShares" class="wq-shares"></div></div>
@@ -64,7 +69,7 @@
           </div>
           <div id="explainResult" class="wq-section"></div>
         </div>
-        <div id="appDrill" class="wq-section wq-table-wrap"></div>
+        </div>
     </div></div>
     <div id="limits" class="tab-pane fade"><div style="padding:16px">
         <!--
@@ -123,15 +128,32 @@
           <button id="refreshSessions" class="btn btn-primary" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
           <input id="sessionSearch" class="form-control" placeholder="{{ lang._('Filter device, destination or service') }}">
           <span id="sessionSummary" class="wq-muted"></span>
-          <span id="sessionDeviceFilter"></span>
         </div>
         <label class="wq-switch" style="margin-bottom:10px"><input type="checkbox" id="sessionAuto" checked> {{ lang._('Refresh every 5 seconds') }}</label>
+        <div id="sessionCapBox"></div>
+        <!--
+            Overview and detail are separate views rather than one filtered list.
+            Filtering in place left the reader scrolling to find what changed and gave
+            them nothing to come back from; a device is a place you go to and return
+            from, so it gets a view and a back button.
+        -->
+        <div class="wq-overview" id="sessionOverview">
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Devices by live usage') }}</h3><div id="sessionDevices"></div></div>
         <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Live rate per device') }}</h3><div class="wq-chart-sm"><canvas id="sessionChart"></canvas></div></div></div>
-        <div id="sessionCapBox"></div>
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions') }}</h3><div id="sessionTable"></div></div>
+        </div>
+        <div class="wq-detail" id="sessionDetail" style="display:none">
+        <div class="wq-drill-head">
+          <div>
+            <button id="sessionBack" class="btn btn-default" type="button"><i class="fa fa-arrow-left"></i> {{ lang._('All devices') }}</button>
+            <div id="sessionDetailTitle" style="margin-top:8px"></div>
+          </div>
+          <div id="sessionDetailMetrics" class="wq-drill-metric"></div>
+        </div>
+        <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions on this device') }}</h3><div id="sessionDetailTable"></div></div>
+        </div>
     </div></div>
-    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="categoryDrill" class="wq-section wq-table-wrap"></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade"><div style="padding:16px">
         <ol class="wq-steps" id="wizardSteps">
@@ -417,12 +439,11 @@ function showCategory(name) {
     const detail = categoryDetail(name);
     const breakdown = (currentIntelligenceData && currentIntelligenceData.category_breakdown) || {};
     const share = (breakdown.categories || []).find(c => c.name === name);
-    let html = drillHeader(name, 'what this category is made of',
+    let html = drillBackBar('category') + drillHeader(name, 'what this category is made of',
         gb(detail.total), share ? share.percent.toFixed(1) + '% of attributed traffic' : 'attributed traffic');
-    html += '<button id="categoryClear" class="btn btn-default btn-sm" style="margin-bottom:10px"><i class="fa fa-times"></i> '
-         +  '{{ lang._("Clear") }}</button>';
+    /* No per-drill clear control: the shared Back button in the header replaces it. */
     if (!detail.domains.length) {
-        return $('#categoryDrill').html(html + '<div class="alert alert-info">'
+        return $('#intelligenceDetail').html(html + '<div class="alert alert-info">'
             + esc('No attributed traffic in this category for this period.') + '</div>');
     }
     const top = detail.domains[0].total || 1;
@@ -452,7 +473,7 @@ function showCategory(name) {
     html += '</div></div><div class="wq-muted">'
          +  esc('Device totals count only this category\'s sites, so they are not each device\'s overall usage. They can sum to less than the category total, because the device/site matrix is capped and a site counted here may have no matrix row.')
          +  '</div>';
-    $('#categoryDrill').html(html);
+    $('#intelligenceDetail').html(html);
     document.getElementById('categoryDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
@@ -515,10 +536,10 @@ function showApp(name) {
         const dn = String(d.domain || '').toLowerCase();
         return dn === wanted || dn.endsWith('.' + wanted) || wanted.indexOf(dn) >= 0;
     }).sort((a, b) => b.total - a.total);
-    let html = drillHeader(name, '{{ lang._("domains carrying this app") }}',
+    let html = drillBackBar('app') + drillHeader(name, '{{ lang._("domains carrying this app") }}',
         gb(domains.reduce((s, d) => s + d.total, 0)), domains.length + ' {{ lang._("domain(s)") }}');
     if (!domains.length) {
-        return $('#appDrill').html(html + '<div class="alert alert-info">'
+        return $('#appsDetail').html(html + '<div class="alert alert-info">'
             + esc('This entry groups traffic by transport rather than by domain, so it has no domain list. Unnamed traffic cannot be attributed to specific sites.')
             + '</div>');
     }
@@ -530,7 +551,7 @@ function showApp(name) {
              +  esc(d.domain) + '</a></td><td>' + shareBar(d.total / top, '#8b5cf6') + '</td><td><b>'
              +  gb(d.total) + '</b></td></tr>';
     }
-    $('#appDrill').html(html + '</tbody></table>');
+    $('#appsDetail').html(html + '</tbody></table>');
     document.getElementById('appDrill').scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 let sessionPrevious = null, sessionTimer = null;
@@ -586,6 +607,7 @@ let currentSessionData = null;
  * from the key it uses to deduplicate NAT twins.
  */
 let sessionRates = {};
+let sessionDeviceRates = {};
 function computeSessionRates(data) {
     const rates = {};
     const previous = sessionPrevious;
@@ -603,6 +625,20 @@ function computeSessionRates(data) {
         }
     }
     sessionRates = rates;
+    const deviceRates = {};
+    if (previous && elapsed > 0) {
+        const beforeDevices = {};
+        for (const row of previous.devices || []) beforeDevices[row.device] = row;
+        for (const row of data.devices || []) {
+            const was = beforeDevices[row.device];
+            if (!was) continue;
+            deviceRates[row.device] = {
+                down: Math.max(0, row.download - was.download) * 8 / elapsed,
+                up: Math.max(0, row.upload - was.upload) * 8 / elapsed,
+            };
+        }
+    }
+    sessionDeviceRates = deviceRates;
 }
 function sessionTable(data) {
     const rows = (data && data.sessions) || [];
@@ -686,6 +722,8 @@ function renderSessions(data) {
     sessionPrevious = data;
     currentSessionData = data;
     filterSessions();
+    // A drill-down on this pane is live too, so re-render it with the new reading.
+    if (activeDrill && activeDrill.kind === 'device') refreshDrill();
 }
 function scheduleSessions() {
     if (sessionTimer) { clearInterval(sessionTimer); sessionTimer = null; }
@@ -702,21 +740,38 @@ function scheduleSessions() {
  * Clicking a device used to leave for the Consumers tab and its historical matrix. What
  * is wanted here is the opposite: stay put and see what that device has open right now.
  */
-let sessionDeviceFilter = '';
-function filterSessionsByDevice(device) {
-    sessionDeviceFilter = sessionDeviceFilter === device ? '' : device;
-    filterSessions();
-    const name = ($('#sessionTable tr[data-device="' + sessionDeviceFilter + '"]').first()
-        .find('b').text()) || sessionDeviceFilter;
-    if (sessionDeviceFilter) {
-        const table = document.getElementById('sessionTable');
-        if (table) table.scrollIntoView({behavior: 'smooth', block: 'center'});
-    }
-    $('#sessionDeviceFilter').html(sessionDeviceFilter
-        ? '<span class="wq-pill wq-pill-ok">' + esc('showing only ' + name) + '</span> '
-          + '<a href="#" id="sessionDeviceClear">' + esc('show all devices') + '</a>'
-        : '');
+/*
+ * One device's live sessions, as a view rather than a filter.
+ *
+ * Rendered from whatever the last poll returned, so it keeps updating while open. The
+ * device's own totals and rates are repeated here because the summary table that
+ * carried them is hidden while this view is up.
+ */
+function renderDeviceDetail(device, container) {
+    const data = currentSessionData || {sessions: [], devices: []};
+    const rows = (data.sessions || []).filter(row => String(row.device) === String(device));
+    const summary = (data.devices || []).find(row => String(row.device) === String(device));
+    const name = (summary && summary.name) || (rows[0] && rows[0].name) || device;
+    const measured = summary && sessionDeviceRates[device];
+    let html = drillBackBar('device')
+             + '<div class="wq-drill-head"><div><h3 style="margin:0">' + esc(name) + '</h3>'
+             + '<div class="wq-muted">' + esc(device) + '</div></div>'
+             + '<div class="wq-drill-metric">'
+             + (measured
+                 ? '<div><span class="wq-live-down">&#9660; ' + esc(bitRate(measured.down))
+                   + '</span> <span class="wq-live-up">&#9650; ' + esc(bitRate(measured.up))
+                   + '</span></div>'
+                 : '<div class="wq-muted">' + esc('waiting for a second reading') + '</div>')
+             + '<div class="wq-muted">' + esc(rows.length + ' open session(s)')
+             + (summary ? ' \u00b7 ' + esc(gb(summary.download) + ' down, ' + gb(summary.upload) + ' up') : '')
+             + '</div></div></div>';
+    $(container).html(html + sessionTable({sessions: rows, collected_at: data.collected_at}));
 }
+/* The tables call this; a device is now a view rather than a filter. */
+function filterSessionsByDevice(device) {
+    openDrillByKind('device', device);
+}
+
 /*
  * Add a session's domain to a service, so its traffic is capped with that service.
  *
@@ -750,10 +805,7 @@ let currentLimitCatalogue = null;
 function filterSessions() {
     const query = String($('#sessionSearch').val() || '').toLowerCase();
     $('#sessionTable tr[data-filter]').each(function() {
-        const matchesQuery = !query || String($(this).data('filter')).includes(query);
-        const matchesDevice = !sessionDeviceFilter
-            || String($(this).data('device')) === sessionDeviceFilter;
-        $(this).toggle(matchesQuery && matchesDevice);
+        $(this).toggle(!query || String($(this).data('filter')).includes(query));
     });
 }
 function refreshSessions() { ajaxCall('/api/wanquota/report/sessions', {}, renderSessions); }
@@ -1437,21 +1489,20 @@ function providerDrill(name) {
     const provider = (currentConsumerData?.providers || [])
         .find(item => String(item.name) === String(name));
     if (!provider) {
-        $('#providerDrill').html('<div class="alert alert-info">'
+        $('#consumersDetail').html('<div class="alert alert-info">'
             + esc('No attributed traffic is recorded for that WAN in this period.') + '</div>');
         return;
     }
     const devices = (provider.devices || []).slice();
     devices.sort((a, b) => (b.total || 0) - (a.total || 0));
     const attributed = devices.reduce((sum, item) => sum + (item.total || 0), 0);
-    let html = '<h3>' + esc(provider.name) + ' — ' + esc('devices by attributed traffic')
-             + ' <a href="#" class="wq-drill wq-muted" data-drill="provider-close" data-value="">'
-             + esc('hide') + '</a></h3>'
+    let html = drillBackBar('provider')
+             + '<h3>' + esc(provider.name) + ' — ' + esc('devices by attributed traffic') + '</h3>'
              + '<div class="wq-muted" style="margin-bottom:8px">'
              + esc(provider.logical_interface + ' → ' + provider.interface
                    + ' · ' + gb(provider.total) + ' attributed in this period') + '</div>';
     if (!devices.length) {
-        $('#providerDrill').html(html + '<div class="alert alert-info">'
+        $('#consumersDetail').html(html + '<div class="alert alert-info">'
             + esc('No device on this WAN has attributable flow data.') + '</div>');
         return;
     }
@@ -1472,12 +1523,105 @@ function providerDrill(name) {
          +  esc('Ranking uses attributed flow totals, so a device using encrypted DNS or a '
                + 'VPN may be under-represented. Direction splits are not available per WAN.')
          +  '</p>';
-    $('#providerDrill').html(html);
-    document.getElementById('providerDrill').scrollIntoView({behavior: 'smooth', block: 'center'});
+    $('#consumersDetail').html(html);
+}
+/*
+ * One drill-down mechanism for the whole page.
+ *
+ * A drill-down is a place you go to and come back from, so it replaces the overview it
+ * was opened from and offers a way back — rather than appearing below the fold and
+ * leaving the reader to notice a filter changed and scroll to find it. Each pane holds
+ * a .wq-overview and a .wq-detail; opening one swaps them.
+ *
+ * The address bar records it as #<tab>/<kind>/<value>, which is what makes the
+ * browser's own back button work. Without that, an in-page back button is the only way
+ * out and the browser's takes the reader off the page entirely.
+ */
+const DRILL_VIEWS = {
+    device: {pane: 'sessions', title: '{{ lang._("Device") }}'},
+    provider: {pane: 'consumers', title: '{{ lang._("WAN") }}'},
+    app: {pane: 'apps', title: '{{ lang._("Application") }}'},
+    category: {pane: 'intelligence', title: '{{ lang._("Category") }}'},
+};
+const PANE_DETAIL = {sessions: '#sessionDetail', consumers: '#consumersDetail',
+                     apps: '#appsDetail', intelligence: '#intelligenceDetail'};
+const PANE_OVERVIEW = {sessions: '#sessionOverview', consumers: '#consumersOverview',
+                       apps: '#appsOverview', intelligence: '#intelligenceOverview'};
+let activeDrill = null;
+/* Set while the hash is being written, so reacting to our own change does not loop. */
+let drillHashLock = false;
+
+function drillBackBar(kind) {
+    const view = DRILL_VIEWS[kind] || {title: ''};
+    return '<div style="margin-bottom:10px">'
+         + '<button class="btn btn-default wq-drill-back" type="button">'
+         + '<i class="fa fa-arrow-left"></i> ' + esc('{{ lang._("Back") }}') + '</button>'
+         + ' <small class="wq-muted">' + esc(view.title) + '</small></div>';
+}
+function setDrillHash(value) {
+    drillHashLock = true;
+    if (history && history.replaceState) {
+        history.pushState(null, '', '#' + value);
+    } else {
+        window.location.hash = value;
+    }
+    setTimeout(function () { drillHashLock = false; }, 0);
+}
+function openDrill(kind, value, render) {
+    const view = DRILL_VIEWS[kind];
+    if (!view) return;
+    activeDrill = {kind: kind, value: value, render: render};
+    $('a[href="#' + view.pane + '"]').tab('show');
+    $(PANE_OVERVIEW[view.pane]).hide();
+    $(PANE_DETAIL[view.pane]).show();
+    render(value, PANE_DETAIL[view.pane]);
+    setDrillHash(view.pane + '/' + kind + '/' + encodeURIComponent(value));
+    // The detail replaces the overview, so the reader is already at the top of it.
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function closeDrill(keepHash) {
+    if (!activeDrill) return;
+    const view = DRILL_VIEWS[activeDrill.kind];
+    $(PANE_DETAIL[view.pane]).hide().empty();
+    $(PANE_OVERVIEW[view.pane]).show();
+    const pane = view.pane;
+    activeDrill = null;
+    if (!keepHash) setDrillHash(pane);
+}
+/* Re-render the open drill after a refresh, so a live view keeps updating. */
+function refreshDrill() {
+    if (!activeDrill) return;
+    const view = DRILL_VIEWS[activeDrill.kind];
+    activeDrill.render(activeDrill.value, PANE_DETAIL[view.pane]);
+}
+function openDrillByKind(kind, value) {
+    if (kind === 'device') {
+        openDrill('device', value, renderDeviceDetail);
+    } else if (kind === 'provider') {
+        openDrill('provider', value, function (name) { providerDrill(name); });
+    } else if (kind === 'app') {
+        openDrill('app', value, function (name) { showApp(name); });
+    } else if (kind === 'category') {
+        openDrill('category', value, function (name) { showCategory(name); });
+    }
+}
+function drillFromHash() {
+    const raw = String(window.location.hash || '').replace(/^#/, '');
+    const parts = raw.split('/');
+    const tab = parts[0] ? '#' + parts[0] : '';
+    if (tab) {
+        const anchor = $('#maintabs a[href="' + tab + '"]');
+        if (anchor.length) anchor.tab('show');
+    }
+    if (parts.length >= 3 && DRILL_VIEWS[parts[1]]) {
+        openDrillByKind(parts[1], decodeURIComponent(parts.slice(2).join('/')));
+    } else if (activeDrill) {
+        closeDrill(true);
+    }
 }
 function drillTo(kind, value) {
     if (kind === 'provider') { openProvider(value); return; }
-    if (kind === 'provider-close') { $('#providerDrill').empty(); return; }
+    if (kind === 'provider-close') { closeDrill(); return; }
     const target = kind === 'device' ? '#drillDevice' : '#drillDomain';
     const other = kind === 'device' ? '#drillDomain' : '#drillDevice';
     if (!$(target + " option[value='" + String(value).replace(/'/g, "\\'") + "']").length) return;
@@ -1547,10 +1691,13 @@ $(document).ready(function() {
     refreshConsumers();
     refreshIntelligence();
     if (window.location.hash) {
-        const tab = $('a[href="' + window.location.hash + '"]');
-        if (tab.length) tab.tab('show');
+        drillFromHash();
     }
     $('#maintabs a').on('shown.bs.tab', function(event) {
+        if (activeDrill && DRILL_VIEWS[activeDrill.kind]
+                && '#' + DRILL_VIEWS[activeDrill.kind].pane !== event.target.hash) {
+            closeDrill(true);
+        }
         history.replaceState(null, '', event.target.hash);
         const pane = $(event.target.hash);
         pane.find('canvas').each(function() { if (wqCharts[this.id]) wqCharts[this.id].resize(); });
@@ -1575,11 +1722,24 @@ $(document).ready(function() {
         event.preventDefault();
         filterSessionsByDevice(String($(this).data('device')));
     });
-    $('#sessions').on('click', '#sessionDeviceClear', function(event) {
+    $('.wq-shell').on('click', '.wq-drill-back', function(event) {
         event.preventDefault();
-        filterSessionsByDevice(sessionDeviceFilter);
+        closeDrill();
     });
-    $('#sessionTable').on('click', '.wq-cap-session', function() {
+    $('#sessionBack').on('click', function() { closeDrill(); });
+    $(document).on('keydown', function(event) {
+        if (event.key === 'Escape' && activeDrill) closeDrill();
+    });
+    /*
+     * The browser's own back button. Without this the address bar would record a
+     * drill-down that the browser could not return from, which is worse than not
+     * recording it: back would leave the plugin entirely.
+     */
+    $(window).on('popstate hashchange', function() {
+        if (drillHashLock) return;
+        drillFromHash();
+    });
+    $('#sessions').on('click', '.wq-cap-session', function() {
         capSessionDomain(String($(this).data('domain')));
     });
     $('#sessions').on('click', '#sessionCapCancel', function(event) {
