@@ -25,28 +25,10 @@
         <help>Record which devices would be blocked without changing the firewall table. Leave enabled until the recorded membership matches what you intend to block.</help>
     </field>
     <field>
-        <id>wanquota.general.shaper_enabled</id>
-        <label>Per-service bandwidth limits</label>
-        <type>checkbox</type>
-        <help>Cap named streaming services to a chosen rate using the OPNsense traffic shaper. Addresses come from recently observed DNS answers, so a device using encrypted DNS, a VPN or ECH is not matched and streams uncapped.</help>
-    </field>
-    <field>
-        <id>wanquota.general.shaper_dry_run</id>
-        <label>Per-service limits dry-run mode</label>
-        <type>checkbox</type>
-        <help>Record the pipes and rules that would be created without touching the shaper. Leave enabled until the recorded plan matches what you intend to limit.</help>
-    </field>
-    <field>
         <id>wanquota.general.shaper_upload_experimental</id>
         <label>Experimental upload shaping (layer2)</label>
         <type>checkbox</type>
         <help>Only useful where a netmap packet-capture engine such as Zenarmor hides LAN egress from the normal firewall hook, which otherwise makes an upload cap impossible. Measured to work: a layer2 rule counted 3,005 packets of a device's uploads where the same match at the IP layer counted 3. Experimental because the traffic shaper model has no layer2 field, so these are raw ipfw rules that any firewall or shaper reload removes until the five-minute collector puts them back, and because enabling it turns on layer2 filtering globally. A permit-everything rule is installed first so what passes does not change. Use Verify to confirm the upload rule is matching.</help>
-    </field>
-    <field>
-        <id>wanquota.general.service_limits_json</id>
-        <label>Per-service limits</label>
-        <type>textbox</type>
-        <help>JSON array, for example [{&quot;service&quot;:&quot;netflix&quot;,&quot;resolution&quot;:&quot;1080p&quot;},{&quot;service&quot;:&quot;youtube&quot;,&quot;mbit&quot;:3}]. Use resolution for a published rate (4k 15, 1080p 5, 720p 3, 480p 1.5, audio_only 0.5 Mbit/s) or mbit for an exact figure. A cap bounds what a player can sustain; it does not select a resolution.</help>
     </field>
     <field>
         <id>wanquota.general.enforcement_policy</id>
@@ -65,11 +47,5 @@
         <label>Emergency reserve (GB)</label>
         <type>text</type>
         <help>Hold back this much of the allowance. The strongest action is only recommended once the remainder falls below it.</help>
-    </field>
-    <field>
-        <id>wanquota.general.device_limits_json</id>
-        <label>Per-device bandwidth limits</label>
-        <type>textbox</type>
-        <help>Set these in the Limits tab, under By device. Kept editable for scripted configuration. A limit may key on address, MAC or DHCP hostname; MAC survives a DHCP change.</help>
     </field>
 </form>

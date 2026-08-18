@@ -192,9 +192,27 @@ for index in range(1, 5):
 model = (root / "src/opnsense/mvc/app/models/OPNsense/WanQuota/WanQuota.xml").read_text()
 general = model[model.index("<general>"):model.index("</general>")]
 fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
-assert not (writable - visible), f"writable but invisible: {sorted(writable - visible)}"
-assert not (fields - visible), f"in the model but not in the wizard: {sorted(fields - visible)}"
+# Four settings are owned by the Limits tab, which has its own controls for them.
+# They used to appear in the wizard as well, so the dry-run switch existed twice and
+# the two copies could disagree; the correspondence check has to know that rather than
+# forcing them back into the wizard.
+elsewhere = {"shaper_enabled", "shaper_dry_run", "service_limits_json", "device_limits_json"}
+view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
+assert "id=\"limitEnabled\"" in view and "id=\"limitDryRun\"" in view, \
+    "the Limits tab must still own the enable and dry-run controls"
+for field in elsewhere:
+    assert f"wanquota.general.{field}" not in view or field in ("shaper_enabled",), \
+        f"{field} is owned by the Limits tab and must not be a wizard field too"
+missing = (writable - visible) - elsewhere
+assert not missing, f"writable but invisible: {sorted(missing)}"
+unseen = (fields - visible) - elsewhere
+assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# A provider's fields are shown only when that provider is on: two of the four slots
+# are normally off, so most of the settings page was configuration for WANs that do not
+# exist. Nothing is removed, so a disabled slot keeps its stored values.
+grep -q "function applyProviderVisibility" \
+    "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
 # The guardrail must not report "dry run" for a state that is not dry run.
 grep -q "function guardrailState" \
     "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
