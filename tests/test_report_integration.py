@@ -293,6 +293,54 @@ class SummaryTests(unittest.TestCase):
             # The old formula divided by elapsed days, understating the rate.
             self.assertGreater(item["daily_average"], item["used"] / item["elapsed_days"])
 
+    def test_a_baseline_does_not_inflate_the_measured_rate(self):
+        """The baseline covers unmeasured days, so it must stay out of the rate.
+
+        Setting it is what the plugin itself advises when days are missing, and
+        folding it into the rate made that advice project an overrun: 8 GB over
+        5 measured days read as 80 GB over 5 days once a 72 GB baseline was added.
+        """
+        import datetime as dt
+        today = dt.date.today()
+        start = today.replace(day=1)
+        measured = [(today - dt.timedelta(days=n), 2_000_000_000) for n in range(4)]
+        if any(d < start for d, _ in measured):
+            self.skipTest("run near the start of a month")
+        REPORT.vnstat_rows = self.rows_for(measured)
+        _, providers = REPORT.configuration()
+        provider = dict(providers[0], quota_gb=225, baseline_gb=72,
+                        baseline_cycle=start.isoformat())
+        item = REPORT.provider_summary(provider, today)
+
+        self.assertEqual(item["baseline"], 72_000_000_000)
+        self.assertEqual(item["used"], 72_000_000_000 + 8_000_000_000)
+        # The rate is the measured traffic over the measured days, not the total.
+        self.assertEqual(item["daily_average"], 2_000_000_000)
+        self.assertEqual(item["projected"], item["used"] + 2_000_000_000 * item["days_left"])
+        self.assertLess(item["projected"], item["quota"])
+
+    def test_a_baseline_stops_the_report_calling_its_own_total_a_floor(self):
+        import datetime as dt
+        today = dt.date.today()
+        start = today.replace(day=1)
+        measured = [(today - dt.timedelta(days=n), 2_000_000_000) for n in range(2)]
+        if any(d < start for d, _ in measured):
+            self.skipTest("run near the start of a month")
+        REPORT.vnstat_rows = self.rows_for(measured)
+        _, providers = REPORT.configuration()
+        provider = dict(providers[0], baseline_gb=72, baseline_cycle=start.isoformat())
+        item = REPORT.provider_summary(provider, today)
+        if not item["missing_days"]:
+            self.skipTest("run near the start of a month")
+        self.assertEqual(item["projection_basis"], "baselined")
+        self.assertNotIn("is a floor", item["projection_note"])
+        # It must not still be asking for the baseline that is already set.
+        self.assertNotIn("enter the usage your ISP reports", item["projection_note"])
+
+    def test_a_provider_carries_the_config_slot_it_came_from(self):
+        _, providers = REPORT.configuration()
+        self.assertEqual([p["slot"] for p in providers], [1, 2])
+
     def test_complete_cycle_reports_measured_basis_and_no_note(self):
         import datetime as dt
         today = dt.date.today()

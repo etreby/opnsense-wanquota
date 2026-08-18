@@ -60,6 +60,7 @@ def configuration():
         logical = text(settings, f"provider{index}_interface", defaults["logical_interface"])
         physical = text(root, f"./interfaces/{logical}/if", logical)
         providers.append({
+            "slot": index,
             "name": text(settings, f"provider{index}_name", defaults["name"]),
             "logical_interface": logical,
             "interface": physical,
@@ -199,8 +200,33 @@ def provider_summary(provider, today):
     # several times lower than the measured one.
     measured_days = len({date for date, _ in relevant})
     missing_days = max(0, elapsed - measured_days)
-    rate = used / measured_days if measured_days else 0
+    # The rate comes from the traffic actually observed, never from the baseline.
+    # A baseline stands for the days vnStat never recorded, so dividing it by the
+    # measured days charges five days with a fortnight of traffic. Entering the ISP
+    # figure the note below asks for used to inflate the rate tenfold and project an
+    # overrun on a provider sitting at a third of its quota.
+    rate = (rx + tx) / measured_days if measured_days else 0
     projected = used + rate * days_left
+    if not missing_days:
+        basis, note = "measured", None
+    elif baseline:
+        basis = "baselined"
+        note = (
+            f"{missing_days} of {elapsed} elapsed cycle days have no vnStat data, but the "
+            f"baseline covers them: the cycle total is anchored to the {baseline / 1e9:.0f} GB "
+            f"reported by the ISP plus what has been measured since. The rate comes from the "
+            f"{measured_days} measured day(s), so it describes current traffic rather than the "
+            f"cycle as a whole."
+        )
+    else:
+        basis = "partial"
+        note = (
+            f"{missing_days} of {elapsed} elapsed cycle days have no vnStat data, so "
+            f"'used' is a floor and the projection is a lower bound. The rate comes from "
+            f"the {measured_days} measured day(s). To close the gap, enter the usage your "
+            f"ISP reports for this cycle as this provider's baseline and set its baseline "
+            f"cycle to {start.isoformat()}; the baseline is added to the measured total."
+        )
     return {
         **provider,
         "quota": quota,
@@ -221,15 +247,8 @@ def provider_summary(provider, today):
         "missing_days": missing_days,
         "first_seen": first_seen.isoformat() if first_seen else None,
         "complete": first_seen == start,
-        "projection_basis": "measured" if not missing_days else "partial",
-        "projection_note": (
-            None if not missing_days else
-            f"{missing_days} of {elapsed} elapsed cycle days have no vnStat data, so "
-            f"'used' is a floor and the projection is a lower bound. The rate comes from "
-            f"the {measured_days} measured day(s). To close the gap, enter the usage your "
-            f"ISP reports for this cycle as this provider's baseline and set its baseline "
-            f"cycle to {start.isoformat()}; the baseline is added to the measured total."
-        ),
+        "projection_basis": basis,
+        "projection_note": note,
         "warning": percent >= provider["warning_percent"],
         "available": error is None,
         "error": error,

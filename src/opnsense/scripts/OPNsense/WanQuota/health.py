@@ -85,7 +85,14 @@ def document():
         # which is exactly what this tab exists to catch.
         summary = report.provider_summary(provider, today)
         detail = f"{len(rows)} daily records on {provider['interface']}"
-        if summary["missing_days"]:
+        if summary["missing_days"] and summary["baseline"]:
+            # A baseline anchors the total to what the ISP reports, so the coverage
+            # gap is still worth showing but the total is no longer an undercount.
+            detail += (
+                f" — {summary['missing_days']} of {summary['elapsed_days']} cycle days "
+                f"since {summary['start']} have no data, covered by the baseline"
+            )
+        elif summary["missing_days"]:
             detail += (
                 f" — but {summary['missing_days']} of {summary['elapsed_days']} cycle days "
                 f"since {summary['start']} have no data, so the cycle total is a floor"
