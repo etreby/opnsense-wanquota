@@ -23,13 +23,36 @@ class IntelligenceTests(unittest.TestCase):
         self.assertEqual(INTELLIGENCE.group_for("198.51.100.20", groups), "Infrastructure")
         self.assertEqual(INTELLIGENCE.group_for("203.0.113.5", groups), "Ungrouped")
 
-    def test_policy_is_dry_run_by_default(self):
+    def test_policy_applies_nothing_by_default(self):
         item = {"percent": 95, "remaining": 5e9}
         cfg = {"reserve_gb": 1, "enforcement": False, "dry_run": True, "policy": "observe"}
         decision = INTELLIGENCE.policy_decision(item, cfg)
         self.assertEqual(decision["recommended"], "failover")
         self.assertEqual(decision["applied"], "none")
-        self.assertTrue(decision["dry_run"])
+        self.assertFalse(decision["enforcing"])
+
+    def test_each_reason_for_not_enforcing_is_named_separately(self):
+        """One word for three situations is how "enforcement off" came to read as
+        "dry run", which a user then read as their live setting having been reverted."""
+        item = {"percent": 95, "remaining": 5e9}
+        cases = {
+            "off": {"enforcement": False, "dry_run": False, "policy": "failover"},
+            "dry_run": {"enforcement": True, "dry_run": True, "policy": "failover"},
+            "observe_only": {"enforcement": True, "dry_run": False, "policy": "observe"},
+            "live": {"enforcement": True, "dry_run": False, "policy": "failover"},
+        }
+        for expected, extra in cases.items():
+            cfg = {"reserve_gb": 1, **extra}
+            decision = INTELLIGENCE.policy_decision(item, cfg)
+            self.assertEqual(decision["state"], expected, extra)
+            self.assertEqual(decision["enforcing"], expected == "live", extra)
+
+    def test_dry_run_now_means_the_dry_run_setting_only(self):
+        item = {"percent": 95, "remaining": 5e9}
+        off = INTELLIGENCE.policy_decision(
+            item, {"reserve_gb": 1, "enforcement": False, "dry_run": False, "policy": "cutoff"})
+        self.assertFalse(off["dry_run"], "enforcement being off is not dry run")
+        self.assertEqual(off["state"], "off")
 
     def test_override_expires_and_can_reduce_action(self):
         item = {"percent": 100, "remaining": 0}

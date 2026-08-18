@@ -170,6 +170,39 @@ source = open(sys.argv[1], encoding="utf-8").read()
 assert "shaper_enabled = $this->request->getPost('enabled')" not in source, \
     "absent must not read as off: use applyState"
 PYCHECK
+# Every setting that can be written must be visible somewhere in the interface, and
+# every visible setting must be writable. A setting reachable by the API but absent
+# from the wizard is one a user cannot see or correct.
+python3 - "$repository" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+forms = root / "src/opnsense/mvc/app/controllers/OPNsense/WanQuota/forms"
+visible = set()
+for path in forms.glob("wizard_*.xml"):
+    visible |= set(re.findall(r"wanquota\.general\.([a-z0-9_]+)", path.read_text()))
+source = (root / "src/opnsense/scripts/OPNsense/WanQuota/configure.php").read_text()
+block = source[source.index("const WRITABLE = ["):source.index("];")]
+writable = set(re.findall(r"'([a-z0-9_]+)'", block))
+for index in range(1, 5):
+    for suffix in ("enabled", "name", "interface", "quota_gb", "cycle_day",
+                   "warning_percent", "cycle_cost", "baseline_gb", "baseline_cycle"):
+        writable.add(f"provider{index}_{suffix}")
+model = (root / "src/opnsense/mvc/app/models/OPNsense/WanQuota/WanQuota.xml").read_text()
+general = model[model.index("<general>"):model.index("</general>")]
+fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
+assert not (writable - visible), f"writable but invisible: {sorted(writable - visible)}"
+assert not (fields - visible), f"in the model but not in the wizard: {sorted(fields - visible)}"
+PYCHECK
+# The guardrail must not report "dry run" for a state that is not dry run.
+grep -q "function guardrailState" \
+    "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+if grep -q "policy.dry_run?'(dry-run)'" \
+        "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"; then
+    echo "enforcement being off is not dry run; report the state" >&2
+    exit 1
+fi
 # Opening the Limits tab must always reload it. Refreshing only when nothing had
 # loaded yet left the shared enable and dry-run switches showing whatever they showed
 # on the first visit, so a change made in Settings left Limits contradicting the

@@ -725,7 +725,27 @@ def policy_decision(item, cfg, override=None):
     permitted = cfg["enforcement"] and not cfg["dry_run"] and cfg["policy"] != "observe"
     levels = ["observe", "deprioritize", "failover", "cutoff"]
     capped = levels[min(levels.index(action), levels.index(cfg["policy"]))] if cfg["policy"] in levels else "observe"
-    return {"recommended": action, "applied": capped if permitted else "none", "dry_run": not permitted, "reserve_hit": reserve_hit, "thresholds": thresholds}
+    """Why nothing is being applied, rather than one word for three situations.
+
+    dry_run used to be reported as `not permitted`, which is true whenever the
+    guardrail cannot act — including when enforcement is simply switched off, which is
+    the default. The interface printed "(dry-run)" for all of it, so a firewall with
+    enforcement off looked like a firewall in dry-run, and someone who had deliberately
+    gone live elsewhere read it as their setting having been reverted. dry_run now means
+    the dry-run setting and nothing else; `state` says which of the four situations
+    this is.
+    """
+    if permitted:
+        state = "live"
+    elif not cfg["enforcement"]:
+        state = "off"
+    elif cfg["dry_run"]:
+        state = "dry_run"
+    else:
+        state = "observe_only"
+    return {"recommended": action, "applied": capped if permitted else "none",
+            "dry_run": bool(cfg["dry_run"]), "state": state, "enforcing": permitted,
+            "reserve_hit": reserve_hit, "thresholds": thresholds}
 
 
 def send_webhook(cfg, event, payload):

@@ -14,7 +14,6 @@ class GeneralController extends \OPNsense\Base\IndexController
      */
     public function indexAction()
     {
-        $this->view->generalForm = $this->getForm('general');
         foreach (['basics', 'providers', 'reporting', 'alerts', 'intelligence', 'enforcement'] as $step) {
             $this->view->{'wizard' . ucfirst($step)} = $this->getForm('wizard_' . $step);
         }
