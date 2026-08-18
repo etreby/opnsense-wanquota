@@ -44,9 +44,9 @@
     </field>
     <field>
         <id>wanquota.general.scheduled_reports_enabled</id>
-        <label>Enable scheduled webhook reports</label>
+        <label>Enable scheduled summary reports</label>
         <type>checkbox</type>
-        <help>Email a periodic summary in addition to alerts.</help>
+        <help>Send a periodic summary in addition to alerts, through whichever of the webhook and email notifications above are enabled. It was labelled webhook-only and described as email-only; it uses both, each independently.</help>
     </field>
     <field>
         <id>wanquota.general.email_enabled</id>

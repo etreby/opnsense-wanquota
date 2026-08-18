@@ -850,28 +850,75 @@ function saveLimits() {
  * been lost. Every writer now refreshes the others.
  */
 /*
- * Show a provider's settings only when that provider is switched on.
+ * Show a setting only when the switch it depends on is on.
  *
- * Four slots times nine fields is thirty-six of the seventy-six settings, and two slots
- * are normally off, so most of the page was configuration for WANs that do not exist.
- * Nothing is removed: a disabled slot keeps its stored values and reappears complete
- * when switched back on.
+ * Seventy-six settings were shown at once, most of them irrelevant: SMTP credentials
+ * with email off, guardrail thresholds with enforcement off, nine fields each for two
+ * WAN slots that do not exist. The dependencies are declared here rather than inferred,
+ * because guessing them from names would hide the wrong things — scheduled_reports
+ * needs email, but nothing about its name says so.
  *
- * The row is found by walking up from the input rather than by a row id, because the
- * markup around a field belongs to the OPNsense form partial and is not ours to assume.
+ * Nothing is removed and nothing is cleared. A hidden field keeps its stored value, is
+ * still submitted with the form, and reappears complete when its switch goes back on.
  */
+const FIELD_DEPENDENCIES = {
+    alerts_enabled: ['projection_alert_enabled', 'alert_repeat_hours'],
+    webhook_enabled: ['webhook_url', 'webhook_format', 'webhook_recipient'],
+    email_enabled: ['email_to', 'smtp_host', 'smtp_port', 'smtp_username',
+                    'smtp_password'],
+    intelligence_enabled: ['intelligence_retention_days', 'anomaly_sigma',
+                           'device_groups_json', 'device_policies_json'],
+    enforcement_enabled: ['enforcement_dry_run', 'enforcement_policy',
+                          'guardrail_thresholds', 'emergency_reserve_gb'],
+    device_enforcement_enabled: ['device_enforcement_dry_run'],
+    domain_enabled: ['domain_retention_days', 'domain_categories_json'],
+    consumers_enabled: ['top_limit'],
+};
 const PROVIDER_FIELDS = ['name', 'interface', 'quota_gb', 'cycle_day', 'warning_percent',
                          'cycle_cost', 'baseline_gb', 'baseline_cycle'];
-function applyProviderVisibility() {
-    for (let slot = 1; slot <= 4; slot++) {
-        const box = $('[id="wanquota.general.provider' + slot + '_enabled"]');
+for (let slot = 1; slot <= 4; slot++) {
+    FIELD_DEPENDENCIES['provider' + slot + '_enabled'] =
+        PROVIDER_FIELDS.map(suffix => 'provider' + slot + '_' + suffix);
+}
+/*
+ * Settings that need any one of several switches, not a particular one.
+ *
+ * A scheduled summary is delivered through whichever of webhook and email is enabled —
+ * intelligence.py sends it by both, each guarded separately — so filing it under email
+ * alone would have hidden a control that still worked with webhook on. The dependency
+ * came from the field's name; the code said otherwise.
+ */
+const FIELD_ANY_OF = {
+    scheduled_reports_enabled: ['webhook_enabled', 'email_enabled'],
+};
+function settingRow(field) {
+    /*
+     * The row is found by walking up from the input rather than by a row id, because
+     * the markup around a field belongs to the OPNsense form partial and is not ours
+     * to assume.
+     */
+    const input = $('[id="wanquota.general.' + field + '"]');
+    if (!input.length) return $();
+    const row = input.closest('tr');
+    return row.length ? row : input.parent();
+}
+function applyFieldVisibility() {
+    /*
+     * One pass is enough because no dependent is itself a control: nothing nests, so
+     * hiding a row can never leave another row wrongly shown. run.sh asserts that, and
+     * if a nested dependency is ever added this has to settle in a loop instead.
+     */
+    for (const [control, dependents] of Object.entries(FIELD_DEPENDENCIES)) {
+        const box = $('[id="wanquota.general.' + control + '"]');
         if (!box.length) continue;
         const on = box.is(':checked');
-        for (const suffix of PROVIDER_FIELDS) {
-            const field = $('[id="wanquota.general.provider' + slot + '_' + suffix + '"]');
-            const row = field.closest('tr');
-            (row.length ? row : field.parent()).toggle(on);
-        }
+        for (const field of dependents) settingRow(field).toggle(on);
+    }
+    for (const [field, controls] of Object.entries(FIELD_ANY_OF)) {
+        const any = controls.some(function (control) {
+            return $('[id="wanquota.general.' + control + '"]').is(':checked');
+        });
+        settingRow(field).toggle(any);
     }
 }
 function loadSettings() {
@@ -879,7 +926,7 @@ function loadSettings() {
         .done(function() {
             formatTokenizersUI();
             $('.selectpicker').selectpicker('refresh');
-            applyProviderVisibility();
+            applyFieldVisibility();
         });
 }
 /* Refresh whichever limits view has been opened, after a change made elsewhere. */
@@ -1409,7 +1456,7 @@ $(document).ready(function() {
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
     $('#settings').on('change', 'input[type=checkbox]', function() {
-        if (String(this.id).indexOf('_enabled') > 0) applyProviderVisibility();
+        if (String(this.id).indexOf('_enabled') > 0) applyFieldVisibility();
     });
     $('#rescanDiscovery').on('click', function() { refreshDiscovered(true); });
     $('#discoveredServices').on('click', '.wq-accept', function() {

@@ -225,8 +225,32 @@ PYCHECK
 # A provider's fields are shown only when that provider is on: two of the four slots
 # are normally off, so most of the settings page was configuration for WANs that do not
 # exist. Nothing is removed, so a disabled slot keeps its stored values.
-grep -q "function applyProviderVisibility" \
+grep -q "function applyFieldVisibility" \
     "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+# Every dependent must be a real model field, or a typo silently hides nothing; and no
+# dependent may itself be a control, because the single visibility pass would then be
+# able to leave a row wrongly shown.
+python3 - "$repository" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
+block = view[view.index("const FIELD_DEPENDENCIES = {"):view.index("const PROVIDER_FIELDS")]
+anyof = view[view.index("const FIELD_ANY_OF = {"):view.index("function settingRow")]
+controls = set(re.findall(r"^\s{4}([a-z0-9_]+):", block, re.M))
+dependents = set(re.findall(r"'([a-z0-9_]+)'", block))
+# An any-of entry names the dependent as its key and its controls as values.
+dependents |= set(re.findall(r"^\s{4}([a-z0-9_]+):", anyof, re.M))
+controls |= set(re.findall(r"'([a-z0-9_]+)'", anyof))
+model = (root / "src/opnsense/mvc/app/models/OPNsense/WanQuota/WanQuota.xml").read_text()
+general = model[model.index("<general>"):model.index("</general>")]
+fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
+unknown = (controls | dependents) - fields
+assert not unknown, f"not model fields: {sorted(unknown)}"
+nested = controls & dependents
+assert not nested, f"a dependent that is also a control needs a settling loop: {sorted(nested)}"
+PYCHECK
 # The guardrail must not report "dry run" for a state that is not dry run.
 grep -q "function guardrailState" \
     "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
