@@ -562,8 +562,12 @@ function deviceTable(data) {
         const prior = before[row.device];
         const down = prior ? rate(row.download - prior.download, elapsed) : null;
         const up = prior ? rate(row.upload - prior.upload, elapsed) : null;
-        html += '<tr><td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.device) + '\'>'
-             +  '<b>' + esc(row.name) + '</b></a><br><small class="wq-muted">' + esc(row.device) + '</small></td>'
+        html += '<tr><td><a href="#" class="wq-session-device" data-device=\'' + esc(row.device) + '\''
+             +  ' title="' + esc('Show only this device\u2019s sessions') + '">'
+             +  '<b>' + esc(row.name) + '</b></a><br><small class="wq-muted">' + esc(row.device)
+             +  ' &middot; <a href="#" class="wq-drill wq-muted" data-drill="device" data-value=\''
+             +  esc(row.device) + '\'' + ' title="' + esc('Open this device in the historical report')
+             +  '">' + esc('history') + '</a></small></td>'
              +  '<td>' + shareBar((row.download + row.upload) / top, '#3b82f6') + '</td>'
              +  '<td>' + gb(row.download) + '</td><td>' + gb(row.upload) + '</td>'
              +  '<td>' + rateText(down) + '</td><td>' + rateText(up) + '</td>'
@@ -704,6 +708,10 @@ function filterSessionsByDevice(device) {
     filterSessions();
     const name = ($('#sessionTable tr[data-device="' + sessionDeviceFilter + '"]').first()
         .find('b').text()) || sessionDeviceFilter;
+    if (sessionDeviceFilter) {
+        const table = document.getElementById('sessionTable');
+        if (table) table.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
     $('#sessionDeviceFilter').html(sessionDeviceFilter
         ? '<span class="wq-pill wq-pill-ok">' + esc('showing only ' + name) + '</span> '
           + '<a href="#" id="sessionDeviceClear">' + esc('show all devices') + '</a>'
@@ -1563,7 +1571,7 @@ $(document).ready(function() {
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
     // Live sessions: filter to one device, and cap a destination's domain from here.
-    $('#sessionTable').on('click', 'a.wq-session-device', function(event) {
+    $('#sessions').on('click', 'a.wq-session-device', function(event) {
         event.preventDefault();
         filterSessionsByDevice(String($(this).data('device')));
     });

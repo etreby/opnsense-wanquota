@@ -208,6 +208,28 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# Both tables on the live sessions page must filter to a device when its name is
+# clicked, not navigate to the historical report. Only the sessions table was changed
+# the first time, and the device summary table above it — the one a reader clicks first
+# — still left the page.
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+for name in ("deviceTable", "sessionTable"):
+    start = source.index(f"function {name}(")
+    depth, index = 0, source.index("{", start)
+    while True:
+        if source[index] == "{":
+            depth += 1
+        elif source[index] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+    body = source[start:index]
+    assert "wq-session-device" in body, \
+        f"{name} must filter to the device rather than leaving the sessions page"
+PYCHECK
 # An HTML entity must not be passed through esc(), which renders it as literal text.
 # The port column showed "55972 &rarr; 443" until the arrow was moved outside esc().
 python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
