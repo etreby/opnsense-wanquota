@@ -208,6 +208,16 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# A session row must carry the flow key the backend produces. Rebuilding it in the
+# interface from separate fields would drift from the key sessions.py uses to
+# deduplicate NAT twins, and per-session rates would then be attributed to the wrong
+# flow or silently lost.
+grep -q '"key": "|".join' "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
+grep -q 'before\[row.key\]' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
+# Capping offers the registrable domain, never the per-session hostname: one appliance
+# for one session is useless as a cap target.
+grep -q 'remote_registrable' "$repository/src/opnsense/scripts/OPNsense/WanQuota/sessions.py"
+grep -q 'row.remote_registrable' "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt"
 # No two top-level functions in the view may share a name. JavaScript keeps the last
 # declaration silently, so a duplicate does not fail to load — it replaces the other
 # one. A second rate() defined for the live sessions table overwrote the one formatting

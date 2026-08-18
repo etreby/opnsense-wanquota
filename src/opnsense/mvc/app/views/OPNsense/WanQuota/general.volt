@@ -123,10 +123,12 @@
           <button id="refreshSessions" class="btn btn-primary" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
           <input id="sessionSearch" class="form-control" placeholder="{{ lang._('Filter device, destination or service') }}">
           <span id="sessionSummary" class="wq-muted"></span>
+          <span id="sessionDeviceFilter"></span>
         </div>
         <label class="wq-switch" style="margin-bottom:10px"><input type="checkbox" id="sessionAuto" checked> {{ lang._('Refresh every 5 seconds') }}</label>
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Devices by live usage') }}</h3><div id="sessionDevices"></div></div>
         <div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Live rate per device') }}</h3><div class="wq-chart-sm"><canvas id="sessionChart"></canvas></div></div></div>
+        <div id="sessionCapBox"></div>
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions') }}</h3><div id="sessionTable"></div></div>
     </div></div>
     <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="categoryDrill" class="wq-section wq-table-wrap"></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div>
@@ -571,34 +573,84 @@ function deviceTable(data) {
 }
 
 let currentSessionData = null;
+/*
+ * Per-session rates, measured between two refreshes.
+ *
+ * A state counter is cumulative from when the state was created, so the total says how
+ * much a session has moved and nothing about how fast it is moving now. Keyed on the
+ * flow identity the backend supplies rather than one rebuilt here, which would drift
+ * from the key it uses to deduplicate NAT twins.
+ */
+let sessionRates = {};
+function computeSessionRates(data) {
+    const rates = {};
+    const previous = sessionPrevious;
+    const elapsed = previous ? (data.collected_at - previous.collected_at) : 0;
+    if (previous && elapsed > 0) {
+        const before = {};
+        for (const row of previous.sessions || []) before[row.key] = row;
+        for (const row of data.sessions || []) {
+            const was = before[row.key];
+            if (!was) continue;
+            rates[row.key] = {
+                down: Math.max(0, row.download - was.download) * 8 / elapsed,
+                up: Math.max(0, row.upload - was.upload) * 8 / elapsed,
+            };
+        }
+    }
+    sessionRates = rates;
+}
 function sessionTable(data) {
     const rows = (data && data.sessions) || [];
     if (!rows.length) return '<div class="alert alert-info">' + esc('No live WAN sessions from LAN devices right now.') + '</div>';
     let html = '<table class="table table-condensed table-striped"><thead><tr>'
              + '<th>{{ lang._("Device") }}</th><th>{{ lang._("Destination") }}</th>'
-             + '<th>{{ lang._("Service") }}</th><th>{{ lang._("State") }}</th>'
-             + '<th>{{ lang._("Age") }}</th><th>{{ lang._("Bytes") }}</th></tr></thead><tbody>';
+             + '<th>{{ lang._("Port") }}</th><th>{{ lang._("Throughput") }}</th>'
+             + '<th>{{ lang._("State") }}</th><th>{{ lang._("Age") }}</th>'
+             + '<th>{{ lang._("Total") }}</th><th>{{ lang._("Cap it") }}</th></tr></thead><tbody>';
     for (const row of rows) {
         const dest = row.remote_domain
             ? '<a href="#" class="wq-drill" data-drill="domain" data-value=\'' + esc(row.remote_domain) + '\'>' + esc(row.remote_domain) + '</a><br><small class="wq-muted">' + esc(row.remote) + '</small>'
             : esc(row.remote) + '<br><small class="wq-muted">' + esc('no DNS name observed') + '</small>';
         const mins = Math.floor(row.age_seconds / 60), secs = row.age_seconds % 60;
-        html += '<tr data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service).toLowerCase()) + '">'
-             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.device) + '\'><b>' + esc(row.name) + '</b></a>'
-             +  '<br><small class="wq-muted">' + esc(row.device) + (row.device_port ? ':' + row.device_port : '') + '</small></td>'
-             +  '<td>' + dest + '</td><td>' + esc(row.service) + '</td>'
+        const measured = sessionRates[row.key];
+        const throughput = measured
+            ? '<span class="wq-live-down">&#9660; ' + esc(bitRate(measured.down)) + '</span>'
+              + '<br><span class="wq-live-up">&#9650; ' + esc(bitRate(measured.up)) + '</span>'
+            : '<small class="wq-muted">' + esc('waiting for a second reading') + '</small>';
+        /*
+         * Offer the registrable domain, not the hostname: a per-session name matches
+         * one appliance for one session, while the registrable domain keeps matching.
+         */
+        const capTarget = row.remote_registrable;
+        const cap = capTarget
+            ? '<button class="btn btn-xs btn-default wq-cap-session" data-domain=\'' + esc(capTarget) + '\''
+              + ' title="' + esc('Add ' + capTarget + ' to a service so this traffic is capped with it') + '">'
+              + esc(capTarget) + '</button>'
+            : '<small class="wq-muted">' + esc('no name to cap') + '</small>';
+        html += '<tr data-device="' + esc(row.device) + '" data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service + ' ' + (row.remote_port || '')).toLowerCase()) + '">'
+             +  '<td><a href="#" class="wq-session-device" data-device=\'' + esc(row.device) + '\''
+             +  ' title="' + esc('Show only this device') + '"><b>' + esc(row.name) + '</b></a>'
+             +  '<br><small class="wq-muted">' + esc(row.device) + '</small></td>'
+             +  '<td>' + dest + '</td>'
+             +  '<td><small>' + esc((row.device_port || '?') + ' &rarr; ' + (row.remote_port || '?')) + '</small>'
+             +  '<br><small class="wq-muted">' + esc(row.service) + '</small></td>'
+             +  '<td>' + throughput + '</td>'
              +  '<td><small>' + esc(row.state) + '</small></td>'
              +  '<td>' + (mins ? mins + 'm ' : '') + secs + 's</td>'
-             +  '<td><b>' + gb(row.bytes) + '</b></td></tr>';
+             +  '<td><b>' + gb(row.bytes) + '</b></td>'
+             +  '<td>' + cap + '</td></tr>';
     }
     return html + '</tbody></table>';
 }
+
 function renderSessions(data) {
     if (data.status !== 'ok') {
         $('#sessionTable').html('<div class="alert alert-danger">' + esc(data.error || 'Live sessions unavailable') + '</div>');
         return;
     }
     $('#sessionSummary').text(data.shown + ' of ' + data.total_states + ' states shown');
+    computeSessionRates(data);
     $('#sessionDevices').html(deviceTable(data));
     $('#sessionTable').html(sessionTable(data));
 
@@ -635,10 +687,60 @@ function scheduleSessions() {
         if ($('#sessions').hasClass('active')) refreshSessions();
     }, 5000);
 }
+/*
+ * Show one device's sessions.
+ *
+ * Clicking a device used to leave for the Consumers tab and its historical matrix. What
+ * is wanted here is the opposite: stay put and see what that device has open right now.
+ */
+let sessionDeviceFilter = '';
+function filterSessionsByDevice(device) {
+    sessionDeviceFilter = sessionDeviceFilter === device ? '' : device;
+    filterSessions();
+    const name = ($('#sessionTable tr[data-device="' + sessionDeviceFilter + '"]').first()
+        .find('b').text()) || sessionDeviceFilter;
+    $('#sessionDeviceFilter').html(sessionDeviceFilter
+        ? '<span class="wq-pill wq-pill-ok">' + esc('showing only ' + name) + '</span> '
+          + '<a href="#" id="sessionDeviceClear">' + esc('show all devices') + '</a>'
+        : '');
+}
+/*
+ * Add a session's domain to a service, so its traffic is capped with that service.
+ *
+ * The service list comes from the catalogue rather than being hard-coded, so a service
+ * discovered and accepted earlier can be chosen here too. The hostname is stored in the
+ * address book, which an upgrade does not discard.
+ */
+function capSessionDomain(domain) {
+    const services = ((currentLimitCatalogue && currentLimitCatalogue.services) || []);
+    if (!services.length) {
+        ajaxCall('/api/wanquota/limits/get', {}, function(data) {
+            currentLimitCatalogue = data;
+            capSessionDomain(domain);
+        });
+        return;
+    }
+    const options = services.map(s => '<option value="' + esc(s.service) + '">'
+        + esc(s.label) + (s.discovered ? ' (discovered)' : '') + '</option>').join('');
+    $('#sessionCapBox').html(
+        '<div class="wq-action-box">'
+        + '<b>' + esc('Add ' + domain + ' to a service') + '</b>'
+        + '<select id="sessionCapService" class="form-control" style="max-width:280px">' + options + '</select>'
+        + '<button id="sessionCapApply" class="btn btn-primary" data-domain=\'' + esc(domain) + '\'>'
+        + esc('Add and apply') + '</button>'
+        + '<a href="#" id="sessionCapCancel">' + esc('cancel') + '</a>'
+        + '<span class="wq-muted">' + esc('Its addresses join that service\u2019s cap once resolved. '
+            + 'Nothing is capped unless that service already has a limit set.') + '</span>'
+        + '</div>');
+}
+let currentLimitCatalogue = null;
 function filterSessions() {
     const query = String($('#sessionSearch').val() || '').toLowerCase();
     $('#sessionTable tr[data-filter]').each(function() {
-        $(this).toggle(!query || String($(this).data('filter')).includes(query));
+        const matchesQuery = !query || String($(this).data('filter')).includes(query);
+        const matchesDevice = !sessionDeviceFilter
+            || String($(this).data('device')) === sessionDeviceFilter;
+        $(this).toggle(matchesQuery && matchesDevice);
     });
 }
 function refreshSessions() { ajaxCall('/api/wanquota/report/sessions', {}, renderSessions); }
@@ -1455,6 +1557,40 @@ $(document).ready(function() {
     $('#deviceLimitSearch').on('keyup', filterDeviceLimits);
     $('#saveDeviceLimits').on('click', saveDeviceLimits);
     $('#verifyLimits').on('click', verifyLimits);
+    // Live sessions: filter to one device, and cap a destination's domain from here.
+    $('#sessionTable').on('click', 'a.wq-session-device', function(event) {
+        event.preventDefault();
+        filterSessionsByDevice(String($(this).data('device')));
+    });
+    $('#sessions').on('click', '#sessionDeviceClear', function(event) {
+        event.preventDefault();
+        filterSessionsByDevice(sessionDeviceFilter);
+    });
+    $('#sessionTable').on('click', '.wq-cap-session', function() {
+        capSessionDomain(String($(this).data('domain')));
+    });
+    $('#sessions').on('click', '#sessionCapCancel', function(event) {
+        event.preventDefault();
+        $('#sessionCapBox').empty();
+    });
+    $('#sessions').on('click', '#sessionCapApply', function() {
+        const domain = String($(this).data('domain'));
+        const service = String($('#sessionCapService').val() || '');
+        $(this).prop('disabled', true);
+        ajaxCall('/api/wanquota/limits/addHostname', {service: service, hostname: domain},
+            function(result) {
+                if (result.status !== 'ok') {
+                    $('#sessionCapBox').html('<div class="alert alert-danger">'
+                        + esc(result.error || 'The hostname could not be added') + '</div>');
+                    return;
+                }
+                $('#sessionCapBox').html('<div class="alert alert-success">'
+                    + esc(domain + ' now belongs to ' + (result.label || service)
+                          + '. Its addresses join that cap as they are resolved.')
+                    + '</div>');
+                if (limitData) refreshLimits();
+            });
+    });
     $('#settings').on('change', 'input[type=checkbox]', function() {
         if (String(this.id).indexOf('_enabled') > 0) applyFieldVisibility();
     });

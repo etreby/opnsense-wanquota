@@ -198,6 +198,54 @@ class LimitsController extends ApiControllerBase
         return $result;
     }
 
+    /**
+     * Attach a hostname to a catalogued service, so its traffic is covered by that
+     * service's cap.
+     *
+     * This is how a domain found in the live sessions view — nflxso.net, say — becomes
+     * part of Netflix without editing the plugin. The hostname is stored in the address
+     * book rather than the catalogue, so an upgrade does not discard it and the built-in
+     * definitions stay as shipped.
+     *
+     * The address book is refreshed and the plan re-applied immediately, because a
+     * hostname that has not been resolved yet contributes no addresses and would
+     * otherwise look like it did nothing.
+     */
+    public function addHostnameAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $service = preg_replace('/[^a-z0-9_]/', '', strtolower((string)$this->request->getPost('service')));
+        $hostname = preg_replace('/[^a-z0-9.\-]/', '', strtolower((string)$this->request->getPost('hostname')));
+        if ($service === '' || $hostname === '' || strpos($hostname, '.') === false) {
+            return ['status' => 'failed', 'error' => 'A service and a hostname are required'];
+        }
+        $backend = new Backend();
+        $catalog = json_decode($backend->configdRun('wanquota shapercatalog'), true);
+        $known = [];
+        foreach (($catalog['services'] ?? []) as $entry) {
+            $known[$entry['service']] = $entry['label'];
+        }
+        if (!isset($known[$service])) {
+            return ['status' => 'failed',
+                    'error' => sprintf('Unknown service: %s', $service),
+                    'services' => array_keys($known)];
+        }
+        $raw = $backend->configdRun(sprintf('wanquota addressadd %s %s',
+            escapeshellarg($service), escapeshellarg($hostname)));
+        $result = json_decode($raw, true);
+        if (!is_array($result) || ($result['status'] ?? '') !== 'ok') {
+            return ['status' => 'failed',
+                    'error' => $result['error'] ?? 'The hostname could not be stored'];
+        }
+        /* Resolve it now and re-apply, so the addition takes effect rather than waiting. */
+        $backend->configdRun('wanquota addressrefresh');
+        $result['label'] = $known[$service];
+        $result['shaper'] = trim((string)$backend->configdRun('wanquota shapersync'));
+        return $result;
+    }
+
     /** Save per-device limits and apply. */
     public function setDevicesAction(): array
     {

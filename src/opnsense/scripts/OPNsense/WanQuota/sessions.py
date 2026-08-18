@@ -21,6 +21,7 @@ import sys
 import time
 
 import consumers
+import shaper
 
 PFCTL = "/sbin/pfctl"
 STATE_LIMIT = 500
@@ -146,11 +147,24 @@ def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT):
         if consumers.is_local(state["remote"], network):
             # LAN to LAN never crossed the WAN, so it is not interesting here.
             continue
+        remote_domain = domains.get(state["remote"])
         rows.append({
             **state,
             "name": names.get(device, device),
-            "remote_domain": domains.get(state["remote"]),
+            "remote_domain": remote_domain,
+            # The name a cap would be written against. A per-session hostname is no use
+            # for that — occ-0-3310-1490.1.nflxso.net is one appliance for one session,
+            # while nflxso.net is the name that keeps matching — so the registrable
+            # domain is offered alongside it.
+            "remote_registrable": shaper.registrable(remote_domain) if remote_domain else None,
             "service": consumers.transport_label(state["protocol"], state["remote_port"]),
+            # A stable identity for the flow, so a reader can match the same session
+            # across refreshes and measure how fast it is actually moving. Rebuilding
+            # this in the interface from separate fields would drift from the key used
+            # here to deduplicate NAT twins.
+            "key": "|".join(str(part) for part in (
+                state["protocol"], state["device"], state["device_port"],
+                state["remote"], state["remote_port"])),
         })
     rows.sort(key=lambda item: (item["bytes"], item["age_seconds"]), reverse=True)
     return rows[:limit]
