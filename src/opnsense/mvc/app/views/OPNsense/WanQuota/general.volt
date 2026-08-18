@@ -633,7 +633,12 @@ function sessionTable(data) {
              +  ' title="' + esc('Show only this device') + '"><b>' + esc(row.name) + '</b></a>'
              +  '<br><small class="wq-muted">' + esc(row.device) + '</small></td>'
              +  '<td>' + dest + '</td>'
-             +  '<td><small>' + esc((row.device_port || '?') + ' &rarr; ' + (row.remote_port || '?')) + '</small>'
+             /*
+              * The arrow is markup and must not go through esc(), which turned it into
+              * the literal text "&rarr;". The ports either side are escaped separately.
+              */
+             +  '<td><small>' + esc(row.device_port || '?') + ' &rarr; '
+             +  esc(row.remote_port || '?') + '</small>'
              +  '<br><small class="wq-muted">' + esc(row.service) + '</small></td>'
              +  '<td>' + throughput + '</td>'
              +  '<td><small>' + esc(row.state) + '</small></td>'

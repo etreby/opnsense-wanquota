@@ -208,6 +208,36 @@ assert not missing, f"writable but invisible: {sorted(missing)}"
 unseen = (fields - visible) - elsewhere
 assert not unseen, f"in the model but nowhere in the interface: {sorted(unseen)}"
 PYCHECK
+# An HTML entity must not be passed through esc(), which renders it as literal text.
+# The port column showed "55972 &rarr; 443" until the arrow was moved outside esc().
+python3 - "$repository/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+entity = re.compile(r"&[a-zA-Z]+;|&#\d+;")
+bad = []
+start = 0
+while True:
+    at = source.find("esc(", start)
+    if at < 0:
+        break
+    # Match parentheses so a nested call does not end the argument early, which is what
+    # let the escaped arrow through the first version of this check.
+    depth, index = 0, at + 3
+    while index < len(source):
+        if source[index] == "(":
+            depth += 1
+        elif source[index] == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        index += 1
+    argument = source[at + 4:index]
+    if entity.search(argument):
+        bad.append(argument.strip()[:70])
+    start = at + 4
+assert not bad, f"HTML entities inside esc() render as text: {bad}"
+PYCHECK
 # A session row must carry the flow key the backend produces. Rebuilding it in the
 # interface from separate fields would drift from the key sessions.py uses to
 # deduplicate NAT twins, and per-session rates would then be attributed to the wrong
