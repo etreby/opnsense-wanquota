@@ -233,6 +233,22 @@ PYCHECK
     rm -f "$repository/.view-check.js"
 fi
 
+# Moving a gateway into an empty gateway-group tier must not leave a leading comma.
+# Exploding an empty tier yields [''], and a filter that only rejects the gateway
+# name kept it, so the tier became ",MOBINIL_DHCP". Tier 1 tolerated it; the tier that
+# carries the failover is the one that would have been malformed, so the defect could
+# only surface at the moment the primary link went down.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/enforce.php" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+rewrite = re.search(r"array_filter\(\s*array_map\('trim', explode\(',', \$original\)\),(.*?)\)\)",
+                    source, re.S)
+assert rewrite, "the tier rewrite must trim and explode $original through array_map"
+assert "!== ''" in rewrite.group(1), \
+    "the tier rewrite must drop empty members, or an empty tier gains a leading comma"
+PYCHECK
+
 # Every API path the interface calls must resolve to a controller and an action.
 #
 # This exists because it caught a real one: OPNsense derives the URL segment from the

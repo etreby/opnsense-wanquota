@@ -64,7 +64,18 @@ foreach ($configObject->gateways->gateway_group as $group) {
         $target = $action === 'failover' ? 'item2' : $originalTier;
         foreach (['item', 'item2', 'item3', 'item4', 'item5'] as $tier) {
             $original = (string)$group->{$tier};
-            $members = array_values(array_filter(explode(',', $original), fn($member) => $member !== $name));
+            /*
+             * Drop empty elements as well as the gateway being moved. exploding an
+             * empty tier yields [''], and a callback that only rejects $name kept it —
+             * so moving a gateway into a previously empty tier wrote ",MOBINIL_DHCP"
+             * with a leading comma. Tier 1 survived it, but the malformed tier is the
+             * one that carries the failover, so the defect would only have shown up at
+             * the moment the primary link went down. Seen on a live firewall.
+             */
+            $members = array_values(array_filter(
+                array_map('trim', explode(',', $original)),
+                fn($member) => $member !== '' && $member !== $name
+            ));
             if ($target === $tier) {
                 $members[] = $name;
             }
