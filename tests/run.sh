@@ -204,6 +204,35 @@ for switch in ("limitEnabled", "limitDryRun"):
 for gone in ("deviceLimitEnabled", "deviceLimitDryRun"):
     assert gone not in source, f"{gone} duplicates a shared switch and must not return"
 PYCHECK
+# The whole page's JavaScript lives in one script block, so a single syntax error in
+# it takes down every tab of the plugin — and no other check here parses JS. Volt
+# resolves its own tags before the browser sees the page, so they are resolved here
+# first; without that the checker trips over the pre-existing
+# '{{ lang._('Provider') }}' idiom, which is single quotes inside single quotes and
+# only valid after Volt has run.
+#
+# Skipped rather than failed when node is absent: this is a syntax check, and a
+# machine without node must still be able to run the suite.
+if command -v node >/dev/null 2>&1; then
+    python3 - "$repository" > "$repository/.view-check.js" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+view = (Path(sys.argv[1]) / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
+source = "\n".join(re.findall(r"<script[^>]*>(.*?)</script>", view, re.S))
+source = re.sub(r"\{\{\s*lang\._\(\s*(['\"])(.*?)\1\s*\)\s*\}\}",
+                lambda match: match.group(2), source, flags=re.S)
+source = re.sub(r"\{\{.*?\}\}", "0", source, flags=re.S)
+sys.stdout.write(source)
+PYCHECK
+    node --check "$repository/.view-check.js" || {
+        echo "the view's JavaScript does not parse; every tab would be blank" >&2
+        rm -f "$repository/.view-check.js"
+        exit 1
+    }
+    rm -f "$repository/.view-check.js"
+fi
+
 # Every API path the interface calls must resolve to a controller and an action.
 #
 # This exists because it caught a real one: OPNsense derives the URL segment from the

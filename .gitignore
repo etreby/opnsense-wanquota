@@ -11,3 +11,4 @@ identity
 graphify-out/
 *.key
 *.pem
+.view-check.js
