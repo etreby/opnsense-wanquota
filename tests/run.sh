@@ -274,6 +274,57 @@ assert first_write < first_apply, \
     "writing afterwards applies the previous run's plan"
 PYCHECK
 
+# Every table is sortable, and sorting is only useful if a cell's units are read.
+# These tables hold "12.34 GB", "5.2 Mbit/s", "88.9%", "3h05m" and "2026-09-01", all
+# of which sort wrongly as strings -- "9 GB" above "10 GB" being the obvious one. The
+# parser is the whole feature, so it is exercised rather than assumed.
+if command -v node >/dev/null 2>&1; then
+    python3 - "$repository" > "$repository/.cellvalue.js" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+view = (Path(sys.argv[1]) / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
+source = "\n".join(re.findall(r"<script[^>]*>(.*?)</script>", view, re.S))
+source = re.sub(r"\{\{\s*lang\._\(\s*(['\"])(.*?)\1\s*\)\s*\}\}",
+                lambda m: m.group(2), source, flags=re.S)
+source = re.sub(r"\{\{.*?\}\}", "0", source, flags=re.S)
+assert "function wqCellValue" in source, "the generic table sort must exist"
+assert "MutationObserver" in source, \
+    "tables are replaced wholesale by their render functions, so enhancement has to " \
+    "watch for new ones rather than run once"
+start = source.index("const WQ_UNITS")
+sys.stdout.write(source[start:source.index("function wqSortTable")])
+PYCHECK
+    cat >> "$repository/.cellvalue.js" <<'JSCHECK'
+const cases = [
+  ['12.34 GB', 12.34e9], ['9 GB', 9e9], ['500 MB', 500e6], ['1,234 bytes', 1234],
+  ['5.2 Mbit/s', 5.2e6], ['370 kbit/s', 370e3], ['88.9%', 88.9],
+  ['3h05m', 11100], ['12m30s', 750], ['42', 42],
+  ['\u2014', null], ['', null], ['ETISALAT', 'etisalat'],
+];
+let bad = 0;
+for (const [text, want] of cases) {
+  const got = wqCellValue({textContent: text, dataset: {}});
+  const ok = (want === null ? got === null : got === want);
+  if (!ok) { console.error(`cell value: ${JSON.stringify(text)} -> ${got}, expected ${want}`); bad++; }
+}
+const order = ['9 GB', '10 GB', '500 MB', '1.2 TB'].sort((a, b) =>
+  wqCellValue({textContent: a, dataset: {}}) - wqCellValue({textContent: b, dataset: {}}));
+if (order.join() !== '500 MB,9 GB,10 GB,1.2 TB') {
+  console.error('byte ordering wrong: ' + order.join(' < ')); bad++;
+}
+if (wqCellValue({textContent: 'x', dataset: {sort: '777'}}) !== 777) {
+  console.error('data-sort must override the text'); bad++;
+}
+process.exit(bad === 0 ? 0 : 1);
+JSCHECK
+    node "$repository/.cellvalue.js" || {
+        echo "the table sort parser does not read units correctly" >&2
+        rm -f "$repository/.cellvalue.js"; exit 1
+    }
+    rm -f "$repository/.cellvalue.js"
+fi
+
 # Every API path the interface calls must resolve to a controller and an action.
 #
 # This exists because it caught a real one: OPNsense derives the URL segment from the

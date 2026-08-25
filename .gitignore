@@ -12,3 +12,4 @@ graphify-out/
 *.key
 *.pem
 .view-check.js
+.cellvalue.js

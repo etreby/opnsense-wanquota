@@ -1,6 +1,6 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}
+.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}.wq-shell th.wq-sortable{cursor:pointer;user-select:none;white-space:nowrap}.wq-shell th.wq-sortable:hover{text-decoration:underline}.wq-shell th.wq-sorted{color:var(--wq-blue)}.wq-shell th .wq-arrow{opacity:.75;font-size:10px;margin-left:3px}.wq-tfilter{display:flex;align-items:center;gap:9px;margin:0 0 8px}.wq-tfilter input{max-width:230px}.wq-tcount{font-size:12px;opacity:.68}.wq-tnorows td{opacity:.7;font-style:italic}
 .wq-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.wq-card-head h3{flex:1 1 auto}.wq-kebab{border:none;background:none;padding:1px 6px;line-height:1;font-size:17px;color:inherit;opacity:.45;cursor:pointer;border-radius:4px;flex:0 0 auto}.wq-kebab:hover,.wq-kebab:focus,.wq-kebab[aria-expanded=true]{opacity:1;background:rgba(128,128,128,.16)}.wq-quota-edit{margin-top:13px;padding-top:12px;border-top:1px solid rgba(128,128,128,.2)}.wq-quota-edit label{display:block;font-size:11px;font-weight:600;opacity:.75;margin:0 0 3px}.wq-quota-field{margin-bottom:9px}.wq-quota-edit input{width:100%}.wq-quota-preview{font-size:12px;margin:0 0 10px;font-variant-numeric:tabular-nums}.wq-quota-warn{display:block;color:var(--wq-amber);margin-top:4px}.wq-total-card{grid-column:1/-1;border-left:4px solid var(--wq-blue)}.wq-total-split{display:flex;flex-wrap:wrap;gap:24px;margin-top:11px}.wq-total-part{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}.wq-total-part b{display:block;font-size:17px;opacity:1;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
@@ -2352,6 +2352,206 @@ function refreshReports() {
     ajaxCall('/api/wanquota/report/monthly', {}, function(data) { $('#monthlyReport').html(historyTable(data)); renderHistoryChart('monthlyChart',data); });
     ajaxCall('/api/wanquota/report/health', {}, function(data) { $('#healthReport').html(healthTable(data)); });
 }
+/*
+ * Sorting and filtering for every table, added once rather than per table.
+ *
+ * There are around thirty tables across these tabs and they are all built as HTML
+ * strings by their own render functions. Wiring sort and filter into each would mean
+ * thirty near-copies that drift apart, and any table added later would silently lack
+ * both. So this attaches to whatever tables exist: header clicks are handled by one
+ * delegated listener, and a MutationObserver enhances tables as they are rendered.
+ *
+ * The hard part is not the sort, it is knowing what a cell means. These tables hold
+ * "12.34 GB", "5.2 Mbit/s", "88.9%", "3h05m", "2026-09-01" and plain names, all of
+ * which sort wrongly as strings — "9 GB" above "10 GB", and so on. wqCellValue reads
+ * the units. A cell can override it with data-sort when the text is not the truth.
+ */
+const WQ_UNITS = {b: 1, byte: 1, bytes: 1, kb: 1e3, mb: 1e6, gb: 1e9, tb: 1e12, pb: 1e15};
+const WQ_RATE = {'': 1, k: 1e3, m: 1e6, g: 1e9};
+
+function wqCellValue(cell) {
+    if (cell.dataset && cell.dataset.sort !== undefined) {
+        const explicit = parseFloat(cell.dataset.sort);
+        return isNaN(explicit) ? String(cell.dataset.sort).toLowerCase() : explicit;
+    }
+    const text = String(cell.textContent || '').replace(/ /g, ' ').trim();
+    if (!text || text === '—' || text === '-') return null;   // blanks sort last
+    const plain = text.replace(/,/g, '');
+    let match;
+    // Bytes. Decimal multiples, because that is what the reports use throughout.
+    if ((match = plain.match(/(-?\d+(?:\.\d+)?)\s*(bytes?|[kmgtp]?b)\b/i))) {
+        return parseFloat(match[1]) * (WQ_UNITS[match[2].toLowerCase()] || 1);
+    }
+    // Rates.
+    if ((match = plain.match(/(-?\d+(?:\.\d+)?)\s*([kmg])?(?:bit\/s|bps|b\/s)/i))) {
+        return parseFloat(match[1]) * (WQ_RATE[(match[2] || '').toLowerCase()] || 1);
+    }
+    if ((match = plain.match(/(-?\d+(?:\.\d+)?)\s*%/))) return parseFloat(match[1]);
+    // Durations, longest form first so 3h05m does not match the minutes rule.
+    if ((match = plain.match(/(\d+)\s*h\s*(\d+)\s*m/i))) {
+        return parseInt(match[1], 10) * 3600 + parseInt(match[2], 10) * 60;
+    }
+    if ((match = plain.match(/(\d+)\s*m\s*(\d+)\s*s/i))) {
+        return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+    }
+    if ((match = plain.match(/^(\d{4}-\d{2}-\d{2})/))) {
+        const stamp = Date.parse(match[1]);
+        if (!isNaN(stamp)) return stamp;
+    }
+    if (/^-?\d+(\.\d+)?$/.test(plain)) return parseFloat(plain);
+    return text.toLowerCase();
+}
+
+function wqSortTable(table, index, direction) {
+    const body = table.tBodies[0];
+    if (!body) return;
+    const rows = Array.prototype.slice.call(body.rows);
+    /*
+     * Rows that span the table are notes rather than data — "3 more that cannot be
+     * limited", the unattributed remainder. Sorting them into the middle of the data
+     * would turn an explanation into a mystery, so they are held at the bottom.
+     */
+    const data = rows.filter(row => row.cells.length > 1 && !row.classList.contains('wq-tnorows'));
+    const pinned = rows.filter(row => data.indexOf(row) === -1);
+    data.forEach((row, position) => { row.dataset.wqPos = position; });
+    data.sort(function(a, b) {
+        const left = wqCellValue(a.cells[index]);
+        const right = wqCellValue(b.cells[index]);
+        if (left === null && right === null) return 0;
+        if (left === null) return 1;            // blanks last, both directions
+        if (right === null) return -1;
+        let order;
+        if (typeof left === 'number' && typeof right === 'number') order = left - right;
+        else order = String(left).localeCompare(String(right), undefined, {numeric: true});
+        if (order === 0) return Number(a.dataset.wqPos) - Number(b.dataset.wqPos);
+        return direction === 'asc' ? order : -order;
+    });
+    data.concat(pinned).forEach(row => body.appendChild(row));
+}
+
+/* Which way to sort first: largest first for figures, A-Z for names. */
+function wqFirstDirection(table, index) {
+    const body = table.tBodies[0];
+    if (!body) return 'asc';
+    for (const row of Array.prototype.slice.call(body.rows, 0, 5)) {
+        const cell = row.cells[index];
+        if (cell && typeof wqCellValue(cell) === 'number') return 'desc';
+    }
+    return 'asc';
+}
+
+function wqApplyFilter(table) {
+    const box = table.wqFilterBox;
+    const query = box ? String(box.value || '').toLowerCase().trim() : '';
+    const body = table.tBodies[0];
+    if (!body) return;
+    let shown = 0;
+    let total = 0;
+    for (const row of Array.prototype.slice.call(body.rows)) {
+        if (row.cells.length <= 1 || row.classList.contains('wq-tnorows')) continue;
+        total++;
+        const hit = !query || String(row.textContent || '').toLowerCase().includes(query);
+        row.style.display = hit ? '' : 'none';
+        if (hit) shown++;
+    }
+    if (table.wqCount) {
+        table.wqCount.textContent = query ? shown + ' / ' + total : total + ' rows';
+    }
+}
+
+function wqEnhanceTable(table) {
+    if (!table || table.dataset.wqEnhanced === '1') return;
+    if (table.classList.contains('wq-nosort')) return;
+    table.dataset.wqEnhanced = '1';
+    const head = table.tHead;
+    if (head && head.rows.length) {
+        for (const cell of Array.prototype.slice.call(head.rows[head.rows.length - 1].cells)) {
+            /* A header that already owns its own sort link keeps it; the live sessions
+               table sorts server-side data it holds in memory. */
+            if (cell.querySelector('a.wq-session-sort')) continue;
+            if (!String(cell.textContent || '').trim()) continue;
+            cell.classList.add('wq-sortable');
+        }
+    }
+    const body = table.tBodies[0];
+    const rows = body ? Array.prototype.slice.call(body.rows).filter(r => r.cells.length > 1).length : 0;
+    /*
+     * A filter box above four rows is furniture, not help. It is also skipped where
+     * the tab already has its own search, so a reader is never given two boxes that
+     * filter the same rows by different rules.
+     */
+    const owner = table.closest('.tab-pane') || document;
+    const hasOwnSearch = !!owner.querySelector('input[id$="Search"]');
+    if (rows >= 6 && !hasOwnSearch && !table.classList.contains('wq-nofilter')) {
+        const bar = document.createElement('div');
+        bar.className = 'wq-tfilter';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control';
+        input.placeholder = '{{ lang._("Filter these rows…") }}';
+        const count = document.createElement('span');
+        count.className = 'wq-tcount';
+        bar.appendChild(input);
+        bar.appendChild(count);
+        if (table.parentNode) table.parentNode.insertBefore(bar, table);
+        table.wqFilterBox = input;
+        table.wqCount = count;
+        input.addEventListener('keyup', function() { wqApplyFilter(table); });
+        wqApplyFilter(table);
+    }
+}
+
+function wqEnhanceAll(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    for (const table of Array.prototype.slice.call(scope.querySelectorAll('table'))) {
+        wqEnhanceTable(table);
+    }
+    if (scope !== document && scope.tagName === 'TABLE') wqEnhanceTable(scope);
+}
+
+function wqWatchTables() {
+    const shell = document.querySelector('.wq-shell');
+    if (!shell || !window.MutationObserver) return;
+    wqEnhanceAll(shell);
+    /*
+     * Every table here is replaced wholesale by its render function, so enhancing
+     * once on load would last until the first refresh. Observing additions is what
+     * makes this hold for tables that do not exist yet — including any added later.
+     */
+    new MutationObserver(function(records) {
+        for (const record of records) {
+            for (const node of Array.prototype.slice.call(record.addedNodes)) {
+                if (node.nodeType === 1) wqEnhanceAll(node);
+            }
+        }
+    }).observe(shell, {childList: true, subtree: true});
+    $('.wq-shell').on('click', 'th.wq-sortable', function(event) {
+        event.preventDefault();
+        const cell = this;
+        const row = cell.parentNode;
+        const table = cell.closest('table');
+        if (!table) return;
+        const index = Array.prototype.indexOf.call(row.cells, cell);
+        const same = table.dataset.wqSortIndex === String(index);
+        const direction = same
+            ? (table.dataset.wqSortDir === 'asc' ? 'desc' : 'asc')
+            : wqFirstDirection(table, index);
+        table.dataset.wqSortIndex = String(index);
+        table.dataset.wqSortDir = direction;
+        for (const other of Array.prototype.slice.call(row.cells)) {
+            other.classList.remove('wq-sorted');
+            const arrow = other.querySelector('.wq-arrow');
+            if (arrow) arrow.remove();
+        }
+        cell.classList.add('wq-sorted');
+        const arrow = document.createElement('span');
+        arrow.className = 'wq-arrow';
+        arrow.textContent = direction === 'asc' ? '▲' : '▼';
+        cell.appendChild(arrow);
+        wqSortTable(table, index, direction);
+        wqApplyFilter(table);
+    });
+}
 $(document).ready(function() {
     loadSettings();
     refreshReports();
@@ -2545,6 +2745,7 @@ $(document).ready(function() {
         refreshLimits();
         refreshDiscovered(false);
     });
+    wqWatchTables();
     $('#refreshSessions').on('click', refreshSessions);
     /*
      * Re-render from the payload already held rather than refetching: the order is a
