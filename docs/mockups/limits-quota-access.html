@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8"><title>Device quotas and internet blocks</title><style>body{margin:0;background:#eef2f6;color:#172033;font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.top{height:54px;background:#263746;color:white;display:flex;align-items:center;padding:0 32px;font-size:18px}.page{padding:26px 34px;max-width:1400px}.hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:white;box-shadow:0 12px 30px #1720332e}.hero h1{margin:0 0 6px;font-size:25px}.hero p{margin:0;opacity:.78}.ver{margin-top:9px;font-size:11px;opacity:.6;letter-spacing:.3px}.tabs{display:flex;flex-wrap:wrap;margin-top:18px;background:white;border-bottom:1px solid #d4dce3}.tab{padding:13px 18px}.active{color:#1677a8;border-bottom:3px solid #1677a8;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}.card{background:white;border:1px solid #d8e0e6;border-radius:12px;padding:17px;box-shadow:0 4px 16px #17203312}.muted{color:#718092;font-size:12px}h3{margin:0 0 12px;font-size:15px}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:#64748b;font-weight:600;padding:7px 8px;border-bottom:1px solid #e2e8ee}td{padding:7px 8px;border-bottom:1px solid #eef2f6}tr:nth-child(even) td{background:#fafcfd}.bar{height:8px;background:#e7edf2;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:8px}.pill{display:inline-block;padding:1px 9px;border-radius:11px;font-size:11px;background:#e7edf2;color:#475569}.pill.ok{background:#d1fae5;color:#047857}.pill.warn{background:#fef3c7;color:#b45309}.pie{width:190px;height:190px;border-radius:50%;margin:6px auto 14px}.sw{display:inline-flex;align-items:center;gap:7px;font-size:13px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}.inp{background:white;border:1px solid #cbd5e1;border-radius:6px;padding:7px 11px;color:#94a3b8;font-size:13px}.btn{background:#1677a8;color:white;border-radius:6px;padding:8px 15px;font-size:13px;font-weight:600}.btn.ghost{background:white;color:#334155;border:1px solid #cbd5e1}.steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:#e2e8ee;font-size:12px}.steps li b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#cbd5e1;font-size:11px}.steps li.on{background:#1677a8;color:white}.steps li.on b{background:#ffffff40}.steps li.done b{background:#10b981;color:white}.why{padding:14px 16px;border-left:4px solid #1677a8;background:#eaf4fb;border-radius:6px;margin-top:14px}.why ol{margin:9px 0 0 18px;padding:0}.why li{margin:3px 0;font-size:13px}.field{margin:12px 0}.field label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}.field .h{color:#718092;font-size:12px;margin-top:4px}</style><div class="top">OPNsense &middot; Reporting &middot; WAN Quotas</div>
+<main class="page">
+<section class="hero"><h1>&#9673; Quota &amp; access</h1>
+<p>How much a device may use this month, and whether it may reach the internet at all.</p>
+<div class="ver">os-wanquota 0.18.0</div></section>
+<div class="tabs"><div class="tab">Summary</div><div class="tab">Consumers</div><div class="tab">Apps</div>
+<div class="tab active">Limits</div><div class="tab">Live sessions</div><div class="tab">Intelligence</div>
+<div class="tab">Data health</div><div class="tab">Settings</div></div>
+<div class="tabs" style="border:0;background:transparent;margin-top:10px">
+<div class="tab" style="padding:8px 14px">By service</div>
+<div class="tab" style="padding:8px 14px">By device</div>
+<div class="tab active" style="padding:8px 14px">Quota &amp; access</div></div>
+
+<div class="card" style="margin-top:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span class="inp" style="min-width:190px">Search devices&hellip;</span>
+<span class="muted">60 devices</span>
+<span class="btn ghost" style="margin-left:auto">&#128275; Release every block</span>
+<span class="btn">Save and apply</span></div>
+
+<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #b45309;background:#fef3c7;border-radius:6px">
+<b>Per-device quota enforcement is in dry-run,</b> so the plugin records which devices would be
+blocked and blocks nothing. Turn dry-run off in Settings when the list matches what you intend.
+<br><span class="muted">A block set below is immediate and independent of those switches &mdash;
+it is an act, not a prediction.</span></div>
+
+<div class="card" style="margin-top:14px"><h3>Devices</h3><table>
+<thead><tr><th>Device</th><th>Monthly quota (GB)</th><th>Used this month</th>
+<th>Block</th><th>Until</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><b>TRUENAS</b><br><span class="muted">192.168.1.10 &middot; a2:02:b7:42:14:a7</span></td>
+<td><span class="inp" style="width:86px">150</span></td>
+<td>100.35 GB <b>(67%)</b><div class="bar" style="margin-top:5px;max-width:130px"><i style="width:67%;background:#1677a8"></i></div></td>
+<td><input type=checkbox></td><td><span class="inp" style="width:150px;color:#b0bcca">&mdash;</span></td>
+<td><span class="inp" style="width:130px;color:#b0bcca">optional</span></td></tr>
+
+<tr><td><b>ETREBY-DESKTOP 2.5G</b><br><span class="muted">192.168.1.46 &middot; e0:8f:4c:8f:a8:d6</span></td>
+<td><span class="inp" style="width:86px">80</span></td>
+<td>82.79 GB <b>(103%)</b> <span class="pill warn">over budget</span>
+<div class="bar" style="margin-top:5px;max-width:130px"><i style="width:100%;background:#b45309"></i></div></td>
+<td><input type=checkbox></td><td><span class="inp" style="width:150px;color:#b0bcca">&mdash;</span></td>
+<td><span class="inp" style="width:130px;color:#b0bcca">optional</span></td></tr>
+
+<tr><td><b>ETREBY-DESKTOP WiFi</b><br><span class="muted">192.168.1.32 &middot; e0:8f:4c:8f:a8:d6</span></td>
+<td><span class="inp" style="width:86px;color:#b0bcca">none</span></td>
+<td><span class="muted">54.07 GB</span></td>
+<td><input type=checkbox></td><td><span class="inp" style="width:150px;color:#b0bcca">&mdash;</span></td>
+<td><span class="inp" style="width:130px;color:#b0bcca">optional</span></td></tr>
+
+<tr><td><b>Living Camera</b><br><span class="muted">192.168.1.115 &middot; 1c:61:b4:5f:3a:11</span>
+<br><span class="pill">excluded</span></td>
+<td><span class="inp" style="width:86px;color:#b0bcca">none</span></td>
+<td><span class="muted">41.21 GB</span></td>
+<td><input type=checkbox> <br><span class="pill warn">not in force</span></td>
+<td><span class="inp" style="width:150px;color:#b0bcca">&mdash;</span></td>
+<td><span class="inp" style="width:130px">excluded by policy</span></td></tr>
+
+<tr><td><b>Bedroom Camera</b><br><span class="muted">192.168.1.136 &middot; 1c:61:b4:88:93:54</span></td>
+<td><span class="inp" style="width:86px;color:#b0bcca">none</span></td>
+<td><span class="muted">28.28 GB</span></td>
+<td><input type=checkbox checked></td>
+<td><span class="inp" style="width:150px">2026-08-25 22:00</span></td>
+<td><span class="inp" style="width:130px">Tapo cloud off overnight</span></td></tr>
+</tbody></table></div>
+
+<div class="why"><b>What a block actually does</b>
+<ol><li><code>block in on LAN from &lt;wanquota_blocked&gt; to !&lt;LAN net&gt;</code>, first in the LAN rule list.</li>
+<li>Internet access stops. LAN-to-LAN traffic is untouched, so a printer or a NAS still answers.</li>
+<li>DNS and NTP served by the firewall keep working, because its own address is inside the LAN
+network &mdash; a blocked device does not also lose its clock.</li>
+<li>First in the list on purpose: appended, it showed <code>Evaluations: 0</code> while the blocked
+device browsed normally, because a broad LAN allow rule is a pf <code>quick</code> rule and matched first.</li></ol></div>
+
+<p class="muted">A quota is a calendar-month allowance: a device's traffic is split across both links by
+the load balancer, so there is no single billing cycle it belongs to. The firewall itself, devices marked
+excluded, and members of a protected infrastructure group can never be blocked &mdash; each refusal is
+reported on its own row rather than dropped.</p>
+</main>

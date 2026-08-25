@@ -1,0 +1,66 @@
+<!doctype html><meta charset="utf-8"><title>Renewal-aware WAN balance</title><style>body{margin:0;background:#eef2f6;color:#172033;font:14px Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.top{height:54px;background:#263746;color:white;display:flex;align-items:center;padding:0 32px;font-size:18px}.page{padding:26px 34px;max-width:1400px}.hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:white;box-shadow:0 12px 30px #1720332e}.hero h1{margin:0 0 6px;font-size:25px}.hero p{margin:0;opacity:.78}.ver{margin-top:9px;font-size:11px;opacity:.6;letter-spacing:.3px}.tabs{display:flex;flex-wrap:wrap;margin-top:18px;background:white;border-bottom:1px solid #d4dce3}.tab{padding:13px 18px}.active{color:#1677a8;border-bottom:3px solid #1677a8;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:16px}.card{background:white;border:1px solid #d8e0e6;border-radius:12px;padding:17px;box-shadow:0 4px 16px #17203312}.muted{color:#718092;font-size:12px}h3{margin:0 0 12px;font-size:15px}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:#64748b;font-weight:600;padding:7px 8px;border-bottom:1px solid #e2e8ee}td{padding:7px 8px;border-bottom:1px solid #eef2f6}tr:nth-child(even) td{background:#fafcfd}.bar{height:8px;background:#e7edf2;border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;border-radius:8px}.pill{display:inline-block;padding:1px 9px;border-radius:11px;font-size:11px;background:#e7edf2;color:#475569}.pill.ok{background:#d1fae5;color:#047857}.pill.warn{background:#fef3c7;color:#b45309}.pie{width:190px;height:190px;border-radius:50%;margin:6px auto 14px}.sw{display:inline-flex;align-items:center;gap:7px;font-size:13px}.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}.inp{background:white;border:1px solid #cbd5e1;border-radius:6px;padding:7px 11px;color:#94a3b8;font-size:13px}.btn{background:#1677a8;color:white;border-radius:6px;padding:8px 15px;font-size:13px;font-weight:600}.btn.ghost{background:white;color:#334155;border:1px solid #cbd5e1}.steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:#e2e8ee;font-size:12px}.steps li b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#cbd5e1;font-size:11px}.steps li.on{background:#1677a8;color:white}.steps li.on b{background:#ffffff40}.steps li.done b{background:#10b981;color:white}.why{padding:14px 16px;border-left:4px solid #1677a8;background:#eaf4fb;border-radius:6px;margin-top:14px}.why ol{margin:9px 0 0 18px;padding:0}.why li{margin:3px 0;font-size:13px}.field{margin:12px 0}.field label{display:block;font-weight:600;font-size:13px;margin-bottom:3px}.field .h{color:#718092;font-size:12px;margin-top:4px}</style><div class="top">OPNsense &middot; Reporting &middot; WAN Quotas</div>
+<main class="page">
+<section class="hero"><h1>&#9673; Renewal-aware WAN balance</h1>
+<p>Spend the allowance that is about to expire, instead of losing it.</p>
+<div class="ver">os-wanquota 0.18.0</div></section>
+<div class="tabs"><div class="tab">Summary</div><div class="tab">Consumers</div><div class="tab">Apps</div>
+<div class="tab">Limits</div><div class="tab">Live sessions</div><div class="tab active">Intelligence</div>
+<div class="tab">Data health</div><div class="tab">Settings</div></div>
+
+<div class="card" style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+<span class="sw"><input type=checkbox> <b>Enable automatic balancing</b></span>
+<span class="sw"><input type=checkbox checked> Dry run</span>
+<span class="muted">Group</span><span class="inp">DUAL_WAN</span>
+<span class="muted">Top weight</span><span class="inp">10</span>
+<span class="btn">Save</span><span class="btn ghost">Apply now</span><span class="btn ghost">Revert weights</span></div>
+
+<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #1677a8;background:#eaf4fb;border-radius:6px">
+Balancing is off. The weights below are what it would write. Only gateway weights are ever changed
+&mdash; never tiers or force-down, because taking a link out of service stays the guardrails' decision.</div>
+
+<div class="card" style="margin-top:14px"><h3>Providers, ranked by allowance at risk of expiring</h3><table>
+<thead><tr><th>Provider</th><th>Gateway</th><th>Remaining</th><th>Days to renewal</th>
+<th>Headroom per day</th><th>Weight now</th><th>Weight wanted</th></tr></thead>
+<tbody>
+<tr><td><b>ETISALAT</b><br><span class="muted">wan &rarr; igb0</span></td>
+<td>ETISALAT_DHCP</td><td><b>129.4 GB</b></td><td>7</td>
+<td><b>17.77 GB/day</b><div class="bar" style="margin-top:5px;max-width:120px"><i style="width:100%;background:#1677a8"></i></div></td>
+<td>3</td><td><b>10</b> <span class="pill warn">change</span></td></tr>
+<tr><td><b>MOBINIL</b><br><span class="muted">opt1 &rarr; ue0</span></td>
+<td>MOBINIL_DHCP</td><td><b>233.6 GB</b></td><td>21</td>
+<td>10.88 GB/day<div class="bar" style="margin-top:5px;max-width:120px"><i style="width:61%;background:#7dd3fc"></i></div></td>
+<td>1</td><td><b>6</b> <span class="pill warn">change</span></td></tr>
+</tbody></table>
+<p class="muted">MOBINIL holds nearly twice the remaining allowance, and is still the lower priority:
+it has three times as long to spend it. ETISALAT must move 17.77 GB a day to use up its 129.4 GB
+before the cycle turns in 7 days, against MOBINIL's 10.88 &mdash; so ETISALAT takes the larger share
+and the gigabytes that would have expired get spent.</p></div>
+
+<div class="why"><b>Why this is safe to leave on</b>
+<ol><li><b>Weights only.</b> A tier move is failover, which idles a link &mdash; the waste this exists
+to end. <code>Revert weights</code> puts every original back, and so does uninstalling.</li>
+<li><b>A floor of 1.</b> The balancer shifts the ratio and never starves a link. Weight 0 would be it
+taking a link out of service, which is not its decision.</li>
+<li><b>Overuse takes precedence.</b> A provider the guardrail has failed over or cut off is excluded
+and held at weight 1. Its row says so instead of showing a weight that will not be written.</li>
+<li><b>Only when the ratio moves.</b> Integer weights are compared before anything is written, so a
+run computing the same answer saves no configuration and reloads no filter.</li></ol></div>
+
+<div class="grid" style="grid-template-columns:repeat(2,1fr)">
+<div class="card"><h3>What the firewall is running now</h3>
+<p class="muted" style="margin-top:0">The weight reaches the packet path as the size of the
+round-robin pool, so the ratio is checkable rather than declared.</p>
+<table><thead><tr><th>Gateway</th><th>Entries in the pf route-to pool</th></tr></thead><tbody>
+<tr><td>ETISALAT (igb0)</td><td><b>10</b> of 16</td></tr>
+<tr><td>MOBINIL (ue0)</td><td><b>6</b> of 16</td></tr>
+</tbody></table></div>
+<div class="card"><h3>The arithmetic</h3>
+<p class="muted" style="margin-top:0">One line, and both terms already come from the quota cards.</p>
+<p style="font-family:ui-monospace,monospace;background:#f1f5f9;padding:11px;border-radius:7px;font-size:13px">
+urgency = max(0, remaining &minus; reserve) / max(1, days_left)<br>
+weight&nbsp;&nbsp;= max(1, round(urgency / peak &times; top_weight))</p>
+<p class="muted">The emergency reserve is subtracted first, so the balancer never spends the buffer
+the guardrails depend on. When every provider scores zero, all weights return to 1 and the group is
+back to equal sharing.</p></div>
+</div>
+</main>

@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/WanQuota</mount>
     <description>WAN quota reporting configuration</description>
-    <version>1.4.0</version>
+    <version>1.5.0</version>
     <items>
         <general>
             <enabled type="BooleanField">
@@ -153,9 +153,29 @@
             <shaper_upload_experimental type="BooleanField"><Default>0</Default><Required>Y</Required></shaper_upload_experimental>
             <service_limits_json type="TextField"><Default>[]</Default><Required>N</Required></service_limits_json>
             <device_limits_json type="TextField"><Default>[]</Default><Required>N</Required></device_limits_json>
+            <!--
+                Manual internet blocks. Separate from device_policies_json because the
+                two carry different authority: a budget is a standing rule evaluated
+                against measurements, a block is an act taken now. Storing them together
+                would mean an expiring block rewriting the file that holds budgets.
+            -->
+            <device_blocks_json type="TextField"><Default>[]</Default><Required>N</Required></device_blocks_json>
             <enforcement_policy type="OptionField"><Default>observe</Default><Required>Y</Required><OptionValues><observe>Observe only</observe><deprioritize>Deprioritize</deprioritize><failover>Failover only</failover><cutoff>Cut off at quota</cutoff></OptionValues></enforcement_policy>
             <guardrail_thresholds type="TextField"><Default>50,75,90,100</Default><Required>Y</Required></guardrail_thresholds>
             <emergency_reserve_gb type="NumericField"><Default>5</Default><Required>Y</Required><MinimumValue>0</MinimumValue><MaximumValue>100000</MaximumValue></emergency_reserve_gb>
+            <!--
+                Renewal-aware WAN balance. The guardrails answer "this link is running
+                out"; this answers "this link's allowance is about to expire unspent",
+                which on providers with different billing days is the more common waste.
+                It only ever changes gateway weights, never tiers or force_down, so it
+                cannot take a link out of service — that stays the guardrails' decision.
+            -->
+            <balance_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></balance_enabled>
+            <balance_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></balance_dry_run>
+            <!-- Empty auto-detects the only gateway group; required when there is more than one. -->
+            <balance_group type="TextField"><Default></Default></balance_group>
+            <!-- The weight the most urgent provider receives. Lower it to soften the ratio. -->
+            <balance_max_weight type="NumericField"><Default>10</Default><Required>Y</Required><MinimumValue>2</MinimumValue><MaximumValue>10</MaximumValue></balance_max_weight>
             <webhook_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></webhook_enabled>
             <webhook_url type="TextField"><Default></Default></webhook_url>
             <webhook_format type="OptionField"><Default>generic</Default><Required>Y</Required><OptionValues><generic>Generic JSON</generic><discord>Discord</discord><slack>Slack</slack><telegram>Telegram Bot API</telegram></OptionValues></webhook_format>

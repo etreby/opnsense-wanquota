@@ -40,7 +40,14 @@ quota reporting and top-consumer visibility.
   read-only, and routing guardrails stay off the surface entirely.
 - Device names resolved from DHCP leases as well as static mappings, and device
   identity tracked by MAC so budgets and history survive an address change.
-- Optional per-device budget enforcement, disabled and dry-run by default.
+- Per-device monthly data quotas, set from the interface, with optional enforcement
+  that blocks a device over its quota. Disabled and dry-run by default.
+- Blocking a named device from the internet outright, immediately or until a
+  deadline, while its LAN traffic and the firewall's own DNS and NTP keep working.
+- Renewal-aware WAN balancing: whichever provider has the most remaining allowance
+  per day left before its billing cycle renews receives the largest share of new
+  connections, so allowance is spent rather than lost. Weights only, never tiers,
+  and the firewall's guardrails still take precedence on a link running out.
 - Per-service bandwidth limits for streaming services, using the OPNsense traffic
   shaper, disabled and dry-run by default. Per-service and per-device limits combine.
 - Optional experimental upload shaping through ipfw's layer2 hook, off by default, for
@@ -68,6 +75,10 @@ quota reporting and top-consumer visibility.
 
 ![Per-device limits, with upload shaping refused and Verify showing what each rule matched](docs/screenshots/limits-devices.png)
 
+![Per-device monthly quotas and internet blocks](docs/screenshots/limits-quota-access.png)
+
+![Renewal-aware WAN balance, favouring the provider whose allowance expires soonest](docs/screenshots/wan-balance.png)
+
 ![Live sessions with per-device rates](docs/screenshots/live-sessions.png)
 
 ![Guided settings wizard](docs/screenshots/settings-wizard.png)
@@ -93,7 +104,8 @@ Keep those safe defaults until the recommendations match your intended routing.
 Device groups and budgets accept JSON arrays such as
 `[{"name":"Family","members":["192.168.1.0/25"],"budget_gb":200}]`.
 Per-device policies accept
-`[{"address":"192.168.1.20","budget_gb":50,"exclude":false}]`. Existing
+`[{"address":"192.168.1.20","budget_gb":50,"exclude":false}]`, though the
+**Limits → Quota & access** tab is the usual way to set them. Existing
 OPNsense aliases named `INFRASTRUCTURE_DEVICES`, `MY_DEVICES`,
 `HOME_IOT_DEVICES`, and `UNCLASSIFIED_DEVICES` are discovered automatically.
 
@@ -264,6 +276,90 @@ caches, and registers the DNS collector, so no manual restart is needed.
 
 `PLUGIN_REVISION` tracks fixes released against the same `PLUGIN_VERSION`, giving
 package versions such as `0.8_2`.
+
+## Device quotas and internet blocks
+
+**Limits → Quota & access** lists every device the firewall can name, what it has
+used this calendar month, and two controls per device: a monthly quota in GB, and a
+block.
+
+A quota is a calendar-month allowance rather than a billing-cycle one. A device's
+traffic is split across both links by the load balancer, so there is no single
+provider cycle its bytes belong to; the month is the honest unit and the interface
+labels it as such. A quota on its own records an allowance and blocks nothing —
+enforcement is the `device_enforcement_enabled` switch in Settings, off by default
+and dry-run when first enabled, and the tab says which of those three states it is
+in rather than leaving it to be inferred.
+
+A block is different in kind and is treated differently. It takes effect
+immediately, because someone who ticked it has already decided; a dry-run that
+recorded the intent without blocking would be a feature that lies. Give it a
+deadline and it releases itself on the five-minute pass after the deadline passes,
+and the entry is removed from the configuration rather than left as stale JSON.
+**Release every block** is one click, and quotas are not touched by it.
+
+What a block means precisely: `block in on LAN from wanquota_blocked to !LAN`.
+Internet access stops. LAN-to-LAN traffic is untouched, so a blocked device can
+still reach a printer or a NAS. DNS and NTP served by the firewall keep working,
+because the firewall's own address is inside the LAN network — without that a
+blocked device would lose its clock and its resolver as well, which is worse than
+what was asked for.
+
+Three refusals cannot be overridden from the interface, and each is reported with
+its reason on the row: the firewall itself is never blocked, a device marked
+`exclude` is never blocked, and a member of a protected infrastructure group is
+never blocked.
+
+The two firewall rules — one for the quota table, one for the block table — are
+created by the plugin at install, over empty tables, so they change no traffic until
+a device is in one. This used to be documented as the administrator's job, which
+meant a firewall with enforcement switched on filled a table that no rule consulted:
+enforcement that reported success and blocked nothing. `pkg delete` removes both
+rules and flushes both tables.
+
+## Renewal-aware WAN balancing
+
+The guardrails answer "this link is running out". The **Renewal-aware WAN balance**
+panel on the Intelligence tab answers the opposite question, which on providers with
+different billing days is the more common waste: "this link's allowance is about to
+expire unspent".
+
+For each provider it computes headroom per remaining day,
+`max(0, remaining - reserve) / max(1, days_left)`, and scales those into the integer
+weights a gateway group distributes traffic by. The provider whose allowance is most
+at risk of expiring gets the top weight; the others get their share of it, with a
+floor of 1 so no link is ever starved. Both figures come from the same cycle
+arithmetic the quota cards use, so nothing new is measured.
+
+Worked example, from the firewall this was built on. ETISALAT renews on day 1 with
+225 GB, MOBINIL on day 15 with 400 GB. On the 29th, ETISALAT has 2 days and 60 GB
+left — 30 GB/day — and MOBINIL has 16 days and 250 GB — 15.6 GB/day. ETISALAT's
+allowance is twice as urgent, so it is weighted 10 against MOBINIL's 5, and the
+gigabytes that would otherwise have expired are spent.
+
+Three constraints keep it safe:
+
+- **Weights only.** Never a tier, never `force_down`. A tier move is failover, which
+  idles a link — precisely the waste this exists to end. Those stay the guardrails'
+  levers, and `pkg delete` reverts any weight the balancer wrote.
+- **Overuse takes precedence.** A provider the guardrail has failed over or cut off
+  is excluded from the balance and held at weight 1. A link nearly out of allowance
+  must not be sent more traffic because its cycle renews soon.
+- **Only when the ratio moves.** Weights are integers and are compared before
+  anything is written, so a run that computes the same answer saves no configuration
+  and reloads no filter. Without that a five-minute schedule would rewrite the
+  configuration 288 times a day.
+
+Off and dry-run by default, like everything here that changes how traffic flows.
+**Apply now** writes the plan once whatever dry-run says, and **Revert weights**
+puts every original back.
+
+Note for firewalls whose gateways are all DHCP-dynamic with no configured gateway
+entry: the balancer creates that entry in order to carry a weight, which is the same
+thing the GUI does when a dynamic gateway is given settings. The quota guardrails
+iterate configured entries, so on such a firewall they were previously an error
+rather than an action and start working at the same moment. That is the intended end
+state, said out loud so it is not discovered as a surprise.
 
 ## Apps breakdown
 
@@ -657,13 +753,16 @@ that appears configured and shapes nothing.
 ## Per-device budget enforcement
 
 The gateway guardrails act on a whole provider. Per-device enforcement acts on
-individual devices that exceed a budget, by maintaining the pf table
-`wanquota_over_budget`. Installing the plugin creates
-`wanquota_over_budget` as an **external** alias, so it appears in the firewall
-rule editor; **you must add a rule blocking that alias** — the plugin maintains
-membership, your rule decides what membership means. An external alias is the
-type for a table whose contents something else maintains, which is why a bare pf
-table would not have been selectable in the rule editor.
+individual devices that exceed a monthly quota, by maintaining the pf table
+`wanquota_over_budget`. Installing the plugin creates `wanquota_over_budget` as an
+**external** alias — the type for a table whose contents something else maintains,
+which is what makes it selectable in the rule editor — **and** the rule that blocks
+it. Writing that rule used to be documented as your job, and the result was
+predictable: a firewall with enforcement switched on and dry-run off filled a table
+no rule consulted, so enforcement reported success and blocked nothing.
+
+Quotas are set per device in **Limits → Quota & access**, which also shows what each
+device has used this month against its quota.
 
 It is **disabled by default, and dry-run when first enabled**. Dry run records
 the membership it would apply to
@@ -676,8 +775,10 @@ named `Protected Infrastructure` or discovered from the
 `INFRASTRUCTURE_DEVICES` alias. A budget cannot lock the firewall out of its own
 network or take down infrastructure the network depends on.
 
-Membership is recomputed every run and applied as one atomic replace, so raising
-a budget releases the device on the next run. `configctl wanquota deviceflush`
+Membership is recomputed on the five-minute collector pass and applied as one atomic
+replace, so raising a quota releases the device on the next run. It used to be
+recomputed only when something asked for it, which meant a firewall left alone
+enforced whatever membership it had last been asked to compute. `configctl wanquota deviceflush`
 empties the table immediately, and uninstalling the plugin flushes it too — a
 rule owned by a plugin that no longer exists must not keep blocking anything.
 

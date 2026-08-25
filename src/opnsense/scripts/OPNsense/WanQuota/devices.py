@@ -111,6 +111,20 @@ def write_plan(document):
         json.dump(document, handle, separators=(",", ":"))
 
 
+def read_plan():
+    """The last plan, without recomputing or applying anything.
+
+    The interface polls this. Calling run() to render a page would apply the table
+    as a side effect of looking at it, which is the wrong way round for a read.
+    """
+    try:
+        with open(PLAN_PATH, encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return {"status": "unknown", "members": [], "skipped": [], "table": TABLE,
+                "note": "No per-device budget plan has been written yet."}
+
+
 def run(period="month"):
     cfg = intelligence.options()
     enabled = cfg.get("device_enforcement", False)
@@ -157,6 +171,9 @@ def run(period="month"):
 
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if mode == "state":
+        print(json.dumps(read_plan(), separators=(",", ":")))
+        return
     if mode == "flush":
         applied, error, detail = flush()
         print(json.dumps({"status": "ok" if applied else "failed", "flushed": applied,

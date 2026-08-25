@@ -191,6 +191,12 @@ def options():
         "thresholds": [int(x) for x in value(general, "guardrail_thresholds", "50,75,90,100").split(",") if x.strip().isdigit()],
         "reserve_gb": number(general, "emergency_reserve_gb", 5, 0, 100000),
         "policy": value(general, "enforcement_policy", "observe"),
+        # Renewal-aware WAN balance. Named "balance" rather than "balance_enabled" to
+        # match the "enforcement"/"device_enforcement" keys beside it.
+        "balance": value(general, "balance_enabled", "0") == "1",
+        "balance_dry_run": value(general, "balance_dry_run", "1") == "1",
+        "balance_group": value(general, "balance_group", ""),
+        "balance_max_weight": int(number(general, "balance_max_weight", 10, 2, 10)),
         "groups": groups,
         "devices": devices,
         "categories": {**BUILTIN_CATEGORIES, **{k: tuple(v) for k, v in categories.items() if isinstance(v, list)}},

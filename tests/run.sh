@@ -22,6 +22,50 @@ test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/explain.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/addresses.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/layer2.py"
 test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/discovery.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/blocks.py"
+test -x "$repository/src/opnsense/scripts/OPNsense/WanQuota/balance.py"
+# Per-device budgets were computed only when something asked, so a firewall with
+# enforcement on filled its table once and let membership drift while nobody looked.
+# Blocks expire on the same pass, so a missing call is an unreleased block.
+grep -q 'blocks.run()' "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
+grep -q 'devices.run("month")' "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
+grep -q 'balance.run()' "$repository/src/opnsense/scripts/OPNsense/WanQuota/monitor.py"
+# Filling a pf table that no rule consults is enforcement that reports success and
+# blocks nothing, which is what the documentation used to ask the administrator to
+# fix by hand. The rules are the plugin's job now, and teardown must take them back.
+grep -q 'wanquota_blocked' "$repository/src/opnsense/scripts/OPNsense/WanQuota/setup.php"
+# The block rule must be FIRST. Measured: appended, it showed Evaluations: 0 while
+# the blocked device browsed normally, because OPNsense emits administrator pass rules
+# as pf `quick` rules and a broad LAN allow matches before it.
+grep -q 'insertBefore' "$repository/src/opnsense/scripts/OPNsense/WanQuota/setup.php"
+grep -q 'Block devices from the internet (os-wanquota)' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
+grep -q 'balance.php' "$repository/src/opnsense/scripts/OPNsense/WanQuota/teardown.php"
+# A manual block must never share the budget table: devices.py replaces that table
+# wholesale every run, so a block filed there would be erased within five minutes.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/blocks.py" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+table = re.search(r'^TABLE = "([a-z_]+)"', source, re.M).group(1)
+assert table == "wanquota_blocked", f"manual blocks must have their own table, not {table}"
+PYCHECK
+# The balancer changes weights only. A tier move is failover, which idles a link and
+# is the waste the feature exists to end; force_down belongs to the guardrails.
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/balance.php" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+# Comments explain why the balancer stays away from these, so the check has to read
+# the code rather than the prose.
+code = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+assert "force_down" not in code, \
+    "the balancer must not touch force_down: that is the guardrails' lever"
+assert not re.search(r"->\{?\$?(item[2-5]?|tier)\}?\s*=", code), \
+    "the balancer must not write a gateway group tier: a tier move is failover"
+assert re.search(r"->weight\s*=|'weight' => ", code), \
+    "the balancer's whole job is to write a weight"
+PYCHECK
 # A discovered service is only worth finding if accepting it makes it cappable, so the
 # shaper catalog must be the union of the built-ins and what was accepted.
 grep -q "def full_catalog" "$repository/src/opnsense/scripts/OPNsense/WanQuota/shaper.py"
@@ -160,6 +204,57 @@ for switch in ("limitEnabled", "limitDryRun"):
 for gone in ("deviceLimitEnabled", "deviceLimitDryRun"):
     assert gone not in source, f"{gone} duplicates a shared switch and must not return"
 PYCHECK
+# Every API path the interface calls must resolve to a controller and an action.
+#
+# This exists because it caught a real one: OPNsense derives the URL segment from the
+# controller class name in snake_case, so DevicePolicyController is reached at
+# device_policy and not at devicepolicy. Three calls in the view were spelled the
+# wrong way, and the failure is a 404 at the moment the user presses Save — invisible
+# to every other check here.
+python3 - "$repository" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
+api = root / "src/opnsense/mvc/app/controllers/OPNsense/WanQuota/Api"
+
+
+def segment(name):
+    """PascalCase to the snake_case segment OPNsense routes on."""
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
+# ApiMutableModelControllerBase supplies get and set without either appearing in the
+# subclass, so a controller that extends it starts with those already served.
+INHERITED = {"ApiMutableModelControllerBase": {"get", "set", "reconfigure"}}
+
+controllers = {}
+for path in api.glob("*Controller.php"):
+    source = path.read_text()
+    actions = {segment(match) for match in
+               re.findall(r"function ([A-Za-z]+)Action\s*\(", source)}
+    base = re.search(r"extends\s+(\w+)", source)
+    actions |= INHERITED.get(base.group(1) if base else "", set())
+    controllers[segment(path.stem[:-len("Controller")])] = actions
+
+# A path finished by concatenation ('…/intelligence_' + period) cannot be resolved
+# statically, so the controller is still checked and the action is left alone.
+# Both spellings reach the same action — the router camel-cases the URL segment — so
+# addHostname and add_hostname are equivalent and each is normalised before comparing.
+for match in re.finditer(r"/api/wanquota/([A-Za-z_]+)/([A-Za-z_]+)(['\"]\s*\+)?", view):
+    controller, action, dynamic = match.groups()
+    controller, action = segment(controller), segment(action)
+    assert controller in controllers, \
+        f"the view calls /api/wanquota/{controller}/, which no controller serves " \
+        f"(known: {sorted(controllers)})"
+    if dynamic:
+        continue
+    assert action in controllers[controller], \
+        f"the view calls {controller}/{action}, which that controller has no action for " \
+        f"(known: {sorted(controllers[controller])})"
+PYCHECK
+
 # The endpoints must treat the switches as optional, so a caller that omits them
 # cannot silently disable shaping.
 grep -q 'private function applyState' \
@@ -196,10 +291,20 @@ fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
 # They used to appear in the wizard as well, so the dry-run switch existed twice and
 # the two copies could disagree; the correspondence check has to know that rather than
 # forcing them back into the wizard.
-elsewhere = {"shaper_enabled", "shaper_dry_run", "service_limits_json", "device_limits_json"}
+# Four settings are owned by the Limits tab, two more by its Quota & access sub-tab,
+# and four by the Intelligence tab's balance panel. Each has its own control there;
+# repeating them in the wizard is how a dry-run switch came to exist twice with two
+# copies that could disagree.
+elsewhere = {"shaper_enabled", "shaper_dry_run", "service_limits_json", "device_limits_json",
+             "device_blocks_json", "device_policies_json",
+             "balance_enabled", "balance_dry_run", "balance_group", "balance_max_weight"}
 view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
 assert "id=\"limitEnabled\"" in view and "id=\"limitDryRun\"" in view, \
     "the Limits tab must still own the enable and dry-run controls"
+assert "id=\"accessTable\"" in view and "id=\"saveAccess\"" in view, \
+    "the Quota & access sub-tab must own the per-device quota and block controls"
+assert "id=\"balanceEnabled\"" in view and "id=\"balanceDryRun\"" in view, \
+    "the Intelligence tab must own the renewal-aware balance switches"
 for field in elsewhere:
     assert f"wanquota.general.{field}" not in view or field in ("shaper_enabled",), \
         f"{field} is owned by the Limits tab and must not be a wizard field too"

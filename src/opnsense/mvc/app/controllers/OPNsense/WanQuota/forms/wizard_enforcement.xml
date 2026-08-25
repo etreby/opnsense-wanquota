@@ -16,7 +16,7 @@
         <id>wanquota.general.device_enforcement_enabled</id>
         <label>Per-device budget enforcement</label>
         <type>checkbox</type>
-        <help>Block individual devices that exceed their configured budget, by maintaining the wanquota_over_budget firewall table. Requires a firewall rule that blocks that table. The router, devices marked excluded, and members of a protected infrastructure group are never blocked.</help>
+        <help>Block individual devices that exceed their configured monthly quota, by maintaining the wanquota_over_budget firewall table. The plugin creates the rule that blocks that table when it is installed, so nothing has to be written by hand — it used to be the administrator's job, and a firewall with this switched on filled a table no rule consulted. Quotas are set per device in Reporting &gt; WAN Quota &gt; Limits &gt; Quota &amp; access. The router, devices marked excluded, and members of a protected infrastructure group are never blocked.</help>
     </field>
     <field>
         <id>wanquota.general.device_enforcement_dry_run</id>

@@ -3,6 +3,7 @@
 
 require_once 'config.inc';
 require_once 'util.inc';
+require_once 'filter.inc';
 
 use OPNsense\WanQuota\WanQuota;
 
@@ -64,6 +65,11 @@ $defaults = [
     'enforcement_policy' => 'observe',
     'guardrail_thresholds' => '50,75,90,100',
     'emergency_reserve_gb' => '5',
+    'device_blocks_json' => '[]',
+    'balance_enabled' => '0',
+    'balance_dry_run' => '1',
+    'balance_group' => '',
+    'balance_max_weight' => '10',
     'webhook_enabled' => '0',
     'webhook_url' => '',
     'webhook_format' => 'generic',
@@ -131,32 +137,44 @@ if (!$cronExists) {
 $cron->serializeToConfig();
 
 /*
- * Declare the per-device enforcement table as an "external" alias.
+ * Declare the two per-device tables as "external" aliases, and create the firewall
+ * rules that make them mean something.
  *
- * Populating a bare pf table is not enough to be usable: firewall rules are
- * written against aliases, so a table OPNsense does not know about never appears
- * in the rule dropdown and cannot be selected. An external alias is precisely the
- * type for a table whose contents are maintained by something else — OPNsense
- * owns its lifecycle and shows it in the rule editor, while the plugin fills it.
+ * Populating a bare pf table is not enough to be usable: firewall rules are written
+ * against aliases, so a table OPNsense does not know about never appears in the rule
+ * dropdown and cannot be selected. An external alias is precisely the type for a
+ * table whose contents are maintained by something else — OPNsense owns its
+ * lifecycle and shows it in the rule editor, while the plugin fills it.
  *
- * The alias is created empty and stays empty until per-device enforcement is
- * enabled, which is off by default. Creating it changes no traffic on its own.
+ * The rules used to be the administrator's job, and the documentation said so. That
+ * was a mistake worth naming: a firewall with per-device enforcement switched on and
+ * dry-run off filled a table that no rule consulted, so enforcement reported success
+ * and blocked nothing. Creating the rules here closes that gap, and creating them is
+ * safe for the same reason creating the alias is — both tables are empty at
+ * creation, so both rules are live and match nothing.
  */
-$aliasName = 'wanquota_over_budget';
+$tables = [
+    'wanquota_over_budget' => 'WAN quota: devices over their per-device budget (maintained by os-wanquota)',
+    'wanquota_blocked' => 'WAN quota: devices blocked from the internet (maintained by os-wanquota)',
+];
 try {
     $aliases = new \OPNsense\Firewall\Alias();
-    $exists = false;
+    $existing = [];
     foreach ($aliases->aliases->alias->iterateItems() as $alias) {
-        if ((string)$alias->name === $aliasName) {
-            $exists = true;
-            break;
-        }
+        $existing[(string)$alias->name] = true;
     }
-    if (!$exists) {
+    $added = [];
+    foreach ($tables as $aliasName => $description) {
+        if (isset($existing[$aliasName])) {
+            continue;
+        }
         $alias = $aliases->aliases->alias->Add();
         $alias->name = $aliasName;
         $alias->type = 'external';
-        $alias->description = 'WAN quota: devices over their per-device budget (maintained by os-wanquota)';
+        $alias->description = $description;
+        $added[] = $aliasName;
+    }
+    if (!empty($added)) {
         $aliasErrors = $aliases->performValidation();
         if (count($aliasErrors) > 0) {
             foreach ($aliasErrors as $message) {
@@ -164,14 +182,121 @@ try {
             }
         } else {
             $aliases->serializeToConfig();
-            echo "Created the {$aliasName} external alias for per-device enforcement\n";
+            echo 'Created external alias(es): ' . implode(', ', $added) . "\n";
         }
     }
 } catch (\Throwable $error) {
     // Never fail the install over this: everything except per-device enforcement
-    // works without the alias, and the alias can be created by hand.
-    fwrite(STDERR, "Could not create the {$aliasName} alias: " . $error->getMessage() . PHP_EOL);
+    // works without the aliases, and an alias can be created by hand.
+    fwrite(STDERR, 'Could not create the WAN quota aliases: ' . $error->getMessage() . PHP_EOL);
+}
+
+/*
+ * The rules themselves.
+ *
+ * Shape: block in on the LAN interface, from the alias, to anything that is *not*
+ * the LAN network. The negated destination is what keeps a block from doing more
+ * harm than was asked for:
+ *
+ *   * Internet access stops, which is the point.
+ *   * LAN-to-LAN traffic is untouched. Most of it is switched and never reaches the
+ *     firewall at all, but a device blocked from the internet should still be able
+ *     to reach a printer or a NAS.
+ *   * DNS and NTP served by the firewall keep working, because the firewall's own
+ *     LAN address is inside the LAN network. Without that a blocked device would
+ *     lose its clock and its resolver too, which is worse than what was asked for.
+ *
+ * Position: first. This was measured rather than assumed, and the first attempt was
+ * wrong. The rules were appended, on the reasoning that the negated destination made
+ * position irrelevant. It does not: OPNsense emits administrator pass rules as pf
+ * `quick` rules, so a broad `pass in quick on em0 from <MY_DEVICES> to any` earlier
+ * in the list matches first and the block is never evaluated. On the firewall this
+ * was written for, the appended rule showed `Evaluations: 0` while the blocked
+ * device browsed normally. Being first is what makes a block mean anything, and the
+ * negated destination is what makes being first safe — the rules a block must not
+ * override all address the firewall itself, which the negation already excludes.
+ *
+ * inet46 rather than inet: a pf table holds both families, so an IPv4-only rule
+ * would leave a blocked device reaching the internet over IPv6.
+ *
+ * Any previous copy is removed first, wherever it sits, so an upgrade from a version
+ * that appended them repairs the position instead of skipping the rule it already
+ * recognises.
+ */
+$ruleSpecs = [
+    'wanquota_over_budget' => 'Block devices over their WAN quota budget (os-wanquota)',
+    'wanquota_blocked' => 'Block devices from the internet (os-wanquota)',
+];
+$createdRules = [];
+try {
+    $configObject = \OPNsense\Core\Config::getInstance()->object();
+    if (!isset($configObject->filter)) {
+        $configObject->addChild('filter');
+    }
+    $wanted = array_flip($ruleSpecs);
+    /* Collect before removing: a live SimpleXML node list skips entries otherwise. */
+    $stale = [];
+    foreach ($configObject->filter->rule as $rule) {
+        if (isset($wanted[(string)$rule->descr])) {
+            $stale[] = dom_import_simplexml($rule);
+        }
+    }
+    foreach ($stale as $node) {
+        $node->parentNode->removeChild($node);
+    }
+    $filterDom = dom_import_simplexml($configObject->filter);
+    $document = $filterDom->ownerDocument;
+    $first = null;
+    foreach ($filterDom->childNodes as $child) {
+        if ($child->nodeType === XML_ELEMENT_NODE && $child->nodeName === 'rule') {
+            $first = $child;
+            break;
+        }
+    }
+    /*
+     * Reversed, inserting each before the last one placed, so the pair ends up in the
+     * order listed above rather than mirrored.
+     */
+    foreach (array_reverse($ruleSpecs, true) as $aliasName => $description) {
+        $rule = $document->createElement('rule');
+        foreach (['type' => 'block', 'ipprotocol' => 'inet46', 'descr' => $description,
+                  'interface' => 'lan', 'log' => '1'] as $field => $value) {
+            $rule->appendChild($document->createElement($field, $value));
+        }
+        $source = $document->createElement('source');
+        $source->appendChild($document->createElement('address', $aliasName));
+        $rule->appendChild($source);
+        $destination = $document->createElement('destination');
+        $destination->appendChild($document->createElement('network', 'lan'));
+        $destination->appendChild($document->createElement('not', '1'));
+        $rule->appendChild($destination);
+        if ($first === null) {
+            $filterDom->appendChild($rule);
+        } else {
+            $filterDom->insertBefore($rule, $first);
+        }
+        $first = $rule;
+        $createdRules[] = $description;
+    }
+    if (!empty($createdRules)) {
+        echo 'Installed firewall rule(s) at the top of the LAN list: '
+            . implode('; ', array_reverse($createdRules)) . "\n";
+        echo "Both tables are empty, so the rules match nothing until a device is blocked.\n";
+    }
+} catch (\Throwable $error) {
+    fwrite(STDERR, 'Could not create the WAN quota block rules: ' . $error->getMessage() . PHP_EOL);
 }
 
 \OPNsense\Core\Config::getInstance()->save('Initialize WAN quota and consumer reporting plugin');
+/*
+ * Reload the filter only when a rule was created. A rule sitting in the
+ * configuration is not a rule pf is enforcing, and blocks.py only replaces table
+ * contents — it never reloads rules — so without this the first block would fill a
+ * table that pf had no rule for. Reloading on every install would be a needless
+ * interruption on a firewall where nothing changed.
+ */
+if (!empty($createdRules)) {
+    filter_configure();
+    echo "Firewall reloaded so the new rule(s) are live\n";
+}
 echo "WAN quota settings and DNS collector schedule saved\n";

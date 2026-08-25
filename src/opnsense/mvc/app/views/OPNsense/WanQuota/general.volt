@@ -93,6 +93,7 @@
         <ul class="nav nav-pills wq-subtabs">
             <li class="active"><a href="#limitsService" data-toggle="tab">{{ lang._('By service') }}</a></li>
             <li><a href="#limitsDevice" data-toggle="tab">{{ lang._('By device') }}</a></li>
+            <li><a href="#limitsAccess" data-toggle="tab">{{ lang._('Quota & access') }}</a></li>
         </ul>
         <div class="tab-content">
         <div id="limitsService" class="tab-pane fade in active">
@@ -131,6 +132,28 @@
             <div class="wq-table-wrap"><div id="deviceLimitTable"></div></div>
             <p class="wq-muted">{{ lang._('A device limit caps the rate to and from one device. Keying it on the MAC keeps it applying after DHCP changes the address; keying it on the address alone does not. The firewall itself can never be limited.') }}</p>
         </div>
+        <!--
+            Quota and access are one sub-tab rather than two, because they are one
+            decision made about one device: how much it may use, and whether it may
+            reach the internet at all. Splitting them would mean opening two pages to
+            answer "what is this device allowed to do".
+
+            The enforcement switches are deliberately NOT repeated here. They live in
+            Settings, and a second copy that could disagree with the first is the
+            mistake the Limits tab already made once with the shaper switches.
+        -->
+        <div id="limitsAccess" class="tab-pane fade">
+            <div class="wq-action-box" style="margin-bottom:14px">
+              <input id="accessSearch" class="form-control" style="max-width:230px" placeholder="{{ lang._('Search devices…') }}">
+              <span id="accessCount" class="wq-muted"></span>
+              <button id="unblockAll" class="btn btn-default" style="margin-left:auto"><i class="fa fa-unlock"></i> {{ lang._('Release every block') }}</button>
+              <button id="saveAccess" class="btn btn-primary"><i class="fa fa-check"></i> {{ lang._('Save and apply') }}</button>
+            </div>
+            <div id="accessState"></div>
+            <div id="accessStatus"></div>
+            <div class="wq-table-wrap"><div id="accessTable"></div></div>
+            <p class="wq-muted">{{ lang._('A quota is a calendar-month allowance: a device\'s traffic is split across both links by the load balancer, so there is no single billing cycle it belongs to. A block stops internet access and leaves LAN traffic alone — DNS and NTP served by this firewall keep working, so a blocked device is not left with a broken clock as well. The firewall itself, devices marked excluded, and members of a protected infrastructure group can never be blocked.') }}</p>
+        </div>
         </div>
     </div></div>
     <div id="sessions" class="tab-pane fade"><div style="padding:16px">
@@ -163,7 +186,7 @@
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions on this device') }}</h3><div id="sessionDetailTable"></div></div>
         </div>
     </div></div>
-    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
+    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div class="wq-section" id="balanceSection"><h3>{{ lang._('Renewal-aware WAN balance') }}</h3><p class="wq-muted">{{ lang._('The guardrails answer "this link is running out". This answers the opposite question: "this link\'s allowance is about to expire unspent". The provider with the most remaining allowance per day left before its renewal gets the largest share of new connections, so allowance is spent rather than lost. Only gateway weights are changed — never tiers or force-down, because taking a link out of service stays the guardrails\' decision.') }}</p><div class="wq-action-box wq-toolbar"><label class="wq-switch"><input type="checkbox" id="balanceEnabled"> <b>{{ lang._('Enable automatic balancing') }}</b></label><label class="wq-switch"><input type="checkbox" id="balanceDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label><label>{{ lang._('Group') }}</label><select id="balanceGroup" class="form-control"></select><label>{{ lang._('Top weight') }}</label><select id="balanceMaxWeight" class="form-control"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10" selected>10</option></select><button id="saveBalance" class="btn btn-primary" type="button">{{ lang._('Save') }}</button><button id="applyBalance" class="btn btn-warning" type="button">{{ lang._('Apply now') }}</button><button id="revertBalance" class="btn btn-default" type="button">{{ lang._('Revert weights') }}</button></div><div id="balanceStatus"></div><div class="wq-table-wrap"><div id="balanceTable"></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade"><div style="padding:16px">
         <ol class="wq-steps" id="wizardSteps">
@@ -1454,6 +1477,268 @@ function renderDeviceLimits(data) {
     $('#deviceLimitTable').html(html + '</tbody></table>');
     filterDeviceLimits();
 }
+/*
+ * Quota and access: one table, one save.
+ *
+ * The row is the unit of decision — a device's monthly allowance and whether it may
+ * reach the internet at all — so both are collected from the same row and posted
+ * together. Two endpoints would let one half succeed and leave the page disagreeing
+ * with the configuration about what the user just did.
+ */
+let accessData = null;
+function refreshDevicePolicy() {
+    $('#accessTable').html('<div class="alert alert-info">' + esc('{{ lang._("Loading devices…") }}') + '</div>');
+    ajaxCall('/api/wanquota/device_policy/get', {}, function(data) {
+        accessData = data;
+        renderDevicePolicy(data);
+    });
+}
+function accessDeadline(until) {
+    // datetime-local wants local wall time with no zone, so the offset is removed
+    // rather than the value being converted — sending UTC here would show a block
+    // ending at the wrong hour to anyone not on UTC.
+    if (!until) return '';
+    const when = new Date(until * 1000);
+    return new Date(when.getTime() - when.getTimezoneOffset() * 60000)
+        .toISOString().slice(0, 16);
+}
+function renderDevicePolicy(data) {
+    if (!data || data.status !== 'ok') {
+        $('#accessTable').html('<div class="alert alert-danger">'
+            + esc((data && data.error) || '{{ lang._("Device policy is unavailable") }}') + '</div>');
+        return;
+    }
+    /*
+     * The enforcement state is reported, not offered. A quota only blocks anything
+     * when per-device enforcement is on and dry-run is off, and a page that let those
+     * be toggled here as well as in Settings would be the second place they could
+     * disagree.
+     */
+    const state = !data.enforcement_enabled
+        ? ['warning', '{{ lang._("Per-device quota enforcement is off, so a quota is recorded and nothing is blocked. Turn it on in Settings under Enforcement and limits.") }}']
+        : data.enforcement_dry_run
+            ? ['warning', '{{ lang._("Per-device quota enforcement is in dry-run, so the plugin records which devices would be blocked and blocks nothing. Turn dry-run off in Settings when the list matches what you intend.") }}']
+            : ['success', '{{ lang._("Per-device quota enforcement is live: a device over its quota is blocked from the internet until the month turns or the quota is raised.") }}'];
+    $('#accessState').html('<div class="alert alert-' + state[0] + '">' + esc(state[1])
+        + '<br><small>' + esc('{{ lang._("A block set below is immediate and independent of those switches — it is an act, not a prediction.") }}') + '</small></div>');
+    const rows = data.devices || [];
+    if (!rows.length) {
+        $('#accessTable').html('<div class="alert alert-info">'
+            + esc('{{ lang._("No devices are currently visible on the LAN.") }}') + '</div>');
+        return;
+    }
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th>{{ lang._("Device") }}</th><th>{{ lang._("Monthly quota (GB)") }}</th>'
+             + '<th>{{ lang._("Used this month") }}</th>'
+             + '<th style="width:60px">{{ lang._("Block") }}</th>'
+             + '<th>{{ lang._("Until") }}</th><th>{{ lang._("Reason") }}</th>'
+             + '</tr></thead><tbody>';
+    for (const row of rows) {
+        const search = (row.name + ' ' + row.address + ' ' + (row.mac || '') + ' '
+                        + (row.hostname || '')).toLowerCase();
+        const share = row.percent === null || row.percent === undefined
+            ? '<span class="wq-muted">' + gb(row.used) + '</span>'
+            : gb(row.used) + ' <b>(' + Number(row.percent).toFixed(0) + '%)</b>'
+              + (row.over_budget ? ' <span class="wq-pill wq-pill-warn">'
+                    + esc('{{ lang._("over budget") }}') + '</span>' : '');
+        html += '<tr data-device="' + esc(row.key) + '" data-search="' + esc(search) + '">'
+             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value=\'' + esc(row.address) + '\'>'
+             +  '<b>' + esc(row.name) + '</b></a><br><small class="wq-muted">' + esc(row.address)
+             +  (row.mac ? ' · ' + esc(row.mac) : '') + '</small>'
+             +  (row.excluded ? '<br><small class="wq-pill" title="'
+                    + esc('{{ lang._("Marked excluded, so it is never blocked by a quota or a block") }}')
+                    + '">' + esc('{{ lang._("excluded") }}') + '</small>' : '')
+             +  '</td>'
+             +  '<td><input class="form-control acc-quota" type="number" step="1" min="1"'
+             +  ' style="max-width:110px" placeholder="{{ lang._("none") }}" value="' + esc(row.budget_gb) + '"></td>'
+             +  '<td>' + share + '</td>'
+             +  '<td><input type="checkbox" class="acc-block"' + (row.blocked ? ' checked' : '') + '>'
+             +  (row.blocked && !row.blocked_now
+                    ? '<br><small class="wq-pill wq-pill-warn" title="'
+                      + esc(row.block_refused || '{{ lang._("Configured but not in force") }}')
+                      + '">' + esc('{{ lang._("not in force") }}') + '</small>' : '')
+             +  '</td>'
+             +  '<td><input class="form-control acc-until" type="datetime-local" style="max-width:200px"'
+             +  ' title="' + esc('{{ lang._("Leave empty to block until you remove it") }}') + '"'
+             +  ' value="' + esc(accessDeadline(row.until)) + '"></td>'
+             +  '<td><input class="form-control acc-reason" type="text" maxlength="200"'
+             +  ' placeholder="{{ lang._("optional") }}" value="' + esc(row.reason) + '"></td>'
+             +  '</tr>';
+    }
+    $('#accessTable').html(html + '</tbody></table>');
+    filterDevicePolicy();
+}
+function filterDevicePolicy() {
+    const query = String($('#accessSearch').val() || '').toLowerCase().trim();
+    let shown = 0;
+    $('#accessTable tbody tr').each(function() {
+        // A row the user has acted on stays visible whatever the filter says, so a
+        // search cannot hide a block that is about to be saved.
+        const acted = $(this).find('.acc-block').is(':checked')
+                      || String($(this).find('.acc-quota').val() || '') !== '';
+        const match = !query || String($(this).data('search')).includes(query) || acted;
+        $(this).toggle(match);
+        if (match) shown++;
+    });
+    const total = $('#accessTable tbody tr').length;
+    $('#accessCount').text(query ? shown + ' / ' + total : total + ' {{ lang._("devices") }}');
+}
+function saveDevicePolicy() {
+    const quotas = [];
+    const blocks = [];
+    let invalid = null;
+    $('#accessTable tbody tr').each(function() {
+        const device = $(this).data('device');
+        const quota = String($(this).find('.acc-quota').val() || '').trim();
+        // Every row is sent, including the empty ones: an empty quota is how a quota
+        // is cleared, and omitting the row would leave the old value in place.
+        quotas.push({device: device, budget_gb: quota});
+        if (!$(this).find('.acc-block').is(':checked')) return;
+        const until = String($(this).find('.acc-until').val() || '').trim();
+        let stamp = 0;
+        if (until) {
+            stamp = Math.floor(new Date(until).getTime() / 1000);
+            if (!stamp || stamp <= Math.floor(Date.now() / 1000)) {
+                invalid = invalid || device;
+                return;
+            }
+        }
+        blocks.push({device: device, until: stamp,
+                     reason: String($(this).find('.acc-reason').val() || '').trim()});
+    });
+    if (invalid) {
+        $('#accessStatus').html('<div class="alert alert-danger">'
+            + esc(invalid + ': {{ lang._("the block deadline must be in the future") }}') + '</div>');
+        return;
+    }
+    $('#accessStatus').html('<div class="alert alert-info">' + esc('{{ lang._("Applying…") }}') + '</div>');
+    $('#saveAccess').prop('disabled', true);
+    ajaxCall('/api/wanquota/device_policy/set', {quotas: quotas, blocks: blocks}, function(result) {
+        $('#saveAccess').prop('disabled', false);
+        if (!result || result.status !== 'ok') {
+            $('#accessStatus').html('<div class="alert alert-danger">'
+                + ((result && result.errors) || [(result && result.error) || 'Save failed'])
+                    .map(esc).join('<br>') + '</div>');
+            return;
+        }
+        const blocked = ((result.block_result || {}).members || []).length;
+        const refused = ((result.block_result || {}).skipped || []).length;
+        $('#accessStatus').html('<div class="alert alert-success">'
+            + esc(result.quotas + ' {{ lang._("quota(s) saved") }}; ' + blocked
+                  + ' {{ lang._("device(s) blocked from the internet") }}'
+                  + (refused ? '; ' + refused + ' {{ lang._("entr(y/ies) refused — see the row") }}' : ''))
+            + '</div>');
+        refreshDevicePolicy();
+    });
+}
+function unblockEveryDevice() {
+    $('#accessStatus').html('<div class="alert alert-info">' + esc('{{ lang._("Releasing…") }}') + '</div>');
+    ajaxCall('/api/wanquota/device_policy/unblock_all', {}, function(result) {
+        if (!result || result.status !== 'ok') {
+            $('#accessStatus').html('<div class="alert alert-danger">'
+                + esc((result && result.error) || '{{ lang._("Could not release the blocks") }}') + '</div>');
+            return;
+        }
+        $('#accessStatus').html('<div class="alert alert-success">'
+            + esc('{{ lang._("Every block released. Quotas are untouched.") }}') + '</div>');
+        refreshDevicePolicy();
+    });
+}
+/*
+ * Renewal-aware WAN balance.
+ *
+ * The panel reads the stored plan rather than recomputing, because the collector and
+ * the interface must not answer the same question differently. Recalculating is what
+ * Save does, and it does it because switches changed.
+ */
+function refreshBalance() {
+    ajaxCall('/api/wanquota/balance/get', {}, renderBalance);
+}
+function renderBalance(data) {
+    if (!data) return;
+    $('#balanceEnabled').prop('checked', !!data.enabled);
+    $('#balanceDryRun').prop('checked', data.dry_run !== false);
+    $('#balanceMaxWeight').val(String(data.max_weight || 10));
+    const groups = data.groups || [];
+    $('#balanceGroup').html(
+        '<option value="">' + esc(groups.length === 1
+            ? '{{ lang._("the only group") }}' : '{{ lang._("choose…") }}') + '</option>'
+        + groups.map(g => '<option value="' + esc(g.name) + '"'
+            + (g.name === data.configured_group ? ' selected' : '') + '>'
+            + esc(g.name) + '</option>').join(''));
+    const problems = data.problems || [];
+    const state = problems.length
+        ? ['danger', problems.join('; ')]
+        : !data.enabled
+            ? ['info', '{{ lang._("Balancing is off. The weights below are what it would write.") }}']
+            : data.dry_run
+                ? ['warning', '{{ lang._("Dry run: the plan is recorded and no gateway weight is changed.") }}']
+                : ['success', '{{ lang._("Live: weights are written whenever the computed ratio moves.") }}'];
+    const applied = data.applied || {};
+    $('#balanceStatus').html('<div class="alert alert-' + state[0] + '">' + esc(state[1])
+        + (applied.note ? '<br><small>' + esc(applied.note) + '</small>' : '')
+        + (applied.error ? '<br><small>' + esc(applied.error) + '</small>' : '')
+        + '</div>');
+    const rows = data.providers || [];
+    if (!rows.length) {
+        $('#balanceTable').html('<div class="alert alert-info">'
+            + esc('{{ lang._("No provider has a measurable allowance yet.") }}') + '</div>');
+        return;
+    }
+    let html = '<table class="table table-condensed table-striped"><thead><tr>'
+             + '<th>{{ lang._("Provider") }}</th><th>{{ lang._("Gateway") }}</th>'
+             + '<th>{{ lang._("Remaining") }}</th><th>{{ lang._("Days to renewal") }}</th>'
+             + '<th>{{ lang._("Headroom per day") }}</th>'
+             + '<th>{{ lang._("Weight now") }}</th><th>{{ lang._("Weight wanted") }}</th>'
+             + '</tr></thead><tbody>';
+    for (const row of rows) {
+        const move = row.weight === row.current_weight
+            ? '<b>' + row.weight + '</b>'
+            : '<b>' + row.weight + '</b> <span class="wq-pill wq-pill-warn">'
+              + esc('{{ lang._("change") }}') + '</span>';
+        html += '<tr><td><b>' + esc(row.name) + '</b><br><small class="wq-muted">'
+             +  esc(row.logical_interface) + '</small>'
+             +  (row.excluded ? '<br><small class="wq-pill wq-pill-warn" title="'
+                    + esc(row.excluded_reason) + '">' + esc('{{ lang._("excluded by the guardrail") }}')
+                    + '</small>' : '')
+             +  '</td><td>' + esc(row.gateway || '—') + '</td>'
+             +  '<td>' + gb(row.remaining) + '</td><td>' + esc(row.days_left) + '</td>'
+             +  '<td>' + gb(row.urgency) + '{{ lang._("/day") }}</td>'
+             +  '<td>' + esc(row.current_weight) + '</td>'
+             +  '<td>' + (row.excluded ? '<b>1</b>' : move) + '</td></tr>';
+    }
+    $('#balanceTable').html(html + '</tbody></table>');
+}
+function saveBalance() {
+    $('#saveBalance').prop('disabled', true);
+    ajaxCall('/api/wanquota/balance/set', {
+        enabled: $('#balanceEnabled').is(':checked') ? 1 : 0,
+        dry_run: $('#balanceDryRun').is(':checked') ? 1 : 0,
+        group: $('#balanceGroup').val() || '',
+        max_weight: $('#balanceMaxWeight').val(),
+    }, function(result) {
+        $('#saveBalance').prop('disabled', false);
+        if (!result || result.status !== 'ok') {
+            $('#balanceStatus').html('<div class="alert alert-danger">'
+                + ((result && result.errors) || [(result && result.error) || 'Save failed'])
+                    .map(esc).join('<br>') + '</div>');
+            return;
+        }
+        refreshBalance();
+    });
+}
+function actOnBalance(endpoint, working) {
+    $('#balanceStatus').html('<div class="alert alert-info">' + esc(working) + '</div>');
+    ajaxCall('/api/wanquota/balance/' + endpoint, {}, function(result) {
+        if (!result || result.status !== 'ok') {
+            $('#balanceStatus').html('<div class="alert alert-danger">'
+                + esc((result && result.error) || '{{ lang._("The gateway weights were not changed") }}')
+                + '</div>');
+            return;
+        }
+        refreshBalance();
+    });
+}
 function filterDeviceLimits() {
     const query = String($('#deviceLimitSearch').val() || '').toLowerCase().trim();
     let shown = 0;
@@ -1937,6 +2222,7 @@ $(document).ready(function() {
     refreshReports();
     refreshConsumers();
     refreshIntelligence();
+    refreshBalance();
     if (window.location.hash) {
         drillFromHash();
     }
@@ -2072,6 +2358,30 @@ $(document).ready(function() {
     $('a[href="#limitsDevice"]').on('shown.bs.tab', function() {
         if (!deviceLimitData) refreshDeviceLimits();
     });
+    /*
+     * Always refresh on entry rather than only the first time. Usage moves, and a
+     * quota page showing last hour's percentage is a page someone would act on.
+     */
+    $('a[href="#limitsAccess"]').on('shown.bs.tab', refreshDevicePolicy);
+    $('#accessTable').on('change', '.acc-block', filterDevicePolicy);
+    $('#accessSearch').on('keyup', filterDevicePolicy);
+    $('#saveAccess').on('click', saveDevicePolicy);
+    $('#unblockAll').on('click', function() {
+        // The one destructive-sounding button that is actually the safe direction,
+        // so it still asks: it discards work if the blocks were deliberate.
+        if (window.confirm('{{ lang._("Release every device block? Quotas are not affected.") }}')) {
+            unblockEveryDevice();
+        }
+    });
+    $('#saveBalance').on('click', saveBalance);
+    $('#applyBalance').on('click', function() {
+        if (window.confirm('{{ lang._("Write the computed gateway weights now, whatever dry-run says? Revert weights puts them back.") }}')) {
+            actOnBalance('apply', '{{ lang._("Applying…") }}');
+        }
+    });
+    $('#revertBalance').on('click', function() {
+        actOnBalance('revert', '{{ lang._("Restoring the original weights…") }}');
+    });
     $('#explainGo').on('click', function() { explainDomain($('#explainInput').val().trim()); });
     $('#explainInput').on('keydown', function(event) {
         if (event.key === 'Enter') explainDomain($(this).val().trim());
@@ -2131,7 +2441,13 @@ $(document).ready(function() {
         refreshMatrix();
     });
     $('#drillDevice,#drillDomain').on('change', refreshMatrix);
-    $('#refreshIntelligence,#intelligencePeriod').on('click change', refreshIntelligence);
+    $('#refreshIntelligence,#intelligencePeriod').on('click change', function() {
+        refreshIntelligence();
+        // The balance panel lives on this tab and answers a different question, so it
+        // reloads with it rather than only on page load.
+        refreshBalance();
+    });
+    $('#maintabs a[href="#intelligence"]').on('shown.bs.tab', refreshBalance);
     $('#intelligenceSearch').on('input', filterIntelligence);
     $('#applyOverride').on('click',function(){const button=$(this),payload={provider:$('#overrideProvider').val(),mode:$('#overrideMode').val(),hours:$('#overrideHours').val()};button.prop('disabled',true);$('#overrideStatus').text('Applying…');ajaxCall('/api/wanquota/override',payload,function(result){button.prop('disabled',false);$('#overrideStatus').text(result.status==='ok'?'Override saved until '+new Date(result.expires*1000).toLocaleString():(result.error||'Override failed'));refreshIntelligence();});});
     $('#unitToggle').on('click',function(){wqUnit=wqUnit==='GB'?'MB':'GB';$(this).text(wqUnit);refreshReports();refreshConsumers();if(currentIntelligenceData)renderIntelligence(currentIntelligenceData);});

@@ -4,7 +4,10 @@
 import json
 
 import addresses
+import balance
+import blocks
 import consumers
+import devices
 import intelligence
 import report
 import shaper
@@ -62,6 +65,29 @@ def main():
         result["intelligence"] = intelligence.snapshot()
     except Exception as error:
         result["intelligence"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
+    # Blocks first, and before the budget enforcer. An explicit block is an act
+    # someone has already decided on; it should not wait behind a recomputation
+    # that reads several databases and can fail.
+    try:
+        result["blocks"] = blocks.run()
+    except Exception as error:
+        result["blocks"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
+    # Per-device budgets were computed only when something asked, which meant a
+    # firewall with enforcement switched on filled its table once and then let
+    # membership drift for as long as nobody opened the page.
+    try:
+        result["device_budgets"] = devices.run("month")
+    except Exception as error:
+        result["device_budgets"] = {"status": "failed", "error": str(error)}
+        result["status"] = "degraded"
+    # Last, because it is the only step that can save configuration and reload the
+    # filter, and it only does so when an integer weight actually moved.
+    try:
+        result["balance"] = balance.run()
+    except Exception as error:
+        result["balance"] = {"status": "failed", "error": str(error)}
         result["status"] = "degraded"
     print(json.dumps(result, separators=(",", ":")))
 

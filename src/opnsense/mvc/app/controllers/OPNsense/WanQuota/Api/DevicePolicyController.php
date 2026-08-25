@@ -1,0 +1,313 @@
+<?php
+
+namespace OPNsense\WanQuota\Api;
+
+use OPNsense\Base\ApiControllerBase;
+use OPNsense\Core\Backend;
+use OPNsense\WanQuota\WanQuota;
+
+/**
+ * Per-device data quotas and internet blocks, for the Limits tab's Quota & access
+ * sub-tab.
+ *
+ * Deliberately not under api/wanquota/report, and for a sharper reason than the
+ * other write endpoints: the read-only ACL privilege matches api/wanquota/report/*
+ * and is the credential an AI agent should be given. An endpoint that can take a
+ * device off the internet must not be reachable through a privilege whose name
+ * promises it only reads.
+ *
+ * The two features share this controller because they share a table row in the
+ * interface — a device's quota and its access are one decision made in one place —
+ * but they are stored, enforced and reverted separately. Nothing here mixes them.
+ */
+class DevicePolicyController extends ApiControllerBase
+{
+    /** Devices, their quota, what they have used this month, and their access state. */
+    public function getAction(): array
+    {
+        $backend = new Backend();
+        $known = json_decode($backend->configdRun('wanquota shaperdevices'), true);
+        /*
+         * The month, because a device budget is a calendar-month allowance rather
+         * than a provider cycle: a device's bytes are split across both links by the
+         * load balancer, so there is no single cycle its traffic belongs to.
+         */
+        $usage = json_decode($backend->configdRun('wanquota consumers month'), true);
+        /* State, not a fresh run: rendering a page must not apply a firewall table. */
+        $budgetPlan = json_decode($backend->configdRun('wanquota devicestate'), true);
+        $blockPlan = json_decode($backend->configdRun('wanquota blockstate'), true);
+
+        $model = new WanQuota();
+        $policies = json_decode((string)$model->general->device_policies_json, true);
+        $policies = is_array($policies) ? $policies : [];
+        $blocks = json_decode((string)$model->general->device_blocks_json, true);
+        $blocks = is_array($blocks) ? $blocks : [];
+
+        /* Index every stored entry by every identifier it may carry, lowercased. */
+        $quotaBy = [];
+        foreach ($policies as $policy) {
+            foreach (['address', 'mac', 'hostname'] as $field) {
+                if (!empty($policy[$field])) {
+                    $quotaBy[strtolower((string)$policy[$field])] = $policy;
+                }
+            }
+        }
+        $blockBy = [];
+        foreach ($blocks as $block) {
+            if (!empty($block['device'])) {
+                $blockBy[strtolower((string)$block['device'])] = $block;
+            }
+        }
+        $usedBy = [];
+        foreach (($usage['hosts'] ?? []) as $host) {
+            if (!empty($host['ip'])) {
+                $usedBy[strtolower((string)$host['ip'])] = (float)($host['total'] ?? 0);
+            }
+        }
+        $overBudget = [];
+        foreach (($budgetPlan['members'] ?? []) as $member) {
+            $overBudget[strtolower((string)$member['device'])] = $member;
+        }
+        $blockedNow = [];
+        foreach (($blockPlan['members'] ?? []) as $member) {
+            $blockedNow[strtolower((string)$member['device'])] = $member;
+        }
+        $blockRefused = [];
+        foreach (($blockPlan['skipped'] ?? []) as $entry) {
+            $blockRefused[strtolower((string)$entry['device'])] = $entry['reason'];
+        }
+
+        $rows = [];
+        foreach (($known['devices'] ?? []) as $device) {
+            $identifiers = [$device['address'], $device['mac'], $device['hostname'], $device['name']];
+            $quota = null;
+            $block = null;
+            $matchedOn = '';
+            foreach ($identifiers as $candidate) {
+                $key = strtolower((string)$candidate);
+                if ($key === '') {
+                    continue;
+                }
+                if ($quota === null && isset($quotaBy[$key])) {
+                    $quota = $quotaBy[$key];
+                }
+                if ($block === null && isset($blockBy[$key])) {
+                    $block = $blockBy[$key];
+                    $matchedOn = (string)$candidate;
+                }
+            }
+            $address = strtolower((string)$device['address']);
+            $used = $usedBy[$address] ?? 0.0;
+            $budgetGb = (float)($quota['budget_gb'] ?? 0);
+            $rows[] = [
+                'address' => $device['address'],
+                'name' => $device['name'],
+                'mac' => $device['mac'],
+                'hostname' => $device['hostname'],
+                'name_source' => $device['name_source'],
+                /* The MAC is the preferred key: a policy keyed to an address stops
+                   applying the moment DHCP moves the device. */
+                'key' => $block['device'] ?? ($device['mac'] ?: $device['address']),
+                'budget_gb' => $budgetGb > 0 ? $budgetGb : '',
+                'excluded' => !empty($quota['exclude']),
+                'used' => $used,
+                'percent' => $budgetGb > 0 ? min(999, $used / ($budgetGb * 1e9) * 100) : null,
+                'over_budget' => isset($overBudget[$address]),
+                'blocked' => $block !== null,
+                'blocked_now' => isset($blockedNow[$address]),
+                'until' => (int)($block['until'] ?? 0),
+                'reason' => (string)($block['reason'] ?? ''),
+                'block_refused' => $blockRefused[strtolower($matchedOn)]
+                    ?? ($blockRefused[$address] ?? null),
+            ];
+        }
+
+        return [
+            'status' => 'ok',
+            'enforcement_enabled' => (string)$model->general->device_enforcement_enabled === '1',
+            'enforcement_dry_run' => (string)$model->general->device_enforcement_dry_run === '1',
+            'budget_table' => $budgetPlan['table'] ?? 'wanquota_over_budget',
+            'block_table' => $blockPlan['table'] ?? 'wanquota_blocked',
+            'budget_note' => $budgetPlan['note'] ?? null,
+            'block_note' => $blockPlan['note'] ?? null,
+            'period' => 'month',
+            'devices' => $rows,
+        ];
+    }
+
+    /**
+     * Save quotas and blocks together, then enforce.
+     *
+     * One endpoint because the interface offers one Save for one table of rows.
+     * Saving them separately would let a page that set a quota and a block succeed
+     * at one and fail at the other, leaving the interface disagreeing with the
+     * configuration about what the user just did.
+     */
+    public function setAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $model = new WanQuota();
+        $errors = [];
+
+        /*
+         * Quotas are merged into device_policies_json rather than replacing it. The
+         * field also carries `exclude`, and the Intelligence tab writes group policy
+         * into the same store; replacing it wholesale from a quota form would discard
+         * an exclusion the user set elsewhere, which is the one flag that protects a
+         * device from being blocked.
+         */
+        $existing = json_decode((string)$model->general->device_policies_json, true);
+        $existing = is_array($existing) ? $existing : [];
+        $byKey = [];
+        foreach ($existing as $index => $policy) {
+            foreach (['address', 'mac', 'hostname'] as $field) {
+                if (!empty($policy[$field])) {
+                    $byKey[strtolower((string)$policy[$field])] = $index;
+                }
+            }
+        }
+        $seen = [];
+        foreach ((array)$this->request->getPost('quotas') as $item) {
+            $key = trim((string)($item['device'] ?? ''));
+            if ($key === '') {
+                continue;
+            }
+            $lower = strtolower($key);
+            if (isset($seen[$lower])) {
+                $errors[] = sprintf('%s appears twice', $key);
+                continue;
+            }
+            $seen[$lower] = true;
+            $raw = trim((string)($item['budget_gb'] ?? ''));
+            $index = $byKey[$lower] ?? null;
+            if ($raw === '' || (float)$raw <= 0) {
+                /* Clearing a quota removes the budget but keeps the entry when it
+                   carries anything else worth keeping, such as an exclusion. */
+                if ($index !== null) {
+                    unset($existing[$index]['budget_gb']);
+                    if (count(array_diff_key($existing[$index], ['address' => 1, 'mac' => 1, 'hostname' => 1])) === 0) {
+                        unset($existing[$index]);
+                    }
+                }
+                continue;
+            }
+            if (!is_numeric($raw) || (float)$raw <= 0) {
+                $errors[] = sprintf('%s: the quota must be a positive number of GB', $key);
+                continue;
+            }
+            if ($index !== null) {
+                $existing[$index]['budget_gb'] = (float)$raw;
+            } else {
+                /* A MAC is stored as a MAC so the quota survives a DHCP change. */
+                $field = preg_match('/^([0-9a-f]{2}:){5}[0-9a-f]{2}$/i', $key) ? 'mac' : 'address';
+                $existing[] = [$field => $key, 'budget_gb' => (float)$raw];
+            }
+        }
+
+        /* Blocks replace wholesale: the form is the complete list of who is blocked. */
+        $blocks = [];
+        $blockSeen = [];
+        foreach ((array)$this->request->getPost('blocks') as $item) {
+            $key = trim((string)($item['device'] ?? ''));
+            if ($key === '') {
+                continue;
+            }
+            $lower = strtolower($key);
+            if (isset($blockSeen[$lower])) {
+                $errors[] = sprintf('%s is blocked twice', $key);
+                continue;
+            }
+            $blockSeen[$lower] = true;
+            $until = (int)($item['until'] ?? 0);
+            if ($until < 0) {
+                $errors[] = sprintf('%s: the block deadline is not a valid time', $key);
+                continue;
+            }
+            /*
+             * A deadline already in the past is refused rather than accepted and
+             * expired on the next pass. Accepting it would show the device as blocked
+             * until the collector ran, which is up to five minutes of the interface
+             * saying something untrue.
+             */
+            if ($until > 0 && $until <= time()) {
+                $errors[] = sprintf('%s: the block deadline is already in the past', $key);
+                continue;
+            }
+            $blocks[] = [
+                'device' => $key,
+                'until' => $until,
+                'reason' => substr(preg_replace('/[^\PC\s]/u', '', (string)($item['reason'] ?? '')), 0, 200),
+                'created' => time(),
+            ];
+        }
+
+        if ($errors) {
+            return ['status' => 'failed', 'errors' => $errors];
+        }
+
+        $model->general->device_policies_json = json_encode(array_values($existing));
+        $model->general->device_blocks_json = json_encode($blocks);
+        foreach (['enforcement_enabled' => 'device_enforcement_enabled',
+                  'enforcement_dry_run' => 'device_enforcement_dry_run'] as $key => $field) {
+            /* getPost with an explicit null default, not has(): a JSON body does not
+               populate $_REQUEST, so has() would report every switch as absent. */
+            $value = $this->request->getPost($key, null, null);
+            if ($value !== null) {
+                $model->general->$field = $value ? '1' : '0';
+            }
+        }
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save('Update WAN quota device quotas and blocks');
+
+        $backend = new Backend();
+        /* Blocks first: an explicit block should not wait behind a budget
+           recomputation that reads several databases and can fail. */
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+        $budgetResult = json_decode($backend->configdRun('wanquota deviceenforce month'), true);
+        return [
+            'status' => 'ok',
+            'quotas' => count(array_filter($existing, fn($item) => !empty($item['budget_gb']))),
+            'blocks' => count($blocks),
+            'block_result' => $blockResult,
+            'budget_result' => $budgetResult,
+        ];
+    }
+
+    /**
+     * Release every block at once.
+     *
+     * The panic button. Empties the field and flushes the table, so a household
+     * locked out by a mistake is one click from working again rather than editing
+     * rows.
+     */
+    public function unblockAllAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $model = new WanQuota();
+        $model->general->device_blocks_json = '[]';
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save('Release every WAN quota device block');
+        $flushed = json_decode((new Backend())->configdRun('wanquota blockflush'), true);
+        return ['status' => 'ok', 'flushed' => $flushed];
+    }
+}
