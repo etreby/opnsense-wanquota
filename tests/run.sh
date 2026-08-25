@@ -274,6 +274,29 @@ assert first_write < first_apply, \
     "writing afterwards applies the previous run's plan"
 PYCHECK
 
+# Compile the Volt template, where that is possible. A Volt syntax error is not
+# caught by anything else here -- the JS check parses the script block, the API check
+# greps strings -- and its failure mode is the whole page rendering blank for a
+# logged-in user. Only runs where OPNsense's Phalcon loader exists, so it is a no-op
+# on a development workstation.
+if [ -f /usr/local/opnsense/mvc/app/config/loader.php ] && command -v php >/dev/null 2>&1; then
+    php -r '
+        require_once("/usr/local/opnsense/mvc/app/config/loader.php");
+        $view = "'"$repository"'/src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt";
+        try {
+            $di = new \Phalcon\Di\FactoryDefault();
+            $volt = new \Phalcon\Mvc\View\Engine\Volt(new \Phalcon\Mvc\View(), $di);
+            @mkdir("/tmp/wq-volt-check", 0755, true);
+            $volt->getCompiler()->compileFile($view, "/tmp/wq-volt-check/general.php");
+        } catch (\Throwable $error) {
+            fwrite(STDERR, "volt: " . $error->getMessage() . PHP_EOL);
+            exit(1);
+        }' || { echo "the Volt template does not compile; the page would render blank" >&2; exit 1; }
+    php -l /tmp/wq-volt-check/general.php > /dev/null || {
+        echo "the compiled Volt template is not valid PHP" >&2; exit 1; }
+    rm -rf /tmp/wq-volt-check
+fi
+
 # Every table is sortable, and sorting is only useful if a cell's units are read.
 # These tables hold "12.34 GB", "5.2 Mbit/s", "88.9%", "3h05m" and "2026-09-01", all
 # of which sort wrongly as strings -- "9 GB" above "10 GB" being the obvious one. The
