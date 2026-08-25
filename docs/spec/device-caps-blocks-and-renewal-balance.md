@@ -403,6 +403,32 @@ Pure functions, tested without pf, a firewall, or a config:
 
 `make test` must be green before packaging.
 
+## Making a block take effect on an open connection
+
+A firewall rule governs new connections. pf consults its state table first, so a
+device holding an established connection keeps using it after being blocked — the
+rule is evaluated and never matches.
+
+This is not a corner case for the devices most worth blocking. Measured on the target
+firewall: an ESP32 holding a single long-lived TCP session to its vendor's cloud kept
+using it while the block rule sat at **0 packets matched after 23,000 evaluations**.
+An IoT device that opens one session and never needs another is never blocked at all.
+
+So adding an address to either table now kills that address's states, and only for
+addresses **newly** added. Killing on every pass would tear down the device's *local*
+connections every five minutes for as long as the block lasted — those are permitted
+and would re-establish immediately, but repeatedly resetting them is not what was
+asked for. Releasing kills nothing: a device being let back on should have its traffic
+resume, and there is nothing the rule was stopping.
+
+One remnant is left behind by design. `pfctl -k <address>` matches states by the
+addresses pf holds, and a NAT state records the internal address only as the
+translation, so the post-NAT half of an existing conversation survives. It carries
+nothing — the device's own packets are dropped at the LAN interface before NAT, which
+is what the rising rule counter shows — and it expires on its own. Killing it would
+mean matching on the NAT address pair, which is shared, and could tear down an
+unrelated device's connection to the same destination.
+
 ## Not in this release
 
 * **MCP tools** for blocking a device and setting a device quota. The parity is

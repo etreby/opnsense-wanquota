@@ -43,4 +43,60 @@
             <unavailable>No attributed domain data is available</unavailable>
         </translations>
     </wandomains>
+    <wanbalance>
+        <filename>WanBalance.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/balance</endpoint>
+        </endpoints>
+        <translations>
+            <title>WAN Balance</title>
+            <provider>Provider</provider>
+            <share>Share now</share>
+            <headroom>Headroom</headroom>
+            <renews>Renews in</renews>
+            <standby>standby — takes over if the primary drops</standby>
+            <carrying>carrying everything</carrying>
+            <sharing>sharing between links</sharing>
+            <live>Live</live>
+            <dryrun>Dry run — nothing is being written</dryrun>
+            <off>Balancing is off</off>
+            <days>days</days>
+            <day>day</day>
+            <left>left</left>
+            <unavailable>No balance plan has been computed yet</unavailable>
+        </translations>
+    </wanbalance>
+    <wanaccess>
+        <filename>WanAccess.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/access</endpoint>
+        </endpoints>
+        <translations>
+            <title>Devices Off The Internet</title>
+            <device>Device</device>
+            <why>Why</why>
+            <until>Until</until>
+            <blocked>blocked</blocked>
+            <overbudget>over quota</overbudget>
+            <indefinite>until removed</indefinite>
+            <monthend>when the month turns</monthend>
+            <nothing>Nothing is blocked. No device is over its quota and none is blocked by hand.</nothing>
+            <enforcementoff>Per-device quota enforcement is off, so these are recorded and not blocked.</enforcementoff>
+            <unavailable>Device access state is unavailable</unavailable>
+        </translations>
+    </wanaccess>
+    <wanrates>
+        <filename>WanRates.js</filename>
+        <endpoints>
+            <endpoint>/api/wanquota/report/throughput</endpoint>
+        </endpoints>
+        <translations>
+            <title>WAN Throughput Now</title>
+            <provider>Provider</provider>
+            <down>Download</down>
+            <up>Upload</up>
+            <noreading>no reading</noreading>
+            <unavailable>No live throughput reading is available</unavailable>
+        </translations>
+    </wanrates>
 </metadata>

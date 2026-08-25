@@ -21,6 +21,7 @@ import sys
 import time
 
 import consumers
+import report
 import shaper
 
 PFCTL = "/sbin/pfctl"
@@ -109,11 +110,21 @@ def parse_states(output):
                 "packets": 0,
                 "upload": 0,
                 "download": 0,
+                # The post-NAT source address, which is the only thing in a state that
+                # says which WAN carried it. The interface field is no help: these
+                # states are floating, so pf reports it as "all".
+                "via_address": "",
             }
             key = (current["protocol"], current["device"], current["device_port"],
                    current["remote"], current["remote_port"])
             records.setdefault(key, current)
             current = records[key]
+            # Set on whichever of the NAT twins carries the translation, which may not
+            # be the line that created the record.
+            if groups.get("nat"):
+                translated, _ = split_endpoint(groups["left"])
+                if translated:
+                    current["via_address"] = translated
             continue
         if current is None:
             continue
@@ -175,10 +186,54 @@ def cap_hint(domain, owners):
     return {"domain": registrable, "allowed": True, "service": "", "reason": ""}
 
 
-def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT, owners=None):
+def wan_addresses(providers=None, addresses=None):
+    """Map each WAN's current address to its provider name.
+
+    A session's post-NAT source address is what identifies the link it went out on,
+    so the answer to "which WAN is this using" is a lookup on that address. Reading
+    the address per interface at collection time rather than caching it means a DHCP
+    renewal on either WAN does not silently mislabel every session.
+    """
+    if providers is None:
+        try:
+            _enabled, providers = report.configuration()
+        except Exception:
+            return {}
+    result = {}
+    for provider in providers:
+        physical = provider.get("interface") or ""
+        if not physical:
+            continue
+        for address in (addresses or {}).get(physical, interface_addresses(physical)):
+            if address:
+                result[address] = {"name": provider.get("name") or physical,
+                                   "interface": physical,
+                                   "logical_interface": provider.get("logical_interface", "")}
+    return result
+
+
+def interface_addresses(physical, runner=None):
+    """Every IPv4/IPv6 address configured on an interface."""
+    run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True,
+                                                 timeout=10).stdout)
+    try:
+        output = run(["/sbin/ifconfig", physical])
+    except Exception:
+        return []
+    found = []
+    for line in (output or "").splitlines():
+        parts = line.split()
+        if parts and parts[0] in ("inet", "inet6") and len(parts) > 1:
+            found.append(parts[1].split("%")[0])
+    return found
+
+
+def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT, owners=None,
+                   wans=None):
     """Sessions originating from a LAN device, largest first, named where possible."""
     rows = []
     owners = owners if owners is not None else cap_targets()
+    wans = wans if wans is not None else {}
     for state in states:
         device = state["device"]
         if device == router or not consumers.is_local(device, network):
@@ -199,6 +254,12 @@ def local_sessions(states, network, router, names, domains, limit=STATE_LIMIT, o
             # Whether that name could be added to a service, and if not, why.
             "cap_hint": cap_hint(remote_domain, owners),
             "service": consumers.transport_label(state["protocol"], state["remote_port"]),
+            # Which provider carried this session. Empty rather than guessed when the
+            # state shows no translation — a session with no post-NAT address recorded
+            # has not been matched to a link, and saying so is better than naming the
+            # wrong one.
+            "via": (wans.get(state.get("via_address")) or {}).get("name", ""),
+            "via_interface": (wans.get(state.get("via_address")) or {}).get("interface", ""),
             # A stable identity for the flow, so a reader can match the same session
             # across refreshes and measure how fast it is actually moving. Rebuilding
             # this in the interface from separate fields would drift from the key used
@@ -227,9 +288,11 @@ def document(runner=None, limit=STATE_LIMIT):
     for address, name in static_names.items():
         names.setdefault(address, name)
     states = parse_states(output)
+    wans = wan_addresses()
     sessions = local_sessions(
         states, settings["network"], settings["router"], names,
         consumers.domain_map() if settings["domain_enabled"] else {}, limit,
+        wans=wans,
     )
     by_device = {}
     for row in sessions:
@@ -240,6 +303,11 @@ def document(runner=None, limit=STATE_LIMIT):
         entry["bytes"] += row["bytes"]
         entry["download"] += row["download"]
         entry["upload"] += row["upload"]
+        # Which links this device is using, and how much over each. A device can hold
+        # sessions on both at once, so this is a breakdown rather than a single label.
+        if row.get("via"):
+            entry.setdefault("via", {})
+            entry["via"][row["via"]] = entry["via"].get(row["via"], 0) + row["bytes"]
     return {
         "status": "ok",
         "total_states": len(states),
@@ -247,6 +315,7 @@ def document(runner=None, limit=STATE_LIMIT):
         "limit": limit,
         "sessions": sessions,
         "devices": sorted(by_device.values(), key=lambda item: item["bytes"], reverse=True),
+        "wans": {address: entry["name"] for address, entry in wans.items()},
         "collected_at": int(time.time()),
         "note": (
             "State counters are per state and reset when a state is created, so these "
@@ -255,7 +324,10 @@ def document(runner=None, limit=STATE_LIMIT):
             "connection. Sessions are shown whether or not the destination has a known "
             "name, so traffic missing from the domain reports still appears here. Rates "
             "are computed by the interface from the change between two refreshes, so the "
-            "first reading after opening the tab shows totals only."
+            "first reading after opening the tab shows totals only. The WAN a session "
+            "used is read from its post-NAT source address, which is the only thing in "
+            "a state that records the link; a session showing no WAN is one pf reported "
+            "without a translation."
         ),
     }
 

@@ -37,6 +37,41 @@ class ReportController extends ApiControllerBase
         return $this->runReport('health');
     }
 
+    /**
+     * The renewal-aware balance, read only.
+     *
+     * A mirror of what BalanceController::get reports, and it exists so a dashboard
+     * widget and a read-only credential can see which link is carrying traffic
+     * without being given the endpoint that can change it. `balancestate` prints the
+     * stored plan and computes nothing, so this cannot apply anything as a side
+     * effect of being looked at.
+     */
+    public function balanceAction(): array
+    {
+        return $this->runReport('balancestate');
+    }
+
+    /**
+     * Which devices are currently blocked or over their quota, read only.
+     *
+     * Both come from stored plans rather than a fresh evaluation, for the same
+     * reason: rendering a widget must not apply a firewall table.
+     */
+    public function accessAction(): array
+    {
+        $backend = new Backend();
+        $blocks = json_decode($backend->configdRun('wanquota blockstate'), true);
+        $budgets = json_decode($backend->configdRun('wanquota devicestate'), true);
+        return [
+            'status' => 'ok',
+            'blocked' => is_array($blocks) ? ($blocks['members'] ?? []) : [],
+            'blocked_refused' => is_array($blocks) ? ($blocks['skipped'] ?? []) : [],
+            'over_budget' => is_array($budgets) ? ($budgets['members'] ?? []) : [],
+            'budget_state' => is_array($budgets) ? ($budgets['status'] ?? 'unknown') : 'unknown',
+            'budget_dry_run' => is_array($budgets) ? ($budgets['dry_run'] ?? null) : null,
+        ];
+    }
+
     public function consumersTodayAction(): array
     {
         return $this->runReport('consumers today');

@@ -137,33 +137,96 @@ class TableTests(unittest.TestCase):
     """pfctl reports success on stderr, so only the exit status may mean failure."""
 
     class Result:
-        def __init__(self, returncode, stderr):
+        def __init__(self, returncode, stderr, stdout=""):
             self.returncode = returncode
             self.stderr = stderr
+            self.stdout = stdout
 
     def test_a_success_message_on_stderr_is_not_an_error(self):
-        ok, error, detail = BLOCKS.apply_table(
+        ok, error, detail, _ = BLOCKS.apply_table(
             ["192.168.1.20"], runner=lambda args: self.Result(0, "1 addresses added."))
         self.assertTrue(ok)
         self.assertEqual(error, "")
         self.assertEqual(detail, "1 addresses added.")
 
     def test_a_failure_is_reported(self):
-        ok, error, _ = BLOCKS.apply_table(
+        ok, error, _, _ = BLOCKS.apply_table(
             ["192.168.1.20"], runner=lambda args: self.Result(1, "no such table"))
         self.assertFalse(ok)
         self.assertEqual(error, "no such table")
 
     def test_flush_replaces_with_nothing(self):
-        seen = {}
+        calls = []
 
         def runner(args):
-            seen["args"] = args
+            calls.append(args)
             return self.Result(0, "")
 
         BLOCKS.flush(runner=runner)
-        self.assertEqual(seen["args"][-1], "replace")
-        self.assertEqual(seen["args"][2], BLOCKS.TABLE)
+        replace = [c for c in calls if "replace" in c][0]
+        self.assertEqual(replace[-1], "replace")
+        self.assertEqual(replace[2], BLOCKS.TABLE)
+
+    def test_flush_kills_nothing(self):
+        """Releasing a device should let its traffic resume, not tear anything down."""
+        calls = []
+        BLOCKS.flush(runner=lambda args: (calls.append(args), self.Result(0, ""))[1])
+        self.assertEqual([c for c in calls if "-k" in c], [])
+
+
+class StateKillTests(unittest.TestCase):
+    """A rule only governs new connections; open states are what make a block look
+    like it did nothing. Measured: an ESP32 on one long-lived session to its vendor's
+    cloud kept using it while the block rule sat at 0 packets after 23,000
+    evaluations."""
+
+    class Result:
+        def __init__(self, returncode=0, stderr="", stdout=""):
+            self.returncode = returncode
+            self.stderr = stderr
+            self.stdout = stdout
+
+    def run_with(self, existing):
+        calls = []
+
+        def runner(args):
+            calls.append(args)
+            if "show" in args:
+                return self.Result(stdout="\n".join("   " + a for a in existing))
+            return self.Result()
+
+        return calls, runner
+
+    def test_a_newly_blocked_device_has_its_states_killed(self):
+        calls, runner = self.run_with([])
+        BLOCKS.apply_table(["192.168.1.128"], runner=runner)
+        self.assertIn(["/sbin/pfctl", "-k", "192.168.1.128"],
+                      [c for c in calls if "-k" in c])
+
+    def test_a_device_already_blocked_is_not_killed_again(self):
+        """Killing every run would reset the device's permitted local connections
+        every five minutes for as long as the block lasted."""
+        calls, runner = self.run_with(["192.168.1.128"])
+        BLOCKS.apply_table(["192.168.1.128"], runner=runner)
+        self.assertEqual([c for c in calls if "-k" in c], [])
+
+    def test_only_the_new_address_is_killed(self):
+        calls, runner = self.run_with(["192.168.1.20"])
+        BLOCKS.apply_table(["192.168.1.20", "192.168.1.128"], runner=runner)
+        killed = [c[-1] for c in calls if "-k" in c]
+        self.assertEqual(killed, ["192.168.1.128"])
+
+    def test_a_failed_replace_kills_nothing(self):
+        calls = []
+
+        def runner(args):
+            calls.append(args)
+            if "show" in args:
+                return self.Result(stdout="")
+            return self.Result(returncode=1, stderr="no such table")
+
+        BLOCKS.apply_table(["192.168.1.128"], runner=runner)
+        self.assertEqual([c for c in calls if "-k" in c], [])
 
 
 if __name__ == "__main__":

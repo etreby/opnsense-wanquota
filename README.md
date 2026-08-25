@@ -11,7 +11,9 @@ quota reporting and top-consumer visibility.
   top-consumer/domain bars, daily/monthly trends, and visual source-health status.
 - Decimal-GB quota, billing-cycle day, warning threshold, remaining allowance,
   daily budget, projection, and vnStat-backed history.
-- Dashboard widgets and JSON API.
+- Six dashboard widgets: quota cards, top consumers, top domains, which WAN is
+  carrying traffic and why, live per-WAN throughput, and any device currently kept
+  off the internet.
 - Top LAN consumers from ntopng host RRDs.
 - Estimated domain bandwidth by correlating Insight flow bytes with recently
   observed Unbound A/AAAA answers, including a visible coverage percentage.
@@ -433,6 +435,30 @@ than trusted.
 This is deterministic suffix matching over the plugin's own catalogs, not a model
 guessing, and the payload says so. Agents can ask the same question through the
 `wanquota_explain_domain` tool.
+
+## Dashboard widgets
+
+Six, each answering a different question:
+
+| Widget | Answers |
+| --- | --- |
+| **WAN Quotas** | How much of each provider's month is gone, and what the daily budget is |
+| **WAN Balance** | Which link is carrying traffic *right now*, its share, headroom per day, and days to renewal |
+| **WAN Throughput Now** | What each link is moving this second, from the interface counters |
+| **Devices Off The Internet** | Which devices are blocked or over quota, and until when |
+| **Top WAN Consumers** | Which devices used the most |
+| **Top WAN Domains** | Which sites used the most, with attribution coverage |
+
+The balance and access widgets read `report/balance` and `report/access`, which are
+**read-only mirrors** of state the write endpoints also expose. That is deliberate: a
+dashboard should be able to show which link is carrying traffic without being handed
+the endpoint that can change it, and both read stored plans rather than recomputing,
+so rendering a widget can never apply a firewall table or a routing change as a side
+effect of being looked at.
+
+"Devices Off The Internet" says *"Nothing is blocked"* rather than rendering an empty
+frame, because that is the answer most of the time and an empty widget reads as a
+broken one.
 
 ## Live sessions
 

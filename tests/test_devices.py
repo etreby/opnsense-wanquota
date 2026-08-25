@@ -103,9 +103,13 @@ class TableTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertEqual(error, "")
         self.assertEqual(detail, "")
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][:5], [DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"])
-        self.assertEqual(calls[0][5:], ["192.168.1.20", "192.168.1.21"])
+        # Membership is written by exactly one replace, never a sequence of adds and
+        # deletes: the table must never be briefly half-populated. Reading it first
+        # and killing states afterwards are separate calls and do not weaken that.
+        replaces = [call for call in calls if "replace" in call]
+        self.assertEqual(len(replaces), 1)
+        self.assertEqual(replaces[0][:5], [DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"])
+        self.assertEqual(replaces[0][5:], ["192.168.1.20", "192.168.1.21"])
 
     def test_flush_replaces_with_nothing(self):
         calls = []
@@ -115,7 +119,10 @@ class TableTests(unittest.TestCase):
             return self.FakeResult()
 
         DEVICES.flush(runner=runner)
-        self.assertEqual(calls[0], [DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"])
+        replaces = [call for call in calls if "replace" in call]
+        self.assertEqual(replaces, [[DEVICES.PFCTL, "-t", DEVICES.TABLE, "-T", "replace"]])
+        # Releasing a device must not tear down connections it is now allowed to have.
+        self.assertEqual([call for call in calls if "-k" in call], [])
 
     def test_pfctl_failure_is_reported_not_raised(self):
         ok, error, detail = DEVICES.apply_table(

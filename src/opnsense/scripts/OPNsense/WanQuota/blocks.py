@@ -176,15 +176,29 @@ def apply_table(addresses, runner=None):
     the exit status says so.
     """
     run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
-    result = run([PFCTL, "-t", TABLE, "-T", "replace"] + list(addresses))
+    wanted = list(addresses)
+    before = budget.table_members(TABLE, runner=run)
+    result = run([PFCTL, "-t", TABLE, "-T", "replace"] + wanted)
     ok = getattr(result, "returncode", 1) == 0
     message = (getattr(result, "stderr", "") or "").strip()
-    return ok, ("" if ok else message), message
+    killed = []
+    if ok:
+        # The whole difference between a block that works and one that only looks like
+        # it works. pf checks its state table before its rules, so a device holding an
+        # established connection keeps using it — and an IoT device that opens one
+        # long-lived session to its vendor's cloud opens no second one to be refused.
+        killed = budget.kill_states(set(wanted) - before, runner=run)
+    return ok, ("" if ok else message), message, killed
 
 
 def flush(runner=None):
-    """Empty the table. This is the rollback."""
-    return apply_table([], runner=runner)
+    """Empty the table. This is the rollback.
+
+    No states are killed: releasing a device should let its traffic resume, and there
+    is nothing to tear down that the rule was stopping.
+    """
+    ok, error, detail, _ = apply_table([], runner=runner)
+    return ok, error, detail
 
 
 def write_plan(document):
@@ -231,7 +245,7 @@ def run(config_path=None):
     chosen, skipped, expired = members(
         blocks, shaper.device_identities(), intelligence.policy_index(cfg["devices"]),
         cfg["groups"], settings["router"])
-    applied, error, detail = apply_table([item["device"] for item in chosen])
+    applied, error, detail, killed = apply_table([item["device"] for item in chosen])
     document = {
         "status": "ok" if applied else "failed",
         "table": TABLE,
@@ -241,6 +255,9 @@ def run(config_path=None):
         "applied": applied,
         "error": error or None,
         "pfctl": detail or None,
+        # Which devices had open connections torn down, so a block that had to
+        # interrupt something says so rather than appearing to have been free.
+        "states_killed": killed,
         "updated": int(time.time()),
         "note": (
             "A block stops internet access and leaves LAN traffic alone. DNS and NTP "

@@ -186,7 +186,7 @@
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions on this device') }}</h3><div id="sessionDetailTable"></div></div>
         </div>
     </div></div>
-    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div class="wq-section" id="balanceSection"><h3>{{ lang._('Renewal-aware WAN balance') }}</h3><p class="wq-muted">{{ lang._('The guardrails answer "this link is running out". This answers the opposite question: "this link\'s allowance is about to expire unspent". The provider with the most remaining allowance per day left before its renewal gets the largest share of new connections, so allowance is spent rather than lost. Only gateway weights are changed — never tiers or force-down, because taking a link out of service stays the guardrails\' decision.') }}</p><div class="wq-action-box wq-toolbar"><label class="wq-switch"><input type="checkbox" id="balanceEnabled"> <b>{{ lang._('Enable automatic balancing') }}</b></label><label class="wq-switch"><input type="checkbox" id="balanceDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label><label>{{ lang._('Group') }}</label><select id="balanceGroup" class="form-control"></select><label>{{ lang._('Mode') }}</label><select id="balanceMode" class="form-control"><option value="weights">{{ lang._('Share by weight') }}</option><option value="drain">{{ lang._('Share, and concentrate when sharing would waste') }}</option></select><label>{{ lang._('Top weight') }}</label><select id="balanceMaxWeight" class="form-control"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10" selected>10</option></select><button id="saveBalance" class="btn btn-primary" type="button">{{ lang._('Save') }}</button><button id="applyBalance" class="btn btn-warning" type="button">{{ lang._('Apply now') }}</button><button id="revertBalance" class="btn btn-default" type="button">{{ lang._('Revert weights') }}</button></div><div id="balanceStatus"></div><div class="wq-table-wrap"><div id="balanceTable"></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
+    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div class="wq-section" id="balanceSection"><h3>{{ lang._('Renewal-aware WAN balance') }}</h3><p class="wq-muted">{{ lang._('The guardrails answer "this link is running out". This answers the opposite question: "this link\'s allowance is about to expire unspent". The provider with the most remaining allowance per day left before its renewal gets the largest share of new connections, so allowance is spent rather than lost. In drain mode it goes further and concentrates everything onto one link when sharing would waste the difference. force-down is never touched, so a demoted provider stays live failover — taking a link out of service remains the guardrails\' decision.') }}</p><div class="wq-action-box wq-toolbar"><label class="wq-switch"><input type="checkbox" id="balanceEnabled"> <b>{{ lang._('Enable automatic balancing') }}</b></label><label class="wq-switch"><input type="checkbox" id="balanceDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label><label>{{ lang._('Group') }}</label><select id="balanceGroup" class="form-control"></select><label>{{ lang._('Mode') }}</label><select id="balanceMode" class="form-control"><option value="weights">{{ lang._('Share by weight') }}</option><option value="drain">{{ lang._('Share, and concentrate when sharing would waste') }}</option></select><label>{{ lang._('Top weight') }}</label><select id="balanceMaxWeight" class="form-control"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10" selected>10</option></select><button id="saveBalance" class="btn btn-primary" type="button">{{ lang._('Save') }}</button><button id="applyBalance" class="btn btn-warning" type="button">{{ lang._('Apply now') }}</button><button id="revertBalance" class="btn btn-default" type="button">{{ lang._('Revert weights') }}</button></div><div id="balanceStatus"></div><div class="wq-table-wrap"><div id="balanceTable"></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade"><div style="padding:16px">
         <ol class="wq-steps" id="wizardSteps">
@@ -808,14 +808,52 @@ function computeSessionRates(data) {
     }
     sessionDeviceRates = deviceRates;
 }
+/*
+ * How the session table is ordered. "throughput" needs two readings to mean anything,
+ * so it falls back to the total until the second refresh lands rather than showing an
+ * order built from zeroes.
+ */
+let sessionOrder = 'total';
+function sessionSortValue(row, order) {
+    if (order === 'throughput') {
+        const measured = sessionRates[row.key];
+        if (measured) return (measured.down || 0) + (measured.up || 0);
+        return -1;                     // unmeasured sorts below anything measured
+    }
+    if (order === 'download') return row.download || 0;
+    if (order === 'upload') return row.upload || 0;
+    if (order === 'age') return row.age_seconds || 0;
+    return row.bytes || 0;
+}
+function sortSessions(rows, order) {
+    // Copied before sorting: the array belongs to the last payload, and the device
+    // drill-down reads it again.
+    return rows.slice().sort(function(a, b) {
+        const diff = sessionSortValue(b, order) - sessionSortValue(a, order);
+        return diff !== 0 ? diff : (b.bytes || 0) - (a.bytes || 0);
+    });
+}
 function sessionTable(data) {
-    const rows = (data && data.sessions) || [];
-    if (!rows.length) return '<div class="alert alert-info">' + esc('No live WAN sessions from LAN devices right now.') + '</div>';
+    const all = (data && data.sessions) || [];
+    if (!all.length) return '<div class="alert alert-info">' + esc('No live WAN sessions from LAN devices right now.') + '</div>';
+    const rows = sortSessions(all, sessionOrder);
+    const head = function(key, label, title) {
+        const on = sessionOrder === key;
+        return '<th><a href="#" class="wq-session-sort" data-order="' + key + '"'
+             + ' title="' + esc(title || ('Sort by ' + label.toLowerCase())) + '">'
+             + (on ? '<b>' + esc(label) + ' &#9660;</b>' : esc(label)) + '</a></th>';
+    };
     let html = '<table class="table table-condensed table-striped"><thead><tr>'
              + '<th>{{ lang._("Device") }}</th><th>{{ lang._("Destination") }}</th>'
-             + '<th>{{ lang._("Port") }}</th><th>{{ lang._("Throughput") }}</th>'
-             + '<th>{{ lang._("State") }}</th><th>{{ lang._("Age") }}</th>'
-             + '<th>{{ lang._("Total") }}</th><th>{{ lang._("Cap it") }}</th></tr></thead><tbody>';
+             + '<th>{{ lang._("Via") }}</th>'
+             + '<th>{{ lang._("Port") }}</th>'
+             + head('throughput', '{{ lang._("Throughput") }}',
+                    '{{ lang._("Sort by current rate. Needs two readings, so unmeasured sessions sort last.") }}')
+             + '<th>{{ lang._("State") }}</th>'
+             + head('age', '{{ lang._("Age") }}')
+             + head('total', '{{ lang._("Total") }}',
+                    '{{ lang._("Sort by bytes this session has carried since pf created its state") }}')
+             + '<th>{{ lang._("Cap it") }}</th></tr></thead><tbody>';
     for (const row of rows) {
         const dest = row.remote_domain
             ? '<a href="#" class="wq-drill" data-drill="domain" data-value=\'' + esc(row.remote_domain) + '\'>' + esc(row.remote_domain) + '</a><br><small class="wq-muted">' + esc(row.remote) + '</small>'
@@ -852,11 +890,24 @@ function sessionTable(data) {
                 + '">' + esc(hint.domain) + '</button>'
                 + '<br><small class="wq-muted">' + esc('cannot be capped') + '</small>';
         }
-        html += '<tr data-device="' + esc(row.device) + '" data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service + ' ' + (row.remote_port || '')).toLowerCase()) + '">'
+        html += '<tr data-device="' + esc(row.device) + '" data-filter="' + esc(((row.name || '') + ' ' + (row.remote_domain || '') + ' ' + row.remote + ' ' + row.service + ' ' + (row.remote_port || '') + ' ' + (row.via || '')).toLowerCase()) + '">'
              +  '<td><a href="#" class="wq-session-device" data-device=\'' + esc(row.device) + '\''
              +  ' title="' + esc('Show only this device') + '"><b>' + esc(row.name) + '</b></a>'
              +  '<br><small class="wq-muted">' + esc(row.device) + '</small></td>'
              +  '<td>' + dest + '</td>'
+             /*
+              * Which WAN carried it. Read from the session's post-NAT source address,
+              * which is the only thing in a pf state that records the link — the
+              * interface field reports "all" because these states are floating. Blank
+              * means pf showed no translation, so it is genuinely unknown rather than
+              * assumed.
+              */
+             +  '<td>' + (row.via
+                    ? '<span class="wq-pill">' + esc(row.via) + '</span>'
+                      + (row.via_interface ? '<br><small class="wq-muted">'
+                            + esc(row.via_interface) + '</small>' : '')
+                    : '<small class="wq-muted">' + esc('{{ lang._("not translated") }}') + '</small>')
+             +  '</td>'
              /*
               * The arrow is markup and must not go through esc(), which turned it into
               * the literal text "&rarr;". The ports either side are escaped separately.
@@ -948,7 +999,20 @@ function renderDeviceDetail(device, container) {
                  : '<div class="wq-muted">' + esc('waiting for a second reading') + '</div>')
              + '<div class="wq-muted">' + esc(rows.length + ' open session(s)')
              + (summary ? ' \u00b7 ' + esc(gb(summary.download) + ' down, ' + gb(summary.upload) + ' up') : '')
-             + '</div></div></div>';
+             + '</div>'
+             /*
+              * Which links this device is actually using. A device can hold sessions on
+              * both at once, so this is a breakdown rather than one label — and it is
+              * the quickest way to see that a device the balancer meant to move has
+              * not moved, because its old sessions are still pinned to the old link.
+              */
+             + (summary && summary.via && Object.keys(summary.via).length
+                 ? '<div class="wq-muted">' + Object.keys(summary.via).sort(
+                        (a, b) => summary.via[b] - summary.via[a]).map(
+                        name => '<span class="wq-pill">' + esc(name) + '</span> '
+                                + esc(gb(summary.via[name]))).join(' \u00b7 ') + '</div>'
+                 : '')
+             + '</div></div>';
     $(container).html(html + sessionTable({sessions: rows, collected_at: data.collected_at}));
 }
 /* The tables call this; a device is now a view rather than a filter. */
@@ -2482,6 +2546,19 @@ $(document).ready(function() {
         refreshDiscovered(false);
     });
     $('#refreshSessions').on('click', refreshSessions);
+    /*
+     * Re-render from the payload already held rather than refetching: the order is a
+     * view over the same data, and a refetch would reset the rate measurements that
+     * "throughput" depends on.
+     */
+    $('#sessions').on('click', 'a.wq-session-sort', function(event) {
+        event.preventDefault();
+        sessionOrder = $(this).data('order');
+        if (currentSessionData) renderSessions(currentSessionData);
+        // Re-render an open device view too, through the drill machinery that already
+        // knows which device is showing.
+        if (activeDrill && activeDrill.kind === 'device') refreshDrill();
+    });
     $('#sessionSearch').on('keyup', filterSessions);
     $('#apps,#sessions').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();

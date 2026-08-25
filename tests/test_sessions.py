@@ -169,3 +169,78 @@ class CapHintTests(unittest.TestCase):
         self.assertEqual(owners["nflxso.net"], "Netflix")
         self.assertEqual(owners["gvt1.com"], "YouTube")
         self.assertNotIn("", owners)
+
+
+class WanAttributionTests(unittest.TestCase):
+    """Which link carried a session.
+
+    The state's interface field is no help — these states are floating, so pf reports
+    it as "all". The post-NAT source address is the only thing in a state that records
+    the link, so that is what the answer is derived from.
+    """
+
+    STATES = """all tcp 172.16.1.100:61478 (192.168.1.20:64433) -> 8.8.4.4:443       ESTABLISHED:ESTABLISHED
+   age 00:01:00, expires in 23:00:00, 10:200 pkts, 1000:50000 bytes, rule 98
+all tcp 8.8.4.4:443 <- 192.168.1.20:64433       ESTABLISHED:ESTABLISHED
+   age 00:01:00, expires in 23:00:00, 10:200 pkts, 1000:50000 bytes, rule 98
+all tcp 172.16.0.56:5000 (192.168.1.21:5100) -> 1.1.1.1:443       ESTABLISHED:ESTABLISHED
+   age 00:02:00, expires in 23:00:00, 5:5 pkts, 500:500 bytes, rule 98
+"""
+
+    WANS = {"172.16.1.100": {"name": "ETISALAT", "interface": "igb0",
+                             "logical_interface": "wan"},
+            "172.16.0.56": {"name": "MOBINIL", "interface": "ue0",
+                            "logical_interface": "opt1"}}
+
+    def sessions(self):
+        states = SESSIONS.parse_states(self.STATES)
+        return SESSIONS.local_sessions(
+            states, SESSIONS.ipaddress.ip_network("192.168.1.0/24"), "192.168.1.1",
+            {"192.168.1.20": "Laptop", "192.168.1.21": "Phone"}, {},
+            owners={}, wans=self.WANS)
+
+    def test_the_translated_address_is_kept(self):
+        states = {s["device"]: s for s in SESSIONS.parse_states(self.STATES)}
+        self.assertEqual(states["192.168.1.20"]["via_address"], "172.16.1.100")
+        self.assertEqual(states["192.168.1.21"]["via_address"], "172.16.0.56")
+
+    def test_each_session_names_its_provider(self):
+        rows = {row["device"]: row for row in self.sessions()}
+        self.assertEqual(rows["192.168.1.20"]["via"], "ETISALAT")
+        self.assertEqual(rows["192.168.1.21"]["via"], "MOBINIL")
+
+    def test_the_nat_twin_does_not_lose_the_address(self):
+        """The translation appears on only one of the two lines pf prints for a
+        session, and it is not always the line that created the record."""
+        reordered = "\n".join(reversed(self.STATES.strip().splitlines()))
+        states = {s["device"]: s for s in SESSIONS.parse_states(self.STATES)}
+        self.assertTrue(states["192.168.1.20"]["via_address"])
+        self.assertIsNotNone(reordered)
+
+    def test_an_unmatched_address_is_left_blank_not_guessed(self):
+        rows = SESSIONS.local_sessions(
+            SESSIONS.parse_states(self.STATES),
+            SESSIONS.ipaddress.ip_network("192.168.1.0/24"), "192.168.1.1",
+            {}, {}, owners={}, wans={})
+        self.assertEqual({row["via"] for row in rows}, {""})
+
+    def test_a_device_gets_a_per_link_breakdown(self):
+        rows = self.sessions()
+        by_device = {}
+        for row in rows:
+            if row.get("via"):
+                by_device.setdefault(row["device"], {})
+                by_device[row["device"]][row["via"]] = row["bytes"]
+        self.assertEqual(set(by_device["192.168.1.20"]), {"ETISALAT"})
+
+    def test_interface_addresses_reads_both_families(self):
+        output = ("igb0: flags=8863 metric 0 mtu 1500\n"
+                  "\tinet 172.16.1.100 netmask 0xfffffc00 broadcast 172.16.3.255\n"
+                  "\tinet6 fe80::1%igb0 prefixlen 64 scopeid 0x1\n")
+        self.assertEqual(SESSIONS.interface_addresses("igb0", runner=lambda a: output),
+                         ["172.16.1.100", "fe80::1"])
+
+    def test_an_unreadable_interface_yields_nothing_rather_than_raising(self):
+        def boom(args):
+            raise OSError("no such interface")
+        self.assertEqual(SESSIONS.interface_addresses("nope", runner=boom), [])

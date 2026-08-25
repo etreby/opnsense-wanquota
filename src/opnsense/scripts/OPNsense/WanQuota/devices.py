@@ -84,6 +84,45 @@ def over_budget(hosts, policies, groups, router, protected_groups=PROTECTED_GROU
     return members, skipped
 
 
+def table_members(table, runner=None):
+    """Addresses the table holds right now, so a newly added one can be told apart."""
+    run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
+    try:
+        result = run([PFCTL, "-t", table, "-T", "show"])
+    except Exception:
+        return set()
+    if getattr(result, "returncode", 1) != 0:
+        return set()
+    return {line.strip() for line in (getattr(result, "stdout", "") or "").splitlines()
+            if line.strip()}
+
+
+def kill_states(addresses, runner=None):
+    """Drop the connections a newly blocked device already has open.
+
+    Without this a block does nothing to an established connection, because pf
+    consults its state table before its rules. Measured on a live firewall: an ESP32
+    holding one long-lived TCP session to its vendor's cloud kept using it while the
+    block rule sat at 0 packets matched, having been evaluated 23,000 times. An IoT
+    device that never opens a second connection is never blocked at all.
+
+    Only newly added addresses are passed here. Killing on every run would tear down
+    the device's *local* connections every five minutes for as long as the block
+    lasted — they are permitted and would immediately re-establish, but repeatedly
+    resetting them is not what anyone asked for.
+    """
+    run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
+    killed = []
+    for address in sorted(addresses):
+        try:
+            result = run([PFCTL, "-k", address])
+            killed.append({"device": address,
+                           "ok": getattr(result, "returncode", 1) == 0})
+        except Exception as error:
+            killed.append({"device": address, "ok": False, "error": str(error)})
+    return killed
+
+
 def apply_table(addresses, runner=None):
     """Replace the pf table contents atomically.
 
@@ -93,10 +132,16 @@ def apply_table(addresses, runner=None):
     the plan file's error field, which reads as a failure that did not happen.
     """
     run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
-    args = [PFCTL, "-t", TABLE, "-T", "replace"] + list(addresses)
+    wanted = list(addresses)
+    before = table_members(TABLE, runner=run)
+    args = [PFCTL, "-t", TABLE, "-T", "replace"] + wanted
     result = run(args)
     ok = getattr(result, "returncode", 1) == 0
     message = (getattr(result, "stderr", "") or "").strip()
+    if ok:
+        # A rule only governs new connections; the states already open are what make
+        # a block look like it did nothing.
+        kill_states(set(wanted) - before, runner=run)
     return ok, ("" if ok else message), message
 
 
