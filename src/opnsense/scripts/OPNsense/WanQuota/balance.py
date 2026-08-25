@@ -131,22 +131,47 @@ def household_rate(providers):
 DRAIN_RELEASE_BAND = 0.9
 
 
-def drain_decision(rows, demand, draining=False, band=DRAIN_RELEASE_BAND):
+def drain_decision(rows, demand, draining=False, band=DRAIN_RELEASE_BAND,
+                   ceiling_percent=None):
     """Which provider, if any, should carry everything.
 
     Engages when the most urgent link could absorb the household's whole daily
     demand and still not spend its allowance before renewal — the case where
     sharing guarantees waste. Returns the decision and the reason for it, because a
     tier change nobody asked for needs to be able to explain itself.
+
+    `ceiling_percent` is the floor guard, and it is deliberately not rate arithmetic.
+    The engage condition already implies the allowance cannot run out — carrying all
+    the traffic for the days left costs less than what remains — but that argument
+    rests entirely on `demand`, which is a *lagging average* of measured days. A
+    household that suddenly doubles its usage is not visible in that average for a
+    day, and drain would keep concentrating onto a link heading for its cap. So there
+    is a second condition that does not depend on the rate at all: a provider past
+    this share of its quota is never a drain target. Reusing the guardrail's failover
+    threshold means concentration stops at the same point the guardrails would have
+    moved traffic off the link anyway.
     """
     eligible = [row for row in rows
                 if not row.get("excluded") and row.get("gateway") and row.get("online", True)]
+    full = []
+    if ceiling_percent is not None:
+        full = [row for row in eligible
+                if float(row.get("percent") or 0) >= float(ceiling_percent)]
+        eligible = [row for row in eligible if row not in full]
     if any(row.get("excluded") for row in rows):
         blocked = ", ".join(row["name"] for row in rows if row.get("excluded"))
         return {"engaged": False, "target": None,
                 "reason": f"the guardrail is acting on {blocked}, and it owns the tiers "
                           "while it does"}
     if len(eligible) < 2:
+        if full:
+            names = ", ".join(f"{row['name']} at {float(row.get('percent') or 0):.0f}%"
+                              for row in full)
+            return {"engaged": False, "target": None,
+                    "reason": (
+                        f"{names} — past the point where concentrating more traffic onto "
+                        "it would risk its cap, so it is not a drain target however much "
+                        "allowance is left to spend")}
         return {"engaged": False, "target": None,
                 "reason": "fewer than two usable providers, so there is nothing to "
                           "concentrate"}
@@ -318,7 +343,13 @@ def build(providers, cfg, inventory, decisions=None):
     draining_now = bool(group and len(
         [name for name in ((group.get("tiers") or {}).get("item") or [])]) == 1
         and len(group.get("members") or []) > 1)
-    decision = drain_decision(rows, demand, draining=draining_now)
+    # The floor guard reuses the guardrail's failover threshold rather than adding a
+    # setting: the point at which the guardrails would move traffic off a link is the
+    # same point at which drain should stop piling more onto it.
+    thresholds = sorted(set(cfg.get("thresholds") or []))
+    ceiling = thresholds[2] if len(thresholds) >= 4 else 90
+    decision = drain_decision(rows, demand, draining=draining_now,
+                              ceiling_percent=ceiling)
     plan = tier_plan(rows, decision, group)
     plan["release"] = release_needed(decision, inventory)
     mode = str(cfg.get("balance_mode") or "weights")
@@ -343,6 +374,7 @@ def build(providers, cfg, inventory, decisions=None):
         "problems": problems,
         "mode": mode,
         "demand": demand,
+        "drain_ceiling_percent": ceiling,
         "drain": decision,
         "tiers": plan,
         "reserve_gb": cfg.get("reserve_gb", 0),

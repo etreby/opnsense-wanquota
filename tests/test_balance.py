@@ -359,3 +359,61 @@ class ReleaseTests(unittest.TestCase):
             {**CFG, "balance_mode": "weights"},
             {**INVENTORY, "drained": True})
         self.assertTrue(plan["tiers"]["release"])
+
+
+class FloorGuardTests(unittest.TestCase):
+    """Drain must not keep concentrating onto a link that is nearly full.
+
+    The engage condition already implies the allowance cannot run out — but that
+    argument rests on `demand`, a lagging average of measured days. A household that
+    suddenly doubles its usage is invisible in that average for a day. The floor
+    guard is a second condition that does not depend on the rate at all.
+    """
+
+    def row(self, name, urgency_gb, percent, gateway=None):
+        return {"name": name, "urgency": urgency_gb * GB, "percent": percent,
+                "excluded": False, "gateway": gateway or (name + "_GW"), "online": True}
+
+    def test_a_nearly_full_provider_is_not_a_drain_target(self):
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 30, 93.0), self.row("MOBINIL", 5, 40.0)],
+            10 * GB, ceiling_percent=90)
+        self.assertFalse(decision["engaged"])
+        self.assertIn("ETISALAT at 93%", decision["reason"])
+        self.assertIn("risk its cap", decision["reason"])
+
+    def test_below_the_ceiling_it_still_engages(self):
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 30, 89.0), self.row("MOBINIL", 5, 40.0)],
+            10 * GB, ceiling_percent=90)
+        self.assertTrue(decision["engaged"])
+        self.assertEqual(decision["target"], "ETISALAT")
+
+    def test_the_ceiling_is_inclusive(self):
+        """At the threshold the guardrails would already be moving traffic off, so
+        drain must not be moving traffic on."""
+        decision = BALANCE.drain_decision(
+            [self.row("A", 30, 90.0), self.row("B", 5, 40.0)], 10 * GB,
+            ceiling_percent=90)
+        self.assertFalse(decision["engaged"])
+
+    def test_another_provider_can_still_be_the_target(self):
+        """Ruling one link out does not rule out concentrating on a different one."""
+        decision = BALANCE.drain_decision(
+            [self.row("FULL", 99, 95.0), self.row("ROOMY", 30, 20.0),
+             self.row("THIRD", 5, 10.0)], 10 * GB, ceiling_percent=90)
+        self.assertTrue(decision["engaged"])
+        self.assertEqual(decision["target"], "ROOMY")
+
+    def test_no_ceiling_given_means_no_floor_guard(self):
+        decision = BALANCE.drain_decision(
+            [self.row("A", 30, 99.0), self.row("B", 5, 40.0)], 10 * GB)
+        self.assertTrue(decision["engaged"])
+
+    def test_the_guard_releases_an_engaged_drain(self):
+        """The band keeps an engaged drain engaged against the rate test; the floor
+        guard has to override that, or a link could fill while drain held on."""
+        rows = [self.row("A", 30, 95.0), self.row("B", 5, 40.0)]
+        decision = BALANCE.drain_decision(rows, 10 * GB, draining=True,
+                                          ceiling_percent=90)
+        self.assertFalse(decision["engaged"])

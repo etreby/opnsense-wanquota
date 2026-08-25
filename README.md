@@ -364,6 +364,18 @@ to favour it.
 Off by default. The mode selector sits beside the switches, and the panel always
 states whether it is concentrating and why, whichever mode is chosen.
 
+**The floor guard.** The engage condition already implies the allowance cannot run
+out — carrying all the traffic for the days remaining costs less than what is left.
+But that argument rests entirely on the household rate, which is a *lagging average*
+of measured days: a household that suddenly doubles its usage is invisible in it for
+a day, and drain would keep concentrating onto a link heading for its cap. So there
+is a second condition that does not involve the rate at all — **a provider past the
+guardrail's failover threshold (90% by default) is never a drain target**, however
+much allowance it appears to have left. It reuses `guardrail_thresholds` rather than
+adding a setting, because the point at which the guardrails would move traffic *off*
+a link is the same point at which drain should stop piling more *on*. Ruling one link
+out does not rule out concentrating on a different one.
+
 Three constraints keep it safe:
 
 - **Tiers only in drain mode, and never `force_down`.** Weights mode does not touch

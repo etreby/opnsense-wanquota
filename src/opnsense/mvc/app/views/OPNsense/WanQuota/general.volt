@@ -1701,7 +1701,11 @@ function renderBalance(data) {
                 : '{{ lang._("Not concentrating — both links stay in service") }}')
             + '</b><br>' + esc(drain.reason)
             + '<br><small class="wq-muted">'
-            + esc('{{ lang._("Household demand") }}: ' + demand)
+            + esc('{{ lang._("Household demand") }}: ' + demand
+                  + (data.drain_ceiling_percent
+                        ? '{{ lang._(" · a provider past ") }}' + data.drain_ceiling_percent
+                          + '{{ lang._("% of its quota is never concentrated onto, whatever its allowance") }}'
+                        : ''))
             + '</small></div>';
     }
     $('#balanceStatus').html('<div class="alert alert-' + state[0] + '">' + esc(state[1])

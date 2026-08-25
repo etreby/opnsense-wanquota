@@ -267,10 +267,21 @@ covered:
   looked correct because consecutive runs usually agree — and failed exactly when the
   answer changed, applying nothing while reporting "already match".
 
+**The floor guard, and why it is not rate arithmetic.** `urgency >= demand` already
+implies the allowance cannot be exhausted: carrying everything for `days_left` costs
+`demand × days_left`, which the inequality says is less than `remaining − reserve`.
+That proof is only as good as `demand`, and `demand` is a lagging average over
+measured days — a household that doubles its usage today does not appear in it until
+tomorrow. So drain carries a second condition with no rate term in it: **a provider at
+or past the guardrail's failover threshold (`guardrail_thresholds[2]`, 90% by default)
+is never a drain target.** It overrides the release band, so an engaged drain lets go
+rather than holding on while the link fills. Ruling one provider out does not rule out
+concentrating on another.
+
 Drain refuses to act while any provider is under guardrail action, refuses to promote
 a link that is down, refuses to run with fewer than two usable providers, refuses when
-there is no measured demand to compare against, and refuses any layout that would
-leave the first tier empty.
+there is no measured demand to compare against, refuses any provider past the floor
+guard, and refuses any layout that would leave the first tier empty.
 
 ### Weights, not tiers, outside drain mode
 
