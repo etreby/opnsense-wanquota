@@ -2,57 +2,79 @@
 <main class="page">
 <section class="hero"><h1>&#9673; Renewal-aware WAN balance</h1>
 <p>Spend the allowance that is about to expire, instead of losing it.</p>
-<div class="ver">os-wanquota 0.18.0</div></section>
+<div class="ver">os-wanquota 0.19.1</div></section>
 <div class="tabs"><div class="tab">Summary</div><div class="tab">Consumers</div><div class="tab">Apps</div>
 <div class="tab">Limits</div><div class="tab">Live sessions</div><div class="tab active">Intelligence</div>
 <div class="tab">Data health</div><div class="tab">Settings</div></div>
 
 <div class="card" style="margin-top:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-<span class="sw"><input type=checkbox> <b>Enable automatic balancing</b></span>
-<span class="sw"><input type=checkbox checked> Dry run</span>
+<span class="sw"><input type=checkbox checked> <b>Enable automatic balancing</b></span>
+<span class="sw"><input type=checkbox> Dry run</span>
+<span class="muted">Mode</span><span class="inp">Share, and concentrate when sharing would waste</span>
 <span class="muted">Group</span><span class="inp">DUAL_WAN</span>
 <span class="muted">Top weight</span><span class="inp">10</span>
 <span class="btn">Save</span><span class="btn ghost">Apply now</span><span class="btn ghost">Revert weights</span></div>
 
-<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #1677a8;background:#eaf4fb;border-radius:6px">
-Balancing is off. The weights below are what it would write. Only gateway weights are ever changed
-&mdash; never tiers or force-down, because taking a link out of service stays the guardrails' decision.</div>
+<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #047857;background:#d1fae5;border-radius:6px">
+Live: weights are written whenever the computed ratio moves, and tiers whenever concentrating or
+releasing. <code>force_down</code> is never touched &mdash; taking a link out of service stays the
+guardrails' decision, so a demoted provider is standby, not switched off.</div>
+
+<div style="margin-top:14px;padding:14px 16px;border-left:4px solid #b45309;background:#fef3c7;border-radius:6px">
+<b>Concentrating: ETISALAT carries the traffic, the rest are failover</b><br>
+<span style="font-size:13px">ETISALAT has 17.5 GB/day of allowance left to spend and the whole household
+only uses 17.5 GB/day &mdash; even all of the traffic will not exhaust it before renewal, so sharing
+would waste the difference.</span><br>
+<span class="muted">Household demand: 17.5 GB/day &middot; a provider past 90% of its quota is never
+concentrated onto, whatever its allowance</span></div>
 
 <div class="card" style="margin-top:14px"><h3>Providers, ranked by allowance at risk of expiring</h3><table>
-<thead><tr><th>Provider</th><th>Gateway</th><th>Remaining</th><th>Days to renewal</th>
-<th>Headroom per day</th><th>Weight now</th><th>Weight wanted</th></tr></thead>
+<thead><tr><th>Provider</th><th>Share of new connections</th><th>Gateway</th><th>Remaining</th>
+<th>Days to renewal</th><th>Headroom per day</th><th>Weight now</th><th>Weight wanted</th></tr></thead>
 <tbody>
 <tr><td><b>ETISALAT</b><br><span class="muted">wan &rarr; igb0</span></td>
-<td>ETISALAT_DHCP</td><td><b>129.4 GB</b></td><td>7</td>
-<td><b>17.77 GB/day</b><div class="bar" style="margin-top:5px;max-width:120px"><i style="width:100%;background:#1677a8"></i></div></td>
-<td>3</td><td><b>10</b> <span class="pill warn">change</span></td></tr>
+<td><b style="font-size:15px">100%</b><div class="bar" style="margin-top:5px;max-width:120px"><i style="width:100%;background:#1677a8"></i></div>
+<span class="pill">carrying all</span></td>
+<td>ETISALAT_DHCP</td><td><b>127.4 GB</b></td><td>7</td>
+<td><b>17.5 GB/day</b><div class="bar" style="margin-top:5px;max-width:120px"><i style="width:100%;background:#1677a8"></i></div></td>
+<td>10</td><td><b>10</b></td></tr>
 <tr><td><b>MOBINIL</b><br><span class="muted">opt1 &rarr; ue0</span></td>
-<td>MOBINIL_DHCP</td><td><b>233.6 GB</b></td><td>21</td>
-<td>10.88 GB/day<div class="bar" style="margin-top:5px;max-width:120px"><i style="width:61%;background:#7dd3fc"></i></div></td>
-<td>1</td><td><b>6</b> <span class="pill warn">change</span></td></tr>
+<td><b style="font-size:15px">0%</b><div class="bar" style="margin-top:5px;max-width:120px"><i style="width:0%"></i></div>
+<span class="muted">standby &mdash; takes over if the primary drops</span></td>
+<td>MOBINIL_DHCP</td><td><b>232.7 GB</b></td><td>21</td>
+<td>10.8 GB/day<div class="bar" style="margin-top:5px;max-width:120px"><i style="width:62%;background:#7dd3fc"></i></div></td>
+<td><span class="muted">6</span><br><span class="pill">not in effect</span></td>
+<td><b>6</b> <span class="pill warn">failover</span></td></tr>
 </tbody></table>
-<p class="muted">MOBINIL holds nearly twice the remaining allowance, and is still the lower priority:
-it has three times as long to spend it. ETISALAT must move 17.77 GB a day to use up its 129.4 GB
-before the cycle turns in 7 days, against MOBINIL's 10.88 &mdash; so ETISALAT takes the larger share
-and the gigabytes that would have expired get spent.</p></div>
+<p class="muted"><b>A weight is not a share.</b> MOBINIL's weight of 6 is not a 37% slice &mdash; it
+is not consulted at all, because pf builds its pool from the highest non-empty tier and MOBINIL is
+below it. The weight is still kept current on purpose: it is the ratio that applies the instant the
+concentration is released, which is what makes the handover clean. Reading the weight as a share is
+the mistake this column exists to prevent.</p></div>
 
 <div class="why"><b>Why this is safe to leave on</b>
-<ol><li><b>Weights only.</b> A tier move is failover, which idles a link &mdash; the waste this exists
-to end. <code>Revert weights</code> puts every original back, and so does uninstalling.</li>
-<li><b>A floor of 1.</b> The balancer shifts the ratio and never starves a link. Weight 0 would be it
-taking a link out of service, which is not its decision.</li>
-<li><b>Overuse takes precedence.</b> A provider the guardrail has failed over or cut off is excluded
-and held at weight 1. Its row says so instead of showing a weight that will not be written.</li>
-<li><b>Only when the ratio moves.</b> Integer weights are compared before anything is written, so a
-run computing the same answer saves no configuration and reloads no filter.</li></ol></div>
+<ol><li><b>Never <code>force_down</code>.</b> Drain decides which link is <i>preferred</i>; taking one
+out of service stays the guardrails' decision. A demoted gateway is live standby and takes over in
+seconds &mdash; measured, not assumed. A layout that would leave the first tier empty is refused.</li>
+<li><b>A floor guard with no rate in it.</b> A provider at or past 90% of its quota is never
+concentrated onto, however much allowance it appears to have. The engage test proves the allowance
+cannot run out, but that proof rests on a <i>lagging average</i> of demand &mdash; this one rests on
+nothing.</li>
+<li><b>Overuse takes precedence.</b> While the guardrail is acting on any provider, drain stands down
+entirely rather than fighting it over the same tiers.</li>
+<li><b>Only when it moves.</b> Weights and tier names are both compared before anything is written, so
+a run computing the same answer saves no configuration and reloads no filter.</li>
+<li><b>Releasing undoes, it does not merely stop asking.</b> The recorded original layout is restored,
+and turning the mode off releases too. <code>Revert weights</code> and uninstalling both put
+everything back.</li></ol></div>
 
 <div class="grid" style="grid-template-columns:repeat(2,1fr)">
 <div class="card"><h3>What the firewall is running now</h3>
 <p class="muted" style="margin-top:0">The weight reaches the packet path as the size of the
 round-robin pool, so the ratio is checkable rather than declared.</p>
 <table><thead><tr><th>Gateway</th><th>Entries in the pf route-to pool</th></tr></thead><tbody>
-<tr><td>ETISALAT (igb0)</td><td><b>10</b> of 16</td></tr>
-<tr><td>MOBINIL (ue0)</td><td><b>6</b> of 16</td></tr>
+<tr><td>ETISALAT (igb0)</td><td><b>10</b> of 10</td></tr>
+<tr><td>MOBINIL (ue0)</td><td><b>0</b> &mdash; in the failover tier</td></tr>
 </tbody></table></div>
 <div class="card"><h3>The arithmetic</h3>
 <p class="muted" style="margin-top:0">One line, and both terms already come from the quota cards.</p>

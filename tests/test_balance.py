@@ -417,3 +417,61 @@ class FloorGuardTests(unittest.TestCase):
         decision = BALANCE.drain_decision(rows, 10 * GB, draining=True,
                                           ceiling_percent=90)
         self.assertFalse(decision["engaged"])
+
+
+class ShareTests(unittest.TestCase):
+    """The percentage each link actually receives, which weights alone hide.
+
+    A weight in a lower tier is not a small share, it is no share: pf builds its
+    pool from the highest non-empty tier and ignores the rest. Reading "weight 6"
+    beside a link carrying nothing is a fair way to be misled.
+    """
+
+    def rows(self):
+        return [{"name": "ETISALAT", "gateway": "E_GW", "weight": 10},
+                {"name": "MOBINIL", "gateway": "M_GW", "weight": 6}]
+
+    def shares(self, rows, tiers):
+        return {r["name"]: round(r["share_percent"], 1)
+                for r in BALANCE.shares(rows, tiers)}
+
+    def test_one_shared_tier_splits_by_weight(self):
+        got = self.shares(self.rows(), {"current": {"E_GW": "item", "M_GW": "item"}})
+        self.assertEqual(got, {"ETISALAT": 62.5, "MOBINIL": 37.5})
+
+    def test_a_demoted_link_receives_nothing_whatever_its_weight(self):
+        """The whole point: weight 6 in tier 2 is 0%, not 37.5%."""
+        got = self.shares(self.rows(), {"current": {"E_GW": "item", "M_GW": "item2"}})
+        self.assertEqual(got, {"ETISALAT": 100.0, "MOBINIL": 0.0})
+
+    def test_weight_in_effect_says_which_weights_matter(self):
+        rows = BALANCE.shares(self.rows(),
+                              {"current": {"E_GW": "item", "M_GW": "item2"}})
+        self.assertEqual([r["weight_in_effect"] for r in rows], [True, False])
+
+    def test_a_planned_move_is_reflected_before_it_is_written(self):
+        """The panel should show the split it is about to produce, not the old one."""
+        got = self.shares(self.rows(),
+                          {"current": {"E_GW": "item", "M_GW": "item"},
+                           "wanted": {"E_GW": "item", "M_GW": "item2"}})
+        self.assertEqual(got, {"ETISALAT": 100.0, "MOBINIL": 0.0})
+
+    def test_the_highest_non_empty_tier_is_the_one_that_carries(self):
+        got = self.shares(self.rows(), {"current": {"E_GW": "item2", "M_GW": "item2"}})
+        self.assertEqual(got, {"ETISALAT": 62.5, "MOBINIL": 37.5})
+
+    def test_a_provider_with_no_gateway_gets_nothing(self):
+        rows = [{"name": "SPARE", "gateway": "", "weight": 10},
+                {"name": "REAL", "gateway": "R_GW", "weight": 4}]
+        got = self.shares(rows, {"current": {"R_GW": "item"}})
+        self.assertEqual(got, {"SPARE": 0.0, "REAL": 100.0})
+
+    def test_no_layout_known_still_splits_by_weight(self):
+        got = self.shares(self.rows(), {})
+        self.assertEqual(got, {"ETISALAT": 62.5, "MOBINIL": 37.5})
+
+    def test_the_ten_to_one_ceiling_is_visible_as_a_percentage(self):
+        rows = [{"name": "A", "gateway": "A", "weight": 10},
+                {"name": "B", "gateway": "B", "weight": 1}]
+        got = self.shares(rows, {"current": {"A": "item", "B": "item"}})
+        self.assertEqual(got, {"A": 90.9, "B": 9.1})

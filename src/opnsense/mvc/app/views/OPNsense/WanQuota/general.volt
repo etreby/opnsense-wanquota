@@ -1718,26 +1718,57 @@ function renderBalance(data) {
             + esc('{{ lang._("No provider has a measurable allowance yet.") }}') + '</div>');
         return;
     }
+    /*
+     * Share first, weight second. A weight is not a share: a gateway in a lower tier
+     * receives nothing whatever its weight, so "weight 6" beside a link carrying zero
+     * is a fair way to be misled — and was. The percentage is computed from the tier
+     * layout and the weights together, the way pf builds its pool.
+     */
     let html = '<table class="table table-condensed table-striped"><thead><tr>'
-             + '<th>{{ lang._("Provider") }}</th><th>{{ lang._("Gateway") }}</th>'
+             + '<th>{{ lang._("Provider") }}</th>'
+             + '<th>{{ lang._("Share of new connections") }}</th>'
+             + '<th>{{ lang._("Gateway") }}</th>'
              + '<th>{{ lang._("Remaining") }}</th><th>{{ lang._("Days to renewal") }}</th>'
              + '<th>{{ lang._("Headroom per day") }}</th>'
              + '<th>{{ lang._("Weight now") }}</th><th>{{ lang._("Weight wanted") }}</th>'
              + '</tr></thead><tbody>';
     for (const row of rows) {
+        /*
+         * Say plainly when a weight is not being consulted. It is still kept current
+         * on purpose — it is the ratio that takes effect the moment a drain releases,
+         * so holding the right value there is what makes the handover clean — but a
+         * number that is not in force must not be displayed as though it were.
+         */
+        const inert = row.weight_in_effect === false;
         const move = row.weight === row.current_weight
             ? '<b>' + row.weight + '</b>'
             : '<b>' + row.weight + '</b> <span class="wq-pill wq-pill-warn">'
               + esc('{{ lang._("change") }}') + '</span>';
+        const inertNote = inert
+            ? '<br><small class="wq-pill" title="'
+              + esc('{{ lang._("This gateway is in a lower tier, so its weight is not consulted at all. It is kept current because it is the ratio that applies the moment the concentration is released.") }}')
+              + '">' + esc('{{ lang._("not in effect") }}') + '</small>'
+            : '';
+        const share = Number(row.share_percent || 0);
+        const shareCell = '<b style="font-size:15px">' + share.toFixed(share < 10 ? 1 : 0) + '%</b>'
+             +  '<div class="bar" style="margin-top:5px;max-width:120px;height:8px;'
+             +  'background:#e7edf2;border-radius:8px;overflow:hidden">'
+             +  '<i style="display:block;height:100%;border-radius:8px;width:' + share + '%;'
+             +  'background:' + (share > 0 ? '#1677a8' : 'transparent') + '"></i></div>'
+             +  (share === 0 ? '<small class="wq-muted">'
+                    + esc('{{ lang._("standby — takes over if the primary drops") }}')
+                    + '</small>' : '');
         html += '<tr><td><b>' + esc(row.name) + '</b><br><small class="wq-muted">'
              +  esc(row.logical_interface) + '</small>'
              +  (row.excluded ? '<br><small class="wq-pill wq-pill-warn" title="'
                     + esc(row.excluded_reason) + '">' + esc('{{ lang._("excluded by the guardrail") }}')
                     + '</small>' : '')
-             +  '</td><td>' + esc(row.gateway || '—') + '</td>'
+             +  '</td><td>' + shareCell + '</td>'
+             +  '<td>' + esc(row.gateway || '—') + '</td>'
              +  '<td>' + gb(row.remaining) + '</td><td>' + esc(row.days_left) + '</td>'
              +  '<td>' + gb(row.urgency) + '{{ lang._("/day") }}</td>'
-             +  '<td>' + esc(row.current_weight) + '</td>'
+             +  '<td>' + (inert ? '<span class="wq-muted">' + esc(row.current_weight) + '</span>'
+                                    : esc(row.current_weight)) + inertNote + '</td>'
              +  '<td>' + (row.excluded ? '<b>1</b>' : move)
              +  ((data.drain || {}).engaged
                     ? (row.name === data.drain.target

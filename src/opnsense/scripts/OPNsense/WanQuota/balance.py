@@ -228,6 +228,46 @@ def tier_plan(rows, decision, group):
     return {"wanted": wanted, "current": current, "moves": moves}
 
 
+# Tier names in priority order. pf builds its pool from the highest non-empty tier
+# and ignores the rest, which is why a weight in a lower tier has no effect at all.
+TIER_ORDER = ("item", "item2", "item3", "item4", "item5")
+
+
+def shares(rows, tiers):
+    """Percentage of new connections each provider should actually receive.
+
+    Computed from the tier layout and the weights together, because that is how pf
+    builds the pool: only the highest non-empty tier contributes entries, and within
+    it a gateway's weight *is* its number of entries. A weight in a lower tier is
+    not a small share, it is no share — which is the thing raw weights hide. Reading
+    "weight 6" beside a link carrying nothing is a fair way to be misled, so the
+    percentage is derived here rather than left to the interface to guess at.
+
+    Sets `share_percent` and `weight_in_effect` on each row and returns them.
+    """
+    layout = dict((tiers or {}).get("wanted") or (tiers or {}).get("current") or {})
+    active = []
+    if layout:
+        for tier in TIER_ORDER:
+            named = [gateway for gateway, where in layout.items() if where == tier]
+            if named:
+                active = named
+                break
+    for row in rows:
+        gateway = row.get("gateway")
+        # With no layout known at all, every provider that has a gateway shares —
+        # the group has one tier and the weights are what split it.
+        row["weight_in_effect"] = bool(gateway) and (not active or gateway in active)
+    carrying = [row for row in rows if row.get("weight_in_effect")]
+    total = sum(max(1, int(row.get("weight") or 1)) for row in carrying)
+    for row in rows:
+        if row.get("weight_in_effect") and total > 0:
+            row["share_percent"] = max(1, int(row.get("weight") or 1)) / total * 100
+        else:
+            row["share_percent"] = 0.0
+    return rows
+
+
 def release_needed(decision, inventory):
     """True when a drain is in force and the condition for it no longer holds.
 
@@ -353,6 +393,7 @@ def build(providers, cfg, inventory, decisions=None):
     plan = tier_plan(rows, decision, group)
     plan["release"] = release_needed(decision, inventory)
     mode = str(cfg.get("balance_mode") or "weights")
+    shares(rows, plan)
     if mode != "drain":
         decision = {**decision, "engaged": False, "target": None, "allowed": False,
                     "reason": decision["reason"] + " (drain mode is off, so tiers are "
@@ -361,6 +402,9 @@ def build(providers, cfg, inventory, decisions=None):
         # not be left behind by turning the mode off.
         plan = {"wanted": {}, "current": plan["current"], "moves": [],
                 "release": bool(inventory.get("drained"))}
+        # Recompute against the layout that will actually be in force once the
+        # release lands, not the drained one the discarded plan described.
+        shares(rows, {"current": {} if plan["release"] else plan["current"]})
     else:
         decision["allowed"] = True
 
