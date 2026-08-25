@@ -274,6 +274,38 @@ assert first_write < first_apply, \
     "writing afterwards applies the previous run's plan"
 PYCHECK
 
+# Anything that reloads the filter has to nudge the resolver afterwards.
+#
+# A filter reload drops long-lived TCP, and a DNS-over-TLS session is exactly that.
+# Unbound then backs the upstream off for up to 120 seconds and does not retry until
+# that expires — so a routing change can leave every external name SERVFAIL for
+# minutes while a raw connect to the same upstream on 853 still succeeds. Observed on
+# a live firewall. flush_infra clears only the reachability bookkeeping, never the
+# answer cache, which would turn one routing change into a lookup storm.
+python3 - "$repository" <<'PYCHECK'
+import re
+import sys
+from pathlib import Path
+root = Path(sys.argv[1]) / "src/opnsense/scripts/OPNsense/WanQuota"
+for name in ("balance.php", "enforce.php"):
+    source = (root / name).read_text()
+    assert "flush_infra" in source, f"{name} reloads routing; it must nudge the resolver"
+    assert "flush_zone" not in source and "dump_cache" not in source, \
+        f"{name} must clear only reachability, never the answer cache"
+    # Count code, not prose: a comment explaining filter_configure() is not a call,
+    # and the definition of nudgeResolver() is not a call either. Without stripping
+    # both, the two errors cancelled out and the check passed by coincidence.
+    code = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
+    code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+    reloads = len(re.findall(r"\bfilter_configure\(\)", code))
+    nudges = len(re.findall(r"nudgeResolver\(\)", code))
+    nudges -= len(re.findall(r"function nudgeResolver\(\)", code))
+    # Now a genuine one-to-one requirement: calls, not definitions, against reloads.
+    assert nudges >= reloads, \
+        f"{name} calls filter_configure() {reloads} time(s) but nudgeResolver() only " \
+        f"{nudges} time(s); every reload has to be followed by one"
+PYCHECK
+
 # Compile the Volt template, where that is possible. A Volt syntax error is not
 # caught by anything else here -- the JS check parses the script block, the API check
 # greps strings -- and its failure mode is the whole page rendering blank for a

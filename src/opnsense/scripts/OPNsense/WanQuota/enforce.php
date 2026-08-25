@@ -96,10 +96,46 @@ if ($checkOnly) {
     exit(0);
 }
 
+/**
+ * Tell the resolver its upstreams may be reachable again.
+ *
+ * Changing routing reloads the filter, and a filter reload can drop long-lived TCP.
+ * A DNS-over-TLS session is exactly that, so Unbound's upstream connections are
+ * collateral damage of a weight or tier change. Unbound then does the sensible thing
+ * for a real outage and the wrong thing here: it backs the upstream off, up to a
+ * retransmit timeout of 120 seconds, and **does not retry until that expires**. The
+ * result observed on a live firewall was SERVFAIL for every external name while a raw
+ * TCP connect to the same upstream on port 853 succeeded and plain UDP 53 answered —
+ * DNS dead for minutes after the cause had passed.
+ *
+ * `flush_infra` clears only the reachability and round-trip bookkeeping, so the next
+ * query tries the upstream again. It deliberately does *not* flush the answer cache:
+ * discarding valid answers would turn one routing change into a lookup storm.
+ *
+ * Best-effort by design. A firewall may not run Unbound at all, and a resolver that
+ * cannot be nudged is not a reason to fail a routing change that has already been
+ * written.
+ */
+function nudgeResolver(): array
+{
+    $control = '/usr/local/sbin/unbound-control';
+    $config = '/var/unbound/unbound.conf';
+    if (!is_executable($control) || !is_file($config)) {
+        return ['nudged' => false, 'reason' => 'unbound-control is not available here'];
+    }
+    $output = [];
+    $status = 0;
+    exec(sprintf('%s -c %s flush_infra all 2>&1',
+        escapeshellarg($control), escapeshellarg($config)), $output, $status);
+    return ['nudged' => $status === 0,
+            'reason' => $status === 0 ? 'upstream reachability reset' : trim(implode(' ', $output))];
+}
+
 $gateways->serializeToConfig();
 Config::getInstance()->save("WAN quota guardrail: {$action} {$logical}");
 if (!is_dir(dirname($statePath))) mkdir(dirname($statePath), 0750, true);
 file_put_contents($statePath, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
 chmod($statePath, 0600);
 filter_configure();
-echo json_encode(['status' => 'ok', 'interface' => $logical, 'action' => $action, 'gateways' => $matched]) . PHP_EOL;
+echo json_encode(['status' => 'ok', 'interface' => $logical, 'action' => $action,
+                  'gateways' => $matched, 'resolver' => nudgeResolver()]) . PHP_EOL;

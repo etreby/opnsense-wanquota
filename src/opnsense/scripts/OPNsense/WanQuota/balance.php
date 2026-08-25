@@ -59,6 +59,40 @@ function fail(string $message): void
 }
 
 /**
+ * Tell the resolver its upstreams may be reachable again.
+ *
+ * Changing routing reloads the filter, and a filter reload can drop long-lived TCP.
+ * A DNS-over-TLS session is exactly that, so Unbound's upstream connections are
+ * collateral damage of a weight or tier change. Unbound then does the sensible thing
+ * for a real outage and the wrong thing here: it backs the upstream off, up to a
+ * retransmit timeout of 120 seconds, and does not retry until that expires. Observed
+ * on a live firewall: SERVFAIL for every external name while a raw TCP connect to the
+ * same upstream on port 853 succeeded and plain UDP 53 answered. DNS stayed dead for
+ * minutes after the cause had passed.
+ *
+ * `flush_infra` clears only the reachability and round-trip bookkeeping, so the next
+ * query tries the upstream again. It deliberately does *not* flush the answer cache:
+ * discarding valid answers would turn one routing change into a lookup storm.
+ *
+ * Best-effort by design. A firewall may not run Unbound at all, and a resolver that
+ * cannot be nudged is no reason to fail a routing change already written.
+ */
+function nudgeResolver(): array
+{
+    $control = '/usr/local/sbin/unbound-control';
+    $config = '/var/unbound/unbound.conf';
+    if (!is_executable($control) || !is_file($config)) {
+        return ['nudged' => false, 'reason' => 'unbound-control is not available here'];
+    }
+    $output = [];
+    $status = 0;
+    exec(sprintf('%s -c %s flush_infra all 2>&1',
+        escapeshellarg($control), escapeshellarg($config)), $output, $status);
+    return ['nudged' => $status === 0,
+            'reason' => $status === 0 ? 'upstream reachability reset' : trim(implode(' ', $output))];
+}
+
+/**
  * Every gateway the firewall knows, with whether it has a configuration item.
  *
  * getGateways() merges configured items with the dynamic ones discovered from
@@ -239,7 +273,7 @@ function applyTiers(bool $checkOnly): array
     }
     filter_configure();
     return ['status' => 'ok', 'changed' => count($moves), 'moves' => $moves,
-            'group' => $groupName];
+            'group' => $groupName, 'resolver' => nudgeResolver()];
 }
 
 /** Rewrite a group's tiers from a gateway => tier map, dropping empty members. */
@@ -299,7 +333,8 @@ function revertTiers(): array
         system_routing_configure();
     }
     filter_configure();
-    return ['status' => 'ok', 'changed' => count($restored), 'groups' => $restored];
+    return ['status' => 'ok', 'changed' => count($restored), 'groups' => $restored,
+            'resolver' => nudgeResolver()];
 }
 
 function apply(bool $checkOnly): array
@@ -385,7 +420,8 @@ function apply(bool $checkOnly): array
         system_routing_configure();
     }
     filter_configure();
-    return ['status' => 'ok', 'changed' => count($written), 'written' => $written];
+    return ['status' => 'ok', 'changed' => count($written), 'written' => $written,
+            'resolver' => nudgeResolver()];
 }
 
 function revert(): array
@@ -435,7 +471,8 @@ function revert(): array
     }
     filter_configure();
     return ['status' => 'ok', 'changed' => count($restored) + count($removed),
-            'restored' => $restored, 'removed' => $removed];
+            'restored' => $restored, 'removed' => $removed,
+            'resolver' => nudgeResolver()];
 }
 
 $mode = $argv[1] ?? 'inventory';
