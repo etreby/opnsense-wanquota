@@ -1548,6 +1548,15 @@ function renderDevicePolicy(data) {
              +  (row.excluded ? '<br><small class="wq-pill" title="'
                     + esc('{{ lang._("Marked excluded, so it is never blocked by a quota or a block") }}')
                     + '">' + esc('{{ lang._("excluded") }}') + '</small>' : '')
+             /*
+              * Say when a policy is tied to the address rather than the MAC. Two host
+              * addresses can reach this firewall behind one MAC, and a MAC that names two
+              * devices cannot key either of them — so those rows key on the address, and
+              * that is worth knowing because it stops applying if DHCP moves the device.
+              */
+             +  (row.shared_mac ? '<br><small class="wq-pill wq-pill-warn" title="'
+                    + esc('{{ lang._("This MAC is shared with another address on this network, so it cannot identify one device. The policy is tied to the address and will stop applying if DHCP moves it.") }}')
+                    + '">' + esc('{{ lang._("address only") }}') + '</small>' : '')
              +  '</td>'
              +  '<td><input class="form-control acc-quota" type="number" step="1" min="1"'
              +  ' style="max-width:110px" placeholder="{{ lang._("none") }}" value="' + esc(row.budget_gb) + '"></td>'

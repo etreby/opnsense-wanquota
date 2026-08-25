@@ -77,6 +77,23 @@ class DevicePolicyController extends ApiControllerBase
             $blockRefused[strtolower((string)$entry['device'])] = $entry['reason'];
         }
 
+        /*
+         * A MAC is the better key because it survives a DHCP move — but only when it
+         * identifies one device. Two host addresses can sit behind one MAC as the
+         * firewall sees it: a workstation with a wired and a wireless address reached
+         * through the same intermediate device presents both on that device's MAC.
+         * Keying both rows on it gave two rows the same key, and the endpoint rejected
+         * the whole save as a duplicate — so no quota and no block could be saved at
+         * all, for any device on the network. Seen on a live firewall.
+         */
+        $macCount = [];
+        foreach (($known['devices'] ?? []) as $device) {
+            $mac = strtolower((string)$device['mac']);
+            if ($mac !== '') {
+                $macCount[$mac] = ($macCount[$mac] ?? 0) + 1;
+            }
+        }
+
         $rows = [];
         foreach (($known['devices'] ?? []) as $device) {
             $identifiers = [$device['address'], $device['mac'], $device['hostname'], $device['name']];
@@ -97,6 +114,9 @@ class DevicePolicyController extends ApiControllerBase
                 }
             }
             $address = strtolower((string)$device['address']);
+            $mac = strtolower((string)$device['mac']);
+            $sharedMac = $mac !== '' && ($macCount[$mac] ?? 0) > 1;
+            $uniqueKey = ($mac !== '' && !$sharedMac) ? $mac : (string)$device['address'];
             $used = $usedBy[$address] ?? 0.0;
             $budgetGb = (float)($quota['budget_gb'] ?? 0);
             $rows[] = [
@@ -105,9 +125,15 @@ class DevicePolicyController extends ApiControllerBase
                 'mac' => $device['mac'],
                 'hostname' => $device['hostname'],
                 'name_source' => $device['name_source'],
-                /* The MAC is the preferred key: a policy keyed to an address stops
-                   applying the moment DHCP moves the device. */
-                'key' => $block['device'] ?? ($device['mac'] ?: $device['address']),
+                /*
+                 * The MAC is preferred, but only when it is unambiguous; a shared MAC
+                 * cannot tell two devices apart, so those rows key on their address
+                 * and the interface says the policy will not survive a DHCP move.
+                 */
+                'key' => $block['device'] ?? $uniqueKey,
+                'key_is_mac' => $uniqueKey === strtolower((string)$device['mac'])
+                    && $uniqueKey !== '',
+                'shared_mac' => $sharedMac,
                 'budget_gb' => $budgetGb > 0 ? $budgetGb : '',
                 'excluded' => !empty($quota['exclude']),
                 'used' => $used,
@@ -175,12 +201,26 @@ class DevicePolicyController extends ApiControllerBase
                 continue;
             }
             $lower = strtolower($key);
+            $raw = trim((string)($item['budget_gb'] ?? ''));
+            /*
+             * A repeated key is only a conflict when the two entries disagree. The page
+             * posts every row, so an identifier shared by two rows arrives twice with
+             * nothing set on either — refusing the request for that rejected the whole
+             * save and made the tab unusable rather than reporting a problem with one
+             * row. Identical values collapse; only a genuine disagreement is an error,
+             * and it names both values so it can be acted on.
+             */
             if (isset($seen[$lower])) {
-                $errors[] = sprintf('%s appears twice', $key);
+                if ($seen[$lower] !== $raw) {
+                    $errors[] = sprintf(
+                        '%s is listed twice with different quotas (%s and %s); it is one '
+                        . 'device to this firewall, so it can carry only one',
+                        $key, $seen[$lower] === '' ? 'none' : $seen[$lower],
+                        $raw === '' ? 'none' : $raw);
+                }
                 continue;
             }
-            $seen[$lower] = true;
-            $raw = trim((string)($item['budget_gb'] ?? ''));
+            $seen[$lower] = $raw;
             $index = $byKey[$lower] ?? null;
             if ($raw === '' || (float)$raw <= 0) {
                 /* Clearing a quota removes the budget but keeps the entry when it
@@ -215,12 +255,18 @@ class DevicePolicyController extends ApiControllerBase
                 continue;
             }
             $lower = strtolower($key);
+            $until = (int)($item['until'] ?? 0);
+            /* Same reasoning as the quotas: blocking one device twice is a repeat, not
+               a conflict, unless the two deadlines disagree about when it ends. */
             if (isset($blockSeen[$lower])) {
-                $errors[] = sprintf('%s is blocked twice', $key);
+                if ($blockSeen[$lower] !== $until) {
+                    $errors[] = sprintf(
+                        '%s is blocked twice with different deadlines; it is one device '
+                        . 'to this firewall, so it can carry only one', $key);
+                }
                 continue;
             }
-            $blockSeen[$lower] = true;
-            $until = (int)($item['until'] ?? 0);
+            $blockSeen[$lower] = $until;
             if ($until < 0) {
                 $errors[] = sprintf('%s: the block deadline is not a valid time', $key);
                 continue;

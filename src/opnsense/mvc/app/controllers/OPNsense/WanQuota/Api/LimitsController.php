@@ -76,6 +76,20 @@ class LimitsController extends ApiControllerBase
             $uploadRefused[strtolower((string)$entry['device'])] = $entry['reason'];
         }
 
+        /*
+         * A MAC only makes a usable key while it identifies one device. Two host
+         * addresses can sit behind one MAC as the firewall sees them, and offering both
+         * rows the same key meant ticking both produced "appears twice" and lost the
+         * whole save. Rows on a shared MAC key on their address instead.
+         */
+        $macCount = [];
+        foreach (($known['devices'] ?? []) as $device) {
+            $mac = strtolower((string)$device['mac']);
+            if ($mac !== '') {
+                $macCount[$mac] = ($macCount[$mac] ?? 0) + 1;
+            }
+        }
+
         $rows = [];
         foreach (($known['devices'] ?? []) as $device) {
             /*
@@ -100,7 +114,12 @@ class LimitsController extends ApiControllerBase
                 'hostname' => $device['hostname'],
                 'name_source' => $device['name_source'],
                 'selected' => $choice !== null && ($choice['enabled'] ?? true),
-                'key' => $choice['device'] ?? ($device['mac'] ?: $device['address']),
+                'key' => $choice['device']
+                    ?? ((($device['mac'] ?? '') !== ''
+                         && ($macCount[strtolower((string)$device['mac'])] ?? 0) === 1)
+                        ? $device['mac'] : $device['address']),
+                'shared_mac' => ($device['mac'] ?? '') !== ''
+                    && ($macCount[strtolower((string)$device['mac'])] ?? 0) > 1,
                 'matched_on' => $matchedOn,
                 'mbit' => $choice['mbit'] ?? '',
                 'upload_mbit' => $choice['upload_mbit'] ?? '',
