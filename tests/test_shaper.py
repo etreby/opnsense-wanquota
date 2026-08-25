@@ -470,6 +470,12 @@ class VerifyFreshnessTests(unittest.TestCase):
     def test_a_missing_marker_reads_as_unknown_age(self):
         self.assertIsNone(SHAPER.installed_age("/nonexistent/wanquota-installed"))
 
+    def test_a_caller_saying_nothing_reads_the_marker(self):
+        """Absent and unknown are different answers, and were once the same value:
+        passing age=None to mean "unknown" still read the live marker file, so this
+        test passed on a machine without one and failed on a firewall with one."""
+        self.assertIsNot(SHAPER.UNSET, None)
+
     def test_an_unknown_age_does_not_claim_the_counters_are_fresh(self):
         result = SHAPER.verify(self.LISTING, interception={"active": False},
                                plan=self.PLAN, age=None)
@@ -806,7 +812,9 @@ class VerifyTests(unittest.TestCase):
 
     def test_verify_explains_that_an_idle_upload_rule_is_expected_here(self):
         state = SHAPER.netmap_interception(FSTAT_ZENARMOR, device_present=True)
-        result = SHAPER.verify(IPFW_LISTING, interception=state)
+        # An explicit age, so the note under test is the one about upload rules rather
+        # than whichever note the firewall's real install marker happens to produce.
+        result = SHAPER.verify(IPFW_LISTING, interception=state, age=3600)
         self.assertEqual(result["status"], "ok")
         self.assertIn("expected for upload rules", result["note"])
 

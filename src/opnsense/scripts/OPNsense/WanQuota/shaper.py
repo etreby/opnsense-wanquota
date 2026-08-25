@@ -881,7 +881,17 @@ def rule_labels(plan=None):
     return {number: label for number, label in labels.items() if number is not None}
 
 
-def verify(listing=None, interception=None, plan=None, age=None):
+# A distinct sentinel for "the caller said nothing about the age", because None is a
+# real answer: it is what installed_age() returns when the marker has never been
+# written, and it means "unknown", which must not be excused as "installed recently".
+# Sharing one value for both let verify() fall back to reading the live marker file
+# even when a caller had explicitly said the age was unknown — so the same test passed
+# on a workstation with no marker and failed on a firewall with one, which is how it
+# was found.
+UNSET = object()
+
+
+def verify(listing=None, interception=None, plan=None, age=UNSET):
     """Report what each of the plugin's shaper rules has actually matched."""
     text = listing
     if text is None:
@@ -896,7 +906,7 @@ def verify(listing=None, interception=None, plan=None, age=None):
     labels = rule_labels(plan)
     for row in rows:
         row["label"] = labels.get(row["pipe"], "")
-    seconds = installed_age() if age is None else age
+    seconds = installed_age() if age is UNSET else age
     settling = seconds is not None and seconds < SETTLING_SECONDS
     idle = [row["pipe"] for row in rows if row["bytes"] == 0]
 
