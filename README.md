@@ -46,8 +46,13 @@ quota reporting and top-consumer visibility.
   deadline, while its LAN traffic and the firewall's own DNS and NTP keep working.
 - Renewal-aware WAN balancing: whichever provider has the most remaining allowance
   per day left before its billing cycle renews receives the largest share of new
-  connections, so allowance is spent rather than lost. Weights only, never tiers,
-  and the firewall's guardrails still take precedence on a link running out.
+  connections, so allowance is spent rather than lost. The firewall's guardrails
+  still take precedence on a link running out.
+- Optional drain mode, for when sharing is itself what wastes the allowance: if a
+  provider could absorb the household's entire daily demand and still not spend its
+  allowance before renewal, it is made the sole primary and the others become live
+  failover. It engages and releases on its own — the release happens at cycle
+  renewal with nothing scheduled.
 - Per-service bandwidth limits for streaming services, using the OPNsense traffic
   shaper, disabled and dry-run by default. Per-service and per-device limits combine.
 - Optional experimental upload shaping through ipfw's layer2 hook, off by default, for
@@ -337,11 +342,36 @@ left — 30 GB/day — and MOBINIL has 16 days and 250 GB — 15.6 GB/day. ETISA
 allowance is twice as urgent, so it is weighted 10 against MOBINIL's 5, and the
 gigabytes that would otherwise have expired are spent.
 
+### Drain mode: when sharing is the thing wasting the allowance
+
+Weights can only change a *ratio*, and sometimes no ratio is good enough. If a
+provider's headroom per remaining day exceeds what the whole household consumes in a
+day, then even giving it **all** of the traffic will not exhaust it before renewal —
+and giving it merely a share guarantees the difference expires unused.
+
+Drain mode handles exactly that case: the provider becomes the sole member of the
+gateway group's first tier and the others drop to the second, staying live failover.
+The trigger is derived, not configured — `urgency >= household daily rate` — so there
+is no threshold to tune and nothing to schedule. It releases itself when that stops
+being true, which happens automatically at cycle renewal, when the allowance resets
+and the per-day figure collapses.
+
+Worked from the same firewall: ETISALAT could spend 17.5 GB/day and the household
+used 17.5 GB/day, so it took everything; at the simulated renewal its figure fell to
+7.3 GB/day, drain released, MOBINIL returned to the first tier and the weights flipped
+to favour it.
+
+Off by default. The mode selector sits beside the switches, and the panel always
+states whether it is concentrating and why, whichever mode is chosen.
+
 Three constraints keep it safe:
 
-- **Weights only.** Never a tier, never `force_down`. A tier move is failover, which
-  idles a link — precisely the waste this exists to end. Those stay the guardrails'
-  levers, and `pkg delete` reverts any weight the balancer wrote.
+- **Tiers only in drain mode, and never `force_down`.** Weights mode does not touch
+  tiers at all. Drain moves them deliberately but still never takes a link out of
+  service — that stays the guardrails' decision, and a demoted gateway remains a live
+  failover that takes over within seconds (measured). Writing a layout with an empty
+  first tier is refused outright. `pkg delete` reverts any weight *and* any tier the
+  balancer wrote.
 - **Overuse takes precedence.** A provider the guardrail has failed over or cut off
   is excluded from the balance and held at weight 1. A link nearly out of allowance
   must not be sent more traffic because its cycle renews soon.

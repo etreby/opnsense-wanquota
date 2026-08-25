@@ -194,6 +194,7 @@ def options():
         # Renewal-aware WAN balance. Named "balance" rather than "balance_enabled" to
         # match the "enforcement"/"device_enforcement" keys beside it.
         "balance": value(general, "balance_enabled", "0") == "1",
+        "balance_mode": value(general, "balance_mode", "weights"),
         "balance_dry_run": value(general, "balance_dry_run", "1") == "1",
         "balance_group": value(general, "balance_group", ""),
         "balance_max_weight": int(number(general, "balance_max_weight", 10, 2, 10)),

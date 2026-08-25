@@ -66,6 +66,7 @@ $defaults = [
     'guardrail_thresholds' => '50,75,90,100',
     'emergency_reserve_gb' => '5',
     'device_blocks_json' => '[]',
+    'balance_mode' => 'weights',
     'balance_enabled' => '0',
     'balance_dry_run' => '1',
     'balance_group' => '',

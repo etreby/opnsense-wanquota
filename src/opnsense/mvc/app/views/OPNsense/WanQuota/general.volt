@@ -186,7 +186,7 @@
         <div class="wq-section wq-table-wrap"><h3>{{ lang._('Open sessions on this device') }}</h3><div id="sessionDetailTable"></div></div>
         </div>
     </div></div>
-    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div class="wq-section" id="balanceSection"><h3>{{ lang._('Renewal-aware WAN balance') }}</h3><p class="wq-muted">{{ lang._('The guardrails answer "this link is running out". This answers the opposite question: "this link\'s allowance is about to expire unspent". The provider with the most remaining allowance per day left before its renewal gets the largest share of new connections, so allowance is spent rather than lost. Only gateway weights are changed — never tiers or force-down, because taking a link out of service stays the guardrails\' decision.') }}</p><div class="wq-action-box wq-toolbar"><label class="wq-switch"><input type="checkbox" id="balanceEnabled"> <b>{{ lang._('Enable automatic balancing') }}</b></label><label class="wq-switch"><input type="checkbox" id="balanceDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label><label>{{ lang._('Group') }}</label><select id="balanceGroup" class="form-control"></select><label>{{ lang._('Top weight') }}</label><select id="balanceMaxWeight" class="form-control"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10" selected>10</option></select><button id="saveBalance" class="btn btn-primary" type="button">{{ lang._('Save') }}</button><button id="applyBalance" class="btn btn-warning" type="button">{{ lang._('Apply now') }}</button><button id="revertBalance" class="btn btn-default" type="button">{{ lang._('Revert weights') }}</button></div><div id="balanceStatus"></div><div class="wq-table-wrap"><div id="balanceTable"></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
+    <div id="intelligence" class="tab-pane fade"><div style="padding:16px"><div class="wq-detail" id="intelligenceDetail" style="display:none"></div><div class="wq-overview" id="intelligenceOverview"><div class="wq-toolbar"><label>Period</label><select id="intelligencePeriod" class="form-control"><option value="today">Today</option><option value="week">7 days</option><option value="thirty" selected>30 days</option><option value="month">Current month</option></select><input id="intelligenceSearch" class="form-control" placeholder="Filter groups, categories or anomalies"><button id="refreshIntelligence" class="btn btn-primary" type="button">Refresh</button></div><div id="intelligenceCards" class="wq-grid"></div><div class="wq-action-box wq-toolbar"><b>Temporary guardrail override</b><select id="overrideProvider" class="form-control"></select><select id="overrideMode" class="form-control"><option value="observe">Observe</option><option value="deprioritize">Deprioritize</option><option value="failover">Fail over</option><option value="cutoff">Cut off</option></select><select id="overrideHours" class="form-control"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="168">7 days</option></select><button id="applyOverride" class="btn btn-warning" type="button">Apply override</button><span id="overrideStatus" class="wq-muted">Overrides remain advisory while enforcement is disabled or dry-run.</span></div><div class="wq-grid"><div class="wq-card"><h3>{{ lang._('Device-group usage and budgets') }}</h3><div class="wq-chart"><canvas id="groupChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('App categories breakdown') }}</h3><div class="wq-chart"><canvas id="categoryChart"></canvas></div><div id="categoryShares" class="wq-shares"></div></div><div class="wq-card"><h3>{{ lang._('Traffic versus provider quality') }}</h3><div class="wq-chart"><canvas id="qualityChart"></canvas></div></div><div class="wq-card"><h3>{{ lang._('Cycle history') }}</h3><div class="wq-chart"><canvas id="cycleChart"></canvas></div></div></div><div class="wq-section" id="balanceSection"><h3>{{ lang._('Renewal-aware WAN balance') }}</h3><p class="wq-muted">{{ lang._('The guardrails answer "this link is running out". This answers the opposite question: "this link\'s allowance is about to expire unspent". The provider with the most remaining allowance per day left before its renewal gets the largest share of new connections, so allowance is spent rather than lost. Only gateway weights are changed — never tiers or force-down, because taking a link out of service stays the guardrails\' decision.') }}</p><div class="wq-action-box wq-toolbar"><label class="wq-switch"><input type="checkbox" id="balanceEnabled"> <b>{{ lang._('Enable automatic balancing') }}</b></label><label class="wq-switch"><input type="checkbox" id="balanceDryRun"> {{ lang._('Dry run (record the plan, change nothing)') }}</label><label>{{ lang._('Group') }}</label><select id="balanceGroup" class="form-control"></select><label>{{ lang._('Mode') }}</label><select id="balanceMode" class="form-control"><option value="weights">{{ lang._('Share by weight') }}</option><option value="drain">{{ lang._('Share, and concentrate when sharing would waste') }}</option></select><label>{{ lang._('Top weight') }}</label><select id="balanceMaxWeight" class="form-control"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="8">8</option><option value="10" selected>10</option></select><button id="saveBalance" class="btn btn-primary" type="button">{{ lang._('Save') }}</button><button id="applyBalance" class="btn btn-warning" type="button">{{ lang._('Apply now') }}</button><button id="revertBalance" class="btn btn-default" type="button">{{ lang._('Revert weights') }}</button></div><div id="balanceStatus"></div><div class="wq-table-wrap"><div id="balanceTable"></div></div></div><div id="intelligenceDetails" class="wq-section wq-table-wrap"></div></div></div></div>
     <div id="health" class="tab-pane fade"><div id="healthReport" style="padding:16px"></div></div>
     <div id="settings" class="tab-pane fade"><div style="padding:16px">
         <ol class="wq-steps" id="wizardSteps">
@@ -1668,6 +1668,7 @@ function renderBalance(data) {
     $('#balanceEnabled').prop('checked', !!data.enabled);
     $('#balanceDryRun').prop('checked', data.dry_run !== false);
     $('#balanceMaxWeight').val(String(data.max_weight || 10));
+    $('#balanceMode').val(data.mode === 'drain' ? 'drain' : 'weights');
     const groups = data.groups || [];
     $('#balanceGroup').html(
         '<option value="">' + esc(groups.length === 1
@@ -1684,10 +1685,29 @@ function renderBalance(data) {
                 ? ['warning', '{{ lang._("Dry run: the plan is recorded and no gateway weight is changed.") }}']
                 : ['success', '{{ lang._("Live: weights are written whenever the computed ratio moves.") }}'];
     const applied = data.applied || {};
+    /*
+     * The drain verdict is shown whichever mode is selected, and always with its
+     * reason. Concentrating every connection onto one link is a bigger act than
+     * changing a ratio, so the panel has to be able to say why it did or did not.
+     */
+    const drain = data.drain || {};
+    const demand = data.demand ? gb(data.demand) + '{{ lang._("/day") }}' : '—';
+    let drainBox = '';
+    if (drain.reason) {
+        drainBox = '<div class="alert alert-' + (drain.engaged ? 'warning' : 'info') + '">'
+            + '<b>' + esc(drain.engaged
+                ? '{{ lang._("Concentrating: ") }}' + (drain.target || '')
+                  + '{{ lang._(" carries the traffic, the rest are failover") }}'
+                : '{{ lang._("Not concentrating — both links stay in service") }}')
+            + '</b><br>' + esc(drain.reason)
+            + '<br><small class="wq-muted">'
+            + esc('{{ lang._("Household demand") }}: ' + demand)
+            + '</small></div>';
+    }
     $('#balanceStatus').html('<div class="alert alert-' + state[0] + '">' + esc(state[1])
         + (applied.note ? '<br><small>' + esc(applied.note) + '</small>' : '')
         + (applied.error ? '<br><small>' + esc(applied.error) + '</small>' : '')
-        + '</div>');
+        + '</div>' + drainBox);
     const rows = data.providers || [];
     if (!rows.length) {
         $('#balanceTable').html('<div class="alert alert-info">'
@@ -1714,7 +1734,13 @@ function renderBalance(data) {
              +  '<td>' + gb(row.remaining) + '</td><td>' + esc(row.days_left) + '</td>'
              +  '<td>' + gb(row.urgency) + '{{ lang._("/day") }}</td>'
              +  '<td>' + esc(row.current_weight) + '</td>'
-             +  '<td>' + (row.excluded ? '<b>1</b>' : move) + '</td></tr>';
+             +  '<td>' + (row.excluded ? '<b>1</b>' : move)
+             +  ((data.drain || {}).engaged
+                    ? (row.name === data.drain.target
+                        ? ' <span class="wq-pill">' + esc('{{ lang._("carrying all") }}') + '</span>'
+                        : ' <span class="wq-pill wq-pill-warn">' + esc('{{ lang._("failover") }}') + '</span>')
+                    : '')
+             +  '</td></tr>';
     }
     $('#balanceTable').html(html + '</tbody></table>');
 }
@@ -1724,6 +1750,7 @@ function saveBalance() {
         enabled: $('#balanceEnabled').is(':checked') ? 1 : 0,
         dry_run: $('#balanceDryRun').is(':checked') ? 1 : 0,
         group: $('#balanceGroup').val() || '',
+        mode: $('#balanceMode').val(),
         max_weight: $('#balanceMaxWeight').val(),
     }, function(result) {
         $('#saveBalance').prop('disabled', false);

@@ -61,8 +61,14 @@ code = re.sub(r"/\*.*?\*/", "", source, flags=re.S)
 code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
 assert "force_down" not in code, \
     "the balancer must not touch force_down: that is the guardrails' lever"
-assert not re.search(r"->\{?\$?(item[2-5]?|tier)\}?\s*=", code), \
-    "the balancer must not write a gateway group tier: a tier move is failover"
+# Drain writes tiers, so the tier guard is no longer "never" — it is "never to an
+# empty first tier". A group whose top tier holds nothing has no primary, which is
+# the one mistake here that takes the household off the internet rather than merely
+# routing it badly.
+assert "would leave the first tier empty" in code, \
+    "writing tiers must refuse a layout with an empty first tier"
+assert re.search(r"->\{\$tier\}\s*=", code), \
+    "drain mode has to be able to write a tier"
 assert re.search(r"->weight\s*=|'weight' => ", code), \
     "the balancer's whole job is to write a weight"
 PYCHECK
@@ -249,6 +255,25 @@ assert "!== ''" in rewrite.group(1), \
     "the tier rewrite must drop empty members, or an empty tier gains a leading comma"
 PYCHECK
 
+# balance.php reads the plan from disk, so balance.py must write the plan BEFORE it
+# asks the shim to apply. Writing afterwards made the shim act on the previous run's
+# plan: it looked correct because consecutive runs usually agree, and failed exactly
+# when the answer changed — the first run after a change applied nothing and reported
+# "already match".
+python3 - "$repository/src/opnsense/scripts/OPNsense/WanQuota/balance.py" <<'PYCHECK'
+import re
+import sys
+source = open(sys.argv[1], encoding="utf-8").read()
+body = source[source.index("def run("):]
+body = body[:body.index("\ndef ")]
+first_write = body.find("write_plan(document)")
+first_apply = body.find("apply_now(")
+assert first_write != -1 and first_apply != -1, "run() must both write the plan and apply"
+assert first_write < first_apply, \
+    "the plan must be written before apply_now: the shim reads it from disk, so " \
+    "writing afterwards applies the previous run's plan"
+PYCHECK
+
 # Every API path the interface calls must resolve to a controller and an action.
 #
 # This exists because it caught a real one: OPNsense derives the URL segment from the
@@ -342,7 +367,8 @@ fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
 # copies that could disagree.
 elsewhere = {"shaper_enabled", "shaper_dry_run", "service_limits_json", "device_limits_json",
              "device_blocks_json", "device_policies_json",
-             "balance_enabled", "balance_dry_run", "balance_group", "balance_max_weight"}
+             "balance_enabled", "balance_dry_run", "balance_group", "balance_max_weight",
+             "balance_mode"}
 view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()
 assert "id=\"limitEnabled\"" in view and "id=\"limitDryRun\"" in view, \
     "the Limits tab must still own the enable and dry-run controls"

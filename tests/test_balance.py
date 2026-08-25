@@ -206,3 +206,156 @@ class PlanTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DrainDecisionTests(unittest.TestCase):
+    """When sharing itself is what wastes the allowance.
+
+    Drain concentrates all traffic on one provider. That is a bigger act than
+    changing a ratio, so the condition is tested from both sides: it must engage
+    when sharing guarantees waste, and must stand down in every case where it
+    could do harm.
+    """
+
+    def row(self, name, urgency_gb, excluded=False, gateway="GW", online=True):
+        return {"name": name, "urgency": urgency_gb * GB, "excluded": excluded,
+                "gateway": gateway, "online": online}
+
+    def test_household_rate_is_the_sum_across_providers(self):
+        """Traffic moved to another link is the same traffic, so what a link could
+        absorb is compared against total demand, not the demand it already sees."""
+        self.assertAlmostEqual(
+            BALANCE.household_rate([{"daily_average": 2.27 * GB},
+                                    {"daily_average": 15.18 * GB}]),
+            17.45 * GB)
+
+    def test_a_negative_average_does_not_reduce_demand(self):
+        self.assertAlmostEqual(
+            BALANCE.household_rate([{"daily_average": -5 * GB},
+                                    {"daily_average": 10 * GB}]), 10 * GB)
+
+    def test_engages_when_all_the_traffic_still_cannot_exhaust_the_link(self):
+        """The measured case: ETISALAT could spend 17.6 GB/day, the household uses
+        17.4, so any share smaller than all of it leaves allowance to expire."""
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 17.6, gateway="ETISALAT_DHCP"),
+             self.row("MOBINIL", 10.9, gateway="MOBINIL_DHCP")], 17.4 * GB)
+        self.assertTrue(decision["engaged"])
+        self.assertEqual(decision["target"], "ETISALAT")
+        self.assertIn("will not exhaust it before renewal", decision["reason"])
+
+    def test_stands_down_when_a_share_is_enough_to_fill_it(self):
+        """After a renewal the allowance resets and the per-day figure collapses, so
+        this is also how drain releases itself with nothing scheduled."""
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 7.3, gateway="ETISALAT_DHCP"),
+             self.row("MOBINIL", 13.0, gateway="MOBINIL_DHCP")], 17.4 * GB)
+        self.assertFalse(decision["engaged"])
+        self.assertIsNone(decision["target"])
+        self.assertIn("a share of the traffic is enough", decision["reason"])
+
+    def test_the_release_band_stops_it_flapping_at_the_boundary(self):
+        """Sitting exactly at the household rate would otherwise engage and release on
+        alternating runs, rewriting the gateway group every five minutes."""
+        rows = [self.row("A", 15.7, gateway="A_GW"), self.row("B", 9.0, gateway="B_GW")]
+        # Below the engage threshold, so a fresh decision says no...
+        self.assertFalse(BALANCE.drain_decision(rows, 16 * GB, draining=False)["engaged"])
+        # ...but once engaged it holds until it falls clearly below.
+        self.assertTrue(BALANCE.drain_decision(rows, 16 * GB, draining=True)["engaged"])
+
+    def test_never_engages_while_the_guardrail_is_acting(self):
+        """Overuse beats underuse, and the guardrail owns tiers while it acts."""
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 40, gateway="ETISALAT_DHCP"),
+             self.row("MOBINIL", 5, excluded=True, gateway="MOBINIL_DHCP")], 10 * GB)
+        self.assertFalse(decision["engaged"])
+        self.assertIn("the guardrail is acting on MOBINIL", decision["reason"])
+
+    def test_never_promotes_a_link_that_is_down(self):
+        decision = BALANCE.drain_decision(
+            [self.row("ETISALAT", 40, gateway="ETISALAT_DHCP", online=False),
+             self.row("MOBINIL", 5, gateway="MOBINIL_DHCP")], 10 * GB)
+        # MOBINIL is the only usable link, so there is nothing to concentrate onto.
+        self.assertFalse(decision["engaged"])
+        self.assertIn("fewer than two usable providers", decision["reason"])
+
+    def test_a_single_provider_is_never_drained(self):
+        decision = BALANCE.drain_decision([self.row("ONLY", 99, gateway="GW")], 1 * GB)
+        self.assertFalse(decision["engaged"])
+        self.assertIn("nothing to concentrate", decision["reason"])
+
+    def test_no_measured_traffic_means_no_decision(self):
+        """With no demand figure, every allowance looks infinitely under-spent."""
+        decision = BALANCE.drain_decision(
+            [self.row("A", 20, gateway="A_GW"), self.row("B", 10, gateway="B_GW")], 0)
+        self.assertFalse(decision["engaged"])
+        self.assertIn("no measured household traffic", decision["reason"])
+
+    def test_a_provider_with_no_gateway_cannot_be_the_target(self):
+        decision = BALANCE.drain_decision(
+            [self.row("SPARE", 99, gateway=""), self.row("A", 20, gateway="A_GW"),
+             self.row("B", 10, gateway="B_GW")], 15 * GB)
+        self.assertEqual(decision["target"], "A")
+
+
+class TierPlanTests(unittest.TestCase):
+    GROUP = {"name": "DUAL_WAN", "members": ["ETISALAT_DHCP", "MOBINIL_DHCP"],
+             "tiers": {"item": ["ETISALAT_DHCP", "MOBINIL_DHCP"], "item2": []}}
+
+    def rows(self):
+        return [{"name": "ETISALAT", "gateway": "ETISALAT_DHCP"},
+                {"name": "MOBINIL", "gateway": "MOBINIL_DHCP"}]
+
+    def test_the_target_goes_first_and_the_rest_become_failover(self):
+        plan = BALANCE.tier_plan(self.rows(), {"engaged": True, "target": "ETISALAT"},
+                                 self.GROUP)
+        self.assertEqual(plan["wanted"],
+                         {"ETISALAT_DHCP": "item", "MOBINIL_DHCP": "item2"})
+        self.assertEqual([m["gateway"] for m in plan["moves"]], ["MOBINIL_DHCP"])
+
+    def test_not_engaged_proposes_nothing(self):
+        plan = BALANCE.tier_plan(self.rows(), {"engaged": False, "target": None},
+                                 self.GROUP)
+        self.assertEqual(plan["wanted"], {})
+        self.assertEqual(plan["moves"], [])
+
+    def test_an_already_drained_group_proposes_no_move(self):
+        """The hysteresis: recomputing the same answer must not rewrite the group."""
+        group = {**self.GROUP,
+                 "tiers": {"item": ["ETISALAT_DHCP"], "item2": ["MOBINIL_DHCP"]}}
+        plan = BALANCE.tier_plan(self.rows(), {"engaged": True, "target": "ETISALAT"},
+                                 group)
+        self.assertEqual(plan["moves"], [])
+
+    def test_a_gateway_outside_the_group_is_left_alone(self):
+        plan = BALANCE.tier_plan(
+            self.rows() + [{"name": "OTHER", "gateway": "SOMEWHERE_ELSE"}],
+            {"engaged": True, "target": "ETISALAT"}, self.GROUP)
+        self.assertNotIn("SOMEWHERE_ELSE", plan["wanted"])
+
+
+class ReleaseTests(unittest.TestCase):
+    """Letting go has to undo a change, not merely stop asking for one.
+
+    The first implementation only stopped proposing a tier move when the drain
+    condition lapsed, so a drain that engaged before a cycle renewal stayed engaged
+    after it — the decision flipped, the plan proposed nothing, and the group
+    remained concentrated on one link indefinitely.
+    """
+
+    def test_release_is_needed_when_drained_and_no_longer_engaged(self):
+        self.assertTrue(BALANCE.release_needed({"engaged": False}, {"drained": True}))
+
+    def test_no_release_while_still_engaged(self):
+        self.assertFalse(BALANCE.release_needed({"engaged": True}, {"drained": True}))
+
+    def test_no_release_when_nothing_was_ever_drained(self):
+        self.assertFalse(BALANCE.release_needed({"engaged": False}, {"drained": False}))
+
+    def test_leaving_drain_mode_releases_what_it_moved(self):
+        """Turning the mode off must not leave the tiers it changed behind."""
+        plan = BALANCE.build(
+            [provider("ETISALAT", "wan", 60, 2), provider("MOBINIL", "opt1", 250, 16)],
+            {**CFG, "balance_mode": "weights"},
+            {**INVENTORY, "drained": True})
+        self.assertTrue(plan["tiers"]["release"])

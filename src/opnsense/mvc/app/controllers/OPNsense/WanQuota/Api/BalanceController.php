@@ -37,6 +37,7 @@ class BalanceController extends ApiControllerBase
         $plan['enabled'] = (string)$model->general->balance_enabled === '1';
         $plan['dry_run'] = (string)$model->general->balance_dry_run === '1';
         $plan['configured_group'] = (string)$model->general->balance_group;
+        $plan['mode'] = (string)$model->general->balance_mode;
         $plan['max_weight'] = (int)(string)$model->general->balance_max_weight;
 
         /* Group names so the interface can offer a choice rather than a text field. */
@@ -73,6 +74,10 @@ class BalanceController extends ApiControllerBase
         $group = $this->request->getPost('group', null, null);
         if ($group !== null) {
             $model->general->balance_group = preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$group);
+        }
+        $mode = $this->request->getPost('mode', null, null);
+        if ($mode !== null && in_array((string)$mode, ['weights', 'drain'], true)) {
+            $model->general->balance_mode = (string)$mode;
         }
         $maxWeight = $this->request->getPost('max_weight', null, null);
         if ($maxWeight !== null && $maxWeight !== '') {

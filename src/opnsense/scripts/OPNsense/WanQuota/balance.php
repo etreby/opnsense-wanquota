@@ -9,17 +9,28 @@
  * through the model is what validates a change and reloads the routing safely.
  * Editing config.xml by hand would skip both.
  *
- * Three modes:
+ * Modes:
  *
  *   inventory  Report gateways and groups as the firewall sees them, dynamic
  *              gateways included. A DHCP gateway may have no gateway_item at all,
  *              and it is still a member of a group and still carries a weight, so
  *              reading only the configured items would report an empty firewall.
  *   apply      Write the weights in the plan, but only the ones that differ.
- *   revert     Put the original weights back, deleting any item this created.
+ *   tiers      Move gateways between tiers so one provider carries everything.
+ *              Only reached in drain mode, and only when the plan says so.
+ *   tierrelease Put the tiers back, leaving weights alone. This is how a drain
+ *              lets go — releasing has to undo a change, not merely stop asking
+ *              for one.
+ *   check      What apply would write, writing nothing.
+ *   tiercheck  What tiers would write, writing nothing.
+ *   revert     Put the original tiers and weights back, deleting any gateway item
+ *              this created. Tiers first: a revert that restored weights and then
+ *              failed on tiers would leave the household concentrated on one link
+ *              with the ratio undone.
  *
- * Only `weight` is ever written. Tiers and force_down belong to the guardrails —
- * balance.py's whole safety argument rests on this file not touching them.
+ * `force_down` is never written by this file. Drain decides which link is
+ * *preferred*; taking a link out of service stays the guardrails' decision, and a
+ * demoted gateway remains a live failover.
  */
 
 require_once 'config.inc';
@@ -32,6 +43,14 @@ use OPNsense\Routing\Gateways;
 
 const PLAN_PATH = '/var/db/wanquota/balance-plan.json';
 const ORIGINALS_PATH = '/var/db/wanquota/gateway-weights.json';
+/*
+ * Tier originals live in their own file, not in enforce.php's gateway-originals.json.
+ * The guardrail owns tiers when it is acting and the balancer stands down then, so the
+ * two never write at the same time — but they must not share a record of "before"
+ * either, or whichever reverted second would restore the other's snapshot.
+ */
+const TIERS_PATH = '/var/db/wanquota/gateway-tiers.json';
+const TIERS = ['item', 'item2', 'item3', 'item4', 'item5'];
 
 function fail(string $message): void
 {
@@ -87,7 +106,14 @@ function inventory(): array
             'poolopts' => (string)$group->poolopts,
         ];
     }
-    return ['status' => 'ok', 'gateways' => $gateways, 'groups' => $groups];
+    /*
+     * Whether a drain is currently in force. balance.py needs this to know that
+     * releasing requires *undoing* something rather than merely not proposing it:
+     * without it, a released drain simply stopped asking for a tier move and the
+     * group stayed concentrated on one link for ever.
+     */
+    return ['status' => 'ok', 'gateways' => $gateways, 'groups' => $groups,
+            'drained' => is_file(TIERS_PATH)];
 }
 
 function loadOriginals(): array
@@ -127,6 +153,153 @@ function setWeight(Gateways $model, array $gateway, int $weight): void
         'weight' => (string)$weight,
         'descr' => 'Created by os-wanquota to carry a renewal-aware weight',
     ]);
+}
+
+/**
+ * Move gateways between tiers so one provider carries everything.
+ *
+ * Only tiers. force_down is never touched here: drain decides which link is
+ * *preferred*, while taking a link out of service stays the guardrail's decision. A
+ * demoted gateway remains a live failover and takes over within seconds if the
+ * primary drops.
+ */
+function applyTiers(bool $checkOnly): array
+{
+    $plan = is_file(PLAN_PATH) ? json_decode(file_get_contents(PLAN_PATH), true) : null;
+    if (!is_array($plan)) {
+        fail('No balance plan has been computed yet');
+    }
+    if (!empty($plan['problems'])) {
+        fail('The plan cannot be applied: ' . implode('; ', $plan['problems']));
+    }
+    $moves = $plan['tiers']['moves'] ?? [];
+    $groupName = (string)($plan['group'] ?? '');
+    if (empty($moves)) {
+        return ['status' => 'ok', 'changed' => 0, 'note' => 'Tiers already match the plan.'];
+    }
+    if ($groupName === '') {
+        fail('The plan names no gateway group, so no tier can be written');
+    }
+    $wanted = $plan['tiers']['wanted'] ?? [];
+    /*
+     * Refuse to write a layout with an empty first tier. A gateway group whose top
+     * tier holds nothing is a group with no primary, and this is the one mistake in
+     * the feature that would take the household off the internet rather than merely
+     * route it badly.
+     */
+    if (!in_array('item', array_values($wanted), true)) {
+        fail('Refused: the plan would leave the first tier empty');
+    }
+
+    $configObject = Config::getInstance()->object();
+    $target = null;
+    foreach ($configObject->gateways->gateway_group as $group) {
+        if ((string)$group->name === $groupName) {
+            $target = $group;
+            break;
+        }
+    }
+    if ($target === null) {
+        fail(sprintf('This firewall has no gateway group called %s', $groupName));
+    }
+
+    $state = is_file(TIERS_PATH) ? json_decode(file_get_contents(TIERS_PATH), true) : [];
+    $state = is_array($state) ? $state : [];
+    if (!isset($state[$groupName])) {
+        /* Record the layout once, before the first change, so revert is exact. */
+        $before = [];
+        foreach (TIERS as $tier) {
+            $before[$tier] = (string)$target->{$tier};
+        }
+        $state[$groupName] = $before;
+    }
+    if ($checkOnly) {
+        return ['status' => 'ok', 'check_only' => true, 'changed' => count($moves),
+                'moves' => $moves, 'group' => $groupName];
+    }
+
+    writeTiers($target, $wanted);
+    $messages = (new Gateways())->performValidation();
+    if (count($messages) > 0) {
+        $problems = [];
+        foreach ($messages as $message) {
+            $problems[] = (string)$message;
+        }
+        fail('The gateway model refused the tier change: ' . implode('; ', $problems));
+    }
+    Config::getInstance()->save(sprintf('WAN quota drain: %s carries the traffic',
+        $plan['drain']['target'] ?? 'one provider'));
+    if (!is_dir(dirname(TIERS_PATH))) {
+        mkdir(dirname(TIERS_PATH), 0750, true);
+    }
+    file_put_contents(TIERS_PATH, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    chmod(TIERS_PATH, 0600);
+    if (function_exists('system_routing_configure')) {
+        system_routing_configure();
+    }
+    filter_configure();
+    return ['status' => 'ok', 'changed' => count($moves), 'moves' => $moves,
+            'group' => $groupName];
+}
+
+/** Rewrite a group's tiers from a gateway => tier map, dropping empty members. */
+function writeTiers($group, array $wanted): void
+{
+    $byTier = array_fill_keys(TIERS, []);
+    /* Anything in the group that the plan does not mention keeps the tier it has. */
+    foreach (TIERS as $tier) {
+        foreach (array_filter(array_map('trim', explode(',', (string)$group->{$tier}))) as $name) {
+            if (!isset($wanted[$name])) {
+                $byTier[$tier][] = $name;
+            }
+        }
+    }
+    foreach ($wanted as $name => $tier) {
+        if (isset($byTier[$tier])) {
+            $byTier[$tier][] = $name;
+        }
+    }
+    foreach (TIERS as $tier) {
+        $group->{$tier} = implode(',', array_values(array_unique(array_filter($byTier[$tier]))));
+    }
+}
+
+/** Put a group's tiers back exactly as they were before drain first engaged. */
+function revertTiers(): array
+{
+    $state = is_file(TIERS_PATH) ? json_decode(file_get_contents(TIERS_PATH), true) : [];
+    $state = is_array($state) ? $state : [];
+    if (empty($state)) {
+        return ['status' => 'ok', 'changed' => 0,
+                'note' => 'No tier was ever changed, so there is nothing to put back.'];
+    }
+    $configObject = Config::getInstance()->object();
+    $restored = [];
+    foreach ($configObject->gateways->gateway_group as $group) {
+        $name = (string)$group->name;
+        if (!isset($state[$name])) {
+            continue;
+        }
+        foreach (TIERS as $tier) {
+            $group->{$tier} = (string)($state[$name][$tier] ?? '');
+        }
+        $restored[] = $name;
+    }
+    $messages = (new Gateways())->performValidation();
+    if (count($messages) > 0) {
+        $problems = [];
+        foreach ($messages as $message) {
+            $problems[] = (string)$message;
+        }
+        fail('The gateway model refused the tier revert: ' . implode('; ', $problems));
+    }
+    Config::getInstance()->save('Revert WAN quota drain: restore the original gateway tiers');
+    @unlink(TIERS_PATH);
+    if (function_exists('system_routing_configure')) {
+        system_routing_configure();
+    }
+    filter_configure();
+    return ['status' => 'ok', 'changed' => count($restored), 'groups' => $restored];
 }
 
 function apply(bool $checkOnly): array
@@ -276,8 +449,23 @@ switch ($mode) {
     case 'apply':
         echo json_encode(apply(false)) . PHP_EOL;
         break;
+    case 'tiers':
+        echo json_encode(applyTiers(false)) . PHP_EOL;
+        break;
+    case 'tierrelease':
+        /* Put the tiers back and leave the weights alone: releasing a drain returns
+           the group to sharing, which is still the balancer's to manage. */
+        echo json_encode(revertTiers()) . PHP_EOL;
+        break;
+    case 'tiercheck':
+        echo json_encode(applyTiers(true)) . PHP_EOL;
+        break;
     case 'revert':
-        echo json_encode(revert()) . PHP_EOL;
+        /* Tiers first: a revert that restored weights and then failed on tiers would
+           leave the household concentrated on one link with the ratio undone. */
+        $tiers = revertTiers();
+        $weights = revert();
+        echo json_encode(['status' => 'ok', 'tiers' => $tiers, 'weights' => $weights]) . PHP_EOL;
         break;
     default:
         fail('Unknown mode: ' . $mode);

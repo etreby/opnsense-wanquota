@@ -19,12 +19,30 @@ against each provider's own cycle day, so this needs no new measurement. `reserv
 is the existing emergency reserve, held back so the balancer never spends the
 buffer the guardrails depend on.
 
+Two instruments, and a rule for choosing between them.
+
+  * **Weights** share traffic between links that are both carrying. This is the
+    default and the safe one: it cannot idle a link.
+
+  * **Drain** makes one link carry everything and demotes the rest to failover. It
+    exists because weights cannot always avoid waste. If a provider's remaining
+    allowance per day left exceeds what the whole household consumes in a day, then
+    even giving it *all* the traffic will not exhaust it before its cycle renews —
+    and giving it merely a share guarantees gigabytes expire unused. At that point
+    sharing is the thing doing the damage.
+
+    So drain engages exactly when `urgency >= household daily rate`, and releases
+    on its own when that stops being true — which happens automatically at cycle
+    renewal, when the allowance resets and the per-day figure collapses. There is no
+    threshold to tune and no schedule to remember.
+
 Three decisions that keep this from becoming dangerous:
 
-  * **Weights, never tiers.** A tier move is failover: the lower tier idles until
-    the upper one fails, which is exactly the waste this exists to end. Tiers and
-    force_down stay the guardrails' levers, and the balancer only ever changes the
-    integer weight of a gateway inside its group.
+  * **Tiers only in drain mode, and never force_down.** Weights mode does not touch
+    tiers at all. Drain mode moves them deliberately, but still never touches
+    force_down: taking a link *out of service* remains the guardrails' decision,
+    while drain only decides which link is preferred. A demoted link stays a live
+    failover and takes over within seconds if the primary drops — measured.
 
   * **A floor of 1.** Not a rounding artefact — policy. The balancer shifts the
     ratio and must never starve a link. Taking a link out of service is the
@@ -34,7 +52,9 @@ Three decisions that keep this from becoming dangerous:
   * **Overuse beats underuse.** A provider the guardrail has failed over or cut off
     is excluded from the balance and left at weight 1. A link nearly out of
     allowance must not be sent more traffic because its allowance expires soon;
-    those two facts point the same way only by coincidence.
+    those two facts point the same way only by coincidence. While the guardrail is
+    acting on any provider, drain stands down entirely rather than fighting it over
+    the same tiers.
 
 Computing the plan is pure so it can be tested. Writing weights is a PHP shim,
 because gateways live in the OPNsense Gateways model and the model is what
@@ -93,6 +113,106 @@ def weights(rows, max_weight=10):
             share = float(row.get("urgency") or 0) / peak
             row["weight"] = max(1, min(ceiling, int(round(share * ceiling))))
     return rows
+
+
+def household_rate(providers):
+    """Bytes per day the household actually consumes, across every provider.
+
+    The sum rather than any single link's figure: traffic moved to another provider
+    is the same traffic, so what a link *could* absorb has to be compared against
+    total demand, not against demand it already sees.
+    """
+    return sum(max(0.0, float(item.get("daily_average") or 0)) for item in providers)
+
+
+# Drain releases a little below the level at which it engages. Without the band a
+# provider sitting exactly at the household rate would engage and release on
+# alternating runs, rewriting the gateway group every five minutes.
+DRAIN_RELEASE_BAND = 0.9
+
+
+def drain_decision(rows, demand, draining=False, band=DRAIN_RELEASE_BAND):
+    """Which provider, if any, should carry everything.
+
+    Engages when the most urgent link could absorb the household's whole daily
+    demand and still not spend its allowance before renewal — the case where
+    sharing guarantees waste. Returns the decision and the reason for it, because a
+    tier change nobody asked for needs to be able to explain itself.
+    """
+    eligible = [row for row in rows
+                if not row.get("excluded") and row.get("gateway") and row.get("online", True)]
+    if any(row.get("excluded") for row in rows):
+        blocked = ", ".join(row["name"] for row in rows if row.get("excluded"))
+        return {"engaged": False, "target": None,
+                "reason": f"the guardrail is acting on {blocked}, and it owns the tiers "
+                          "while it does"}
+    if len(eligible) < 2:
+        return {"engaged": False, "target": None,
+                "reason": "fewer than two usable providers, so there is nothing to "
+                          "concentrate"}
+    if demand <= 0:
+        return {"engaged": False, "target": None,
+                "reason": "no measured household traffic yet, so there is no demand to "
+                          "compare an allowance against"}
+    top = max(eligible, key=lambda row: float(row.get("urgency") or 0))
+    urgency = float(top.get("urgency") or 0)
+    threshold = demand * (band if draining else 1.0)
+    if urgency < threshold:
+        return {
+            "engaged": False, "target": None,
+            "demand": demand, "threshold": threshold,
+            "reason": (
+                f"{top['name']} can spend {urgency / 1e9:.1f} GB/day and the household "
+                f"uses {demand / 1e9:.1f} GB/day, so a share of the traffic is enough to "
+                "fill it and both links stay in service"),
+        }
+    return {
+        "engaged": True, "target": top["name"],
+        "demand": demand, "threshold": threshold,
+        "reason": (
+            f"{top['name']} has {urgency / 1e9:.1f} GB/day of allowance left to spend and "
+            f"the whole household only uses {demand / 1e9:.1f} GB/day — even all of the "
+            "traffic will not exhaust it before renewal, so sharing would waste the "
+            "difference"),
+    }
+
+
+def tier_plan(rows, decision, group):
+    """The tier each gateway should sit in, and whether that differs from now.
+
+    Only ever two tiers: the drained provider alone in the first, everything else in
+    the second as live failover. Restoring means putting each gateway back in the
+    tier the group had it in before drain first engaged.
+    """
+    members = (group or {}).get("members") or []
+    tiers = (group or {}).get("tiers") or {}
+    current = {}
+    for tier, names in tiers.items():
+        for name in names:
+            current[name] = tier
+    wanted = {}
+    if decision.get("engaged"):
+        for row in rows:
+            gateway = row.get("gateway")
+            if not gateway or gateway not in members:
+                continue
+            wanted[gateway] = "item" if row["name"] == decision["target"] else "item2"
+    moves = [{"gateway": name, "from": current.get(name, "item"), "to": tier}
+             for name, tier in sorted(wanted.items())
+             if current.get(name, "item") != tier]
+    return {"wanted": wanted, "current": current, "moves": moves}
+
+
+def release_needed(decision, inventory):
+    """True when a drain is in force and the condition for it no longer holds.
+
+    Releasing has to *undo* a tier change, not merely stop proposing one. Without
+    this, a drain that engaged before a cycle renewal stayed engaged after it: the
+    decision correctly flipped to disengaged, the plan proposed no moves, and the
+    group remained concentrated on one link indefinitely. Seen on a live firewall by
+    simulating the renewal rather than waiting a week for it.
+    """
+    return bool(inventory.get("drained")) and not decision.get("engaged")
 
 
 def gateway_for(interface, gateways, protocol="inet"):
@@ -164,6 +284,11 @@ def build(providers, cfg, inventory, decisions=None):
             "current_weight": int((gateway or {}).get("weight") or 1),
             "in_group": bool(gateway and group
                              and (gateway.get("name") in (group.get("members") or []))),
+            # Drain must never promote a link that is down: it would concentrate
+            # everything onto a gateway that cannot carry it. Absent status reads as
+            # up, so a firewall that cannot report gateway health behaves as before.
+            "online": str((gateway or {}).get("status") or "online").lower()
+                      not in ("down", "force_down"),
         })
     weights(rows, cfg.get("balance_max_weight", 10))
 
@@ -186,6 +311,28 @@ def build(providers, cfg, inventory, decisions=None):
                 f"{group.get('name')}, so its weight does not affect the balance")
     changes = [row for row in rows
                if row["gateway"] and row["weight"] != row["current_weight"]]
+
+    # Drain is opt-in. In weights mode the tier plan is computed and reported anyway,
+    # so the interface can show what concentrating would do before anyone allows it.
+    demand = household_rate(providers)
+    draining_now = bool(group and len(
+        [name for name in ((group.get("tiers") or {}).get("item") or [])]) == 1
+        and len(group.get("members") or []) > 1)
+    decision = drain_decision(rows, demand, draining=draining_now)
+    plan = tier_plan(rows, decision, group)
+    plan["release"] = release_needed(decision, inventory)
+    mode = str(cfg.get("balance_mode") or "weights")
+    if mode != "drain":
+        decision = {**decision, "engaged": False, "target": None, "allowed": False,
+                    "reason": decision["reason"] + " (drain mode is off, so tiers are "
+                                                   "not touched either way)"}
+        # Leaving drain mode is itself a reason to release: the tiers it moved must
+        # not be left behind by turning the mode off.
+        plan = {"wanted": {}, "current": plan["current"], "moves": [],
+                "release": bool(inventory.get("drained"))}
+    else:
+        decision["allowed"] = True
+
     return {
         "group": (group or {}).get("name", ""),
         "group_members": (group or {}).get("members", []),
@@ -194,6 +341,10 @@ def build(providers, cfg, inventory, decisions=None):
                      "from": row["current_weight"], "to": row["weight"]}
                     for row in changes],
         "problems": problems,
+        "mode": mode,
+        "demand": demand,
+        "drain": decision,
+        "tiers": plan,
         "reserve_gb": cfg.get("reserve_gb", 0),
         "max_weight": max(2, min(10, int(cfg.get("balance_max_weight", 10) or 10))),
         "note": (
@@ -232,13 +383,13 @@ def decisions_for(providers, cfg):
     return result
 
 
-def apply_now(runner=None):
-    """Hand the plan to the shim. A no-op when no weight actually moved."""
+def apply_now(runner=None, mode="apply"):
+    """Hand the plan to the shim. A no-op when nothing actually moved."""
     run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=120))
     if not os.path.isfile(SHIM):
         return {"status": "failed", "error": "balance.php is not installed"}
     try:
-        result = run(["/usr/local/bin/php", SHIM, "apply"])
+        result = run(["/usr/local/bin/php", SHIM, mode])
         return json.loads(result.stdout or "{}")
     except Exception as error:
         return {"status": "failed", "error": str(error)}
@@ -270,18 +421,35 @@ def run(force=False):
     elif not permitted:
         document["status"] = "ok"
         document["state"] = ("off" if not cfg.get("balance", False) else "dry_run")
-    elif not document["changes"]:
-        # Integer weights compared before anything is written: this is the hysteresis.
-        # Without it a five-minute cron would rewrite the configuration 288 times a
-        # day and reload the firewall each time, for a ratio that had not moved.
-        document["status"] = "ok"
-        document["state"] = "live"
-        document["applied"] = {"status": "ok", "changed": 0,
-                               "note": "Weights already match the plan."}
     else:
         document["status"] = "ok"
         document["state"] = "live"
-        document["applied"] = apply_now()
+        # Integer weights and tier names are both compared before anything is written:
+        # this is the hysteresis. Without it a five-minute cron would rewrite the
+        # configuration 288 times a day and reload the firewall each time, for a ratio
+        # that had not moved.
+        tier_moves = (document.get("tiers") or {}).get("moves") or []
+        release = bool((document.get("tiers") or {}).get("release"))
+        if not document["changes"] and not tier_moves and not release:
+            document["applied"] = {"status": "ok", "changed": 0,
+                                   "note": "Weights and tiers already match the plan."}
+        else:
+            # The plan is written BEFORE applying, and this ordering is the whole
+            # correctness of the apply path: balance.php reads the plan from disk, so
+            # writing it afterwards had the shim act on the *previous* run's plan. It
+            # looked like it worked, because consecutive runs usually compute the same
+            # answer and the stale plan happened to say the same thing — until the
+            # answer changed, and then the first run after the change applied nothing
+            # and reported "already match". Measured on a live firewall: a tier move
+            # was computed, reported as applied, and the tiers did not move.
+            write_plan(document)
+            document["applied"] = apply_now()
+            # Tiers are a separate write so a weight failure cannot leave tiers half
+            # applied, and so the reasons appear separately in the plan.
+            if tier_moves:
+                document["applied_tiers"] = apply_now(mode="tiers")
+            elif release:
+                document["released_tiers"] = apply_now(mode="tierrelease")
     write_plan(document)
     return document
 

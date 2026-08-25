@@ -236,7 +236,43 @@ all weights go to 1 and the group is back to equal sharing. Doing nothing is a
 worse answer than doing that: it would leave whatever ratio the last run happened
 to write.
 
-### Weights, not tiers
+### Drain mode: the case weights cannot reach
+
+Weights change a ratio. Some situations have no good ratio: if a provider's headroom
+per remaining day exceeds total household demand, then no share short of *all* the
+traffic exhausts its allowance, and every gigabyte sent elsewhere is one that expires.
+Sharing is then the thing doing the damage.
+
+Drain mode makes that provider the sole first-tier member and demotes the others to
+the second tier as live failover. The trigger is derived rather than configured:
+
+> engage when `urgency >= household daily rate`, where the household rate is the sum
+> of every provider's measured daily average.
+
+Nothing is scheduled and no threshold is tuned. Release follows from the same
+inequality: at cycle renewal the allowance resets and `urgency` collapses, so the
+condition fails and the tiers go back. A release band (engage at the rate, release at
+0.9 × the rate) stops a provider sitting exactly on the boundary from engaging and
+releasing on alternating runs.
+
+Two failure modes were found by testing rather than reasoning, and both are now
+covered:
+
+* **Release must undo, not merely stop proposing.** The first implementation computed
+  no tier moves once the condition lapsed, which left the group concentrated on one
+  link for ever. Releasing now actively restores the recorded original layout, and
+  turning drain mode off releases too.
+* **The plan must be written before it is applied.** `balance.php` reads the plan from
+  disk, so writing it after applying made the shim act on the previous run's plan. It
+  looked correct because consecutive runs usually agree — and failed exactly when the
+  answer changed, applying nothing while reporting "already match".
+
+Drain refuses to act while any provider is under guardrail action, refuses to promote
+a link that is down, refuses to run with fewer than two usable providers, refuses when
+there is no measured demand to compare against, and refuses any layout that would
+leave the first tier empty.
+
+### Weights, not tiers, outside drain mode
 
 Moving a gateway to a lower tier is failover: the lower tier idles until the upper
 one fails. That is the waste this feature exists to end, so the balancer never

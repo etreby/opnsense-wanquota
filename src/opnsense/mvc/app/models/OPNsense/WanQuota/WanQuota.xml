@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/WanQuota</mount>
     <description>WAN quota reporting configuration</description>
-    <version>1.5.0</version>
+    <version>1.6.0</version>
     <items>
         <general>
             <enabled type="BooleanField">
@@ -170,6 +170,15 @@
                 It only ever changes gateway weights, never tiers or force_down, so it
                 cannot take a link out of service — that stays the guardrails' decision.
             -->
+            <!--
+                Which instrument the balancer may use. "weights" shares traffic and can
+                never idle a link. "drain" additionally concentrates everything onto one
+                provider when sharing would waste allowance — when a link could absorb
+                the household's whole daily demand and still not spend its allowance
+                before renewal. It releases itself when that stops being true, which
+                happens at cycle renewal without anything being scheduled.
+            -->
+            <balance_mode type="OptionField"><Default>weights</Default><Required>Y</Required><OptionValues><weights>Share by weight only</weights><drain>Share, and concentrate when sharing would waste allowance</drain></OptionValues></balance_mode>
             <balance_enabled type="BooleanField"><Default>0</Default><Required>Y</Required></balance_enabled>
             <balance_dry_run type="BooleanField"><Default>1</Default><Required>Y</Required></balance_dry_run>
             <!-- Empty auto-detects the only gateway group; required when there is more than one. -->
