@@ -2859,22 +2859,23 @@ function renderDateDetail(date, container) {
             hosts = data.device_attribution.map(d => ({
                 ip: d.device,
                 name: d.name || d.device,
-                download: d.attributed || 0,
-                upload: 0,
+                download: null,
+                upload: null,
                 total: d.external || d.total || 0,
                 mac: d.mac || ''
             }));
         }
 
         const hostTotal = hosts.reduce((sum, h) => sum + (h.total || 0), 0);
-        const hostDown = hosts.reduce((sum, h) => sum + (h.download || 0), 0);
-        const hostUp = hosts.reduce((sum, h) => sum + (h.upload || 0), 0);
+        const hasDirections = hosts.some(h => h.download !== null && h.download > 0);
+        const hostDown = hasDirections ? hosts.reduce((sum, h) => sum + (h.download || 0), 0) : 0;
+        const hostUp = hasDirections ? hosts.reduce((sum, h) => sum + (h.upload || 0), 0) : 0;
         const effectiveTotal = hostTotal || totalExternal || providers.reduce((sum, p) => sum + (p.total || 0), 0);
 
         let html = drillBackBar('date');
         html += drillHeader(date, '{{ lang._("Daily Bandwidth Breakdown") }}',
             gb(effectiveTotal),
-            (hostDown ? gb(hostDown) + ' down · ' + gb(hostUp) + ' up' : 'flow volume: ' + gb(totalExternal || effectiveTotal)));
+            (hasDirections ? gb(hostDown) + ' down · ' + gb(hostUp) + ' up' : 'flow volume: ' + gb(totalExternal || effectiveTotal)));
 
         html += '<div class="row" style="margin-bottom:18px">'
              +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
@@ -2934,7 +2935,7 @@ function renderDateDetail(date, container) {
                      +  `<td><small class="wq-muted">${idx + 1}</small></td>`
                      +  `<td><a href="#" class="wq-drill" data-drill="device" data-value="${esc(h.ip)}" title="{{ lang._("Inspect live sessions for this device") }}"><b>${esc(h.name || h.ip)}</b></a><br><small class="wq-muted">${esc(h.ip)}</small></td>`
                      +  `<td>${shareBar(share, '#3b82f6')}<small class="wq-muted">${(share * 100).toFixed(1)}%</small></td>`
-                     +  `<td><small>${gb(h.download)} ↓<br>${gb(h.upload)} ↑</small></td>`
+                     +  `<td><small>${(h.download !== null && h.upload !== null) ? gb(h.download) + ' ↓<br>' + gb(h.upload) + ' ↑' : '<span class="wq-muted">combined</span>'}</small></td>`
                      +  `<td><b>${gb(h.total)}</b></td>`
                      +  `</tr>`;
             });
