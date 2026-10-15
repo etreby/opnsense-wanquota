@@ -461,8 +461,8 @@ class DevicePolicyController extends ApiControllerBase
         if ($device === '') {
             return ['status' => 'failed', 'error' => 'No device specified'];
         }
-        $rawDuration = trim((string)$this->request->getPost('duration', 0));
-        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)$this->request->getPost('reason', '')), 0, 200);
+        $rawDuration = trim((string)($this->request->getPost('duration', null, '0') ?? $_POST['duration'] ?? '0'));
+        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)($this->request->getPost('reason', null, '') ?? $_POST['reason'] ?? '')), 0, 200);
 
         $until = 0;
         if (is_numeric($rawDuration)) {
@@ -600,8 +600,8 @@ class DevicePolicyController extends ApiControllerBase
         if ($service === '') {
             return ['status' => 'failed', 'error' => 'No service specified'];
         }
-        $rawDuration = trim((string)$this->request->getPost('duration', 0));
-        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)$this->request->getPost('reason', '')), 0, 200);
+        $rawDuration = trim((string)($this->request->getPost('duration', null, '0') ?? $_POST['duration'] ?? '0'));
+        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)($this->request->getPost('reason', null, '') ?? $_POST['reason'] ?? '')), 0, 200);
 
         $until = 0;
         if (is_numeric($rawDuration)) {
