@@ -9,6 +9,7 @@
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
     <li class="active"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
     <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
+    <li><a data-toggle="tab" href="#clients"><i class="fa fa-ban text-danger"></i> {{ lang._('Client Control') }}</a></li>
     <li><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
     <li><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
     <li><a data-toggle="tab" href="#apps">{{ lang._('Apps') }}</a></li>
@@ -54,6 +55,90 @@
             </div>
         </div>
     </div>
+    <div id="clients" class="tab-pane fade"><div style="padding:16px">
+        <div id="clientControlAlert"></div>
+        <div class="wq-grid" id="clientMetricCards">
+            <div class="wq-card">
+                <h3><i class="fa fa-laptop text-primary"></i> {{ lang._('Total Discovered Clients') }}</h3>
+                <div class="wq-metric" id="metricTotalClients">0</div>
+                <div class="wq-muted">{{ lang._('Active DHCP leases and static reservations') }}</div>
+            </div>
+            <div class="wq-card">
+                <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Blocked from Internet') }}</h3>
+                <div class="wq-metric text-danger" id="metricBlockedClients">0</div>
+                <div class="wq-muted">{{ lang._('In firewall table wanquota_blocked') }}</div>
+            </div>
+            <div class="wq-card">
+                <h3><i class="fa fa-check-circle text-success"></i> {{ lang._('Active / Allowed') }}</h3>
+                <div class="wq-metric text-success" id="metricAllowedClients">0</div>
+                <div class="wq-muted">{{ lang._('Unrestricted WAN access') }}</div>
+            </div>
+            <div class="wq-card">
+                <h3><i class="fa fa-pie-chart text-info"></i> {{ lang._('Blocked Devices Usage') }}</h3>
+                <div class="wq-metric" id="metricBlockedUsage">0 GB</div>
+                <div class="wq-muted">{{ lang._('Monthly WAN quota consumed') }}</div>
+            </div>
+        </div>
+
+        <div class="wq-card" style="margin-bottom:16px">
+            <div class="wq-card-head">
+                <h3><i class="fa fa-shield"></i> {{ lang._('Block Client from Internet') }}</h3>
+                <button id="btnReleaseAllClients" class="btn btn-default btn-sm" type="button"><i class="fa fa-unlock"></i> {{ lang._('Release All Blocks') }}</button>
+            </div>
+            <p class="wq-muted" style="margin:4px 0 12px 0">
+                {{ lang._('Block any device by IP address, MAC, or hostname from reaching the public internet on both WANs. Local LAN communication (Plex, NAS, Home Assistant, and firewall DNS/NTP) is completely preserved.') }}
+            </p>
+            <div class="form-inline wq-toolbar">
+                <div class="form-group">
+                    <input id="manualBlockTarget" class="form-control" style="min-width:240px" placeholder="{{ lang._('IP (e.g. 192.168.1.139), MAC, or name') }}">
+                </div>
+                <div class="form-group">
+                    <select id="manualBlockDuration" class="form-control">
+                        <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
+                        <option value="1">{{ lang._('1 hour') }}</option>
+                        <option value="2">{{ lang._('2 hours') }}</option>
+                        <option value="6">{{ lang._('6 hours') }}</option>
+                        <option value="12">{{ lang._('12 hours') }}</option>
+                        <option value="24">{{ lang._('24 hours (1 day)') }}</option>
+                        <option value="168">{{ lang._('7 days (1 week)') }}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input id="manualBlockReason" class="form-control" style="min-width:220px" placeholder="{{ lang._('Optional reason / note') }}">
+                </div>
+                <button id="btnManualBlock" class="btn btn-danger" type="button"><i class="fa fa-ban"></i> {{ lang._('Block Target') }}</button>
+            </div>
+        </div>
+
+        <div id="activeBlockedSection" class="wq-section wq-table-wrap" style="display:none;margin-bottom:24px">
+            <div class="wq-section-title">
+                <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Currently Blocked Clients') }} (<span id="activeBlockedCount">0</span>)</h3>
+            </div>
+            <div id="activeBlockedTable"></div>
+        </div>
+
+        <div class="wq-section wq-table-wrap">
+            <div class="wq-section-title">
+                <h3><i class="fa fa-sitemap"></i> {{ lang._('Network Clients & WAN Access') }}</h3>
+                <div class="form-inline">
+                    <div class="btn-group" data-toggle="buttons" style="margin-right:8px">
+                        <label class="btn btn-default btn-sm active" id="btnFilterAll">
+                            <input type="radio" name="clientFilterRadio" checked> {{ lang._('All') }} (<span id="countFilterAll">0</span>)
+                        </label>
+                        <label class="btn btn-default btn-sm" id="btnFilterAllowed">
+                            <input type="radio" name="clientFilterRadio"> {{ lang._('Allowed') }} (<span id="countFilterAllowed">0</span>)
+                        </label>
+                        <label class="btn btn-default btn-sm" id="btnFilterBlocked">
+                            <input type="radio" name="clientFilterRadio"> {{ lang._('Blocked') }} (<span id="countFilterBlocked">0</span>)
+                        </label>
+                    </div>
+                    <input id="clientListSearch" class="form-control input-sm" style="min-width:210px" placeholder="{{ lang._('Search clients…') }}">
+                    <button id="btnRefreshClientList" class="btn btn-primary btn-sm" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
+                </div>
+            </div>
+            <div id="clientListTable"></div>
+        </div>
+    </div></div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Monthly traffic trend') }}</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="apps" class="tab-pane fade"><div style="padding:16px">
@@ -244,6 +329,46 @@
         </div>
         <p class="wq-muted">{{ lang._('Save applies every step, not just the one on screen.') }}</p>
     </div></div>
+</div>
+
+<div class="modal fade" id="modalBlockClient" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-ban text-danger"></i> {{ lang._('Block Client from Internet') }}</h4>
+            </div>
+            <div class="modal-body">
+                <p>{{ lang._('You are about to block this device from accessing the internet on all WAN gateways:') }}</p>
+                <div class="well well-sm">
+                    <b id="modalBlockClientName"></b><br>
+                    <small id="modalBlockClientDetail" class="wq-muted"></small>
+                </div>
+                <div class="form-group">
+                    <label for="modalBlockDuration">{{ lang._('Block Duration') }}</label>
+                    <select id="modalBlockDuration" class="form-control">
+                        <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
+                        <option value="1">{{ lang._('1 hour') }}</option>
+                        <option value="2">{{ lang._('2 hours') }}</option>
+                        <option value="6">{{ lang._('6 hours') }}</option>
+                        <option value="12">{{ lang._('12 hours') }}</option>
+                        <option value="24">{{ lang._('24 hours (1 day)') }}</option>
+                        <option value="168">{{ lang._('7 days (1 week)') }}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modalBlockReason">{{ lang._('Reason / Notes (optional)') }}</label>
+                    <input type="text" id="modalBlockReason" class="form-control" maxlength="200" placeholder="{{ lang._('e.g. Parental control, quota exhausted, testing') }}">
+                </div>
+                <input type="hidden" id="modalBlockTargetDevice" value="">
+                <p class="wq-muted"><small>{{ lang._('Local LAN traffic (Plex, NAS, Home Assistant, and router DNS/NTP) remains functional.') }}</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ lang._('Cancel') }}</button>
+                <button type="button" class="btn btn-danger" id="btnModalConfirmBlock"><i class="fa fa-ban"></i> {{ lang._('Block Client Now') }}</button>
+            </div>
+        </div>
+    </div>
 </div>
 </div>
 
@@ -1717,6 +1842,166 @@ function unblockEveryDevice() {
         refreshDevicePolicy();
     });
 }
+
+/*
+ * Client Control: high-visibility, 1-click internet block and unblock manager.
+ */
+let clientControlData = null;
+let clientControlFilter = 'all';
+
+function formatRemainingTime(until) {
+    if (!until || until <= 0) {
+        return '<span class="label label-danger">' + esc('{{ lang._("Permanent") }}') + '</span>';
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const diff = until - now;
+    if (diff <= 0) {
+        return '<span class="label label-default">' + esc('{{ lang._("Expired") }}') + '</span>';
+    }
+    const d = Math.floor(diff / 86400);
+    const h = Math.floor((diff % 86400) / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    let str = '';
+    if (d > 0) str += d + 'd ';
+    if (h > 0 || d > 0) str += h + 'h ';
+    str += m + 'm';
+    const expDate = new Date(until * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    return '<span class="label label-warning" title="' + esc(new Date(until * 1000).toLocaleString()) + '">'
+         + esc('{{ lang._("Expires in") }} ' + str + ' (' + expDate + ')') + '</span>';
+}
+
+function refreshClientsTab() {
+    $('#clientListTable').html('<div class="alert alert-info"><i class="fa fa-spinner fa-spin"></i> ' + esc('{{ lang._("Loading network clients…") }}') + '</div>');
+    ajaxCall('/api/wanquota/device_policy/get', {}, function(data) {
+        clientControlData = data;
+        renderClientsTab(data);
+    });
+}
+
+function renderClientsTab(data) {
+    if (!data || !data.devices) {
+        $('#clientListTable').html('<div class="alert alert-danger">' + esc('{{ lang._("Unable to load client devices.") }}') + '</div>');
+        return;
+    }
+    const devices = data.devices || [];
+    let blockedCount = 0;
+    let blockedUsageBytes = 0;
+
+    for (const d of devices) {
+        if (d.blocked) {
+            blockedCount++;
+            blockedUsageBytes += (d.used || 0);
+        }
+    }
+
+    const totalCount = devices.length;
+    const allowedCount = totalCount - blockedCount;
+
+    $('#metricTotalClients').text(totalCount);
+    $('#metricBlockedClients').text(blockedCount);
+    $('#metricAllowedClients').text(allowedCount);
+    $('#metricBlockedUsage').text(gb(blockedUsageBytes));
+
+    $('#countFilterAll').text(totalCount);
+    $('#countFilterAllowed').text(allowedCount);
+    $('#countFilterBlocked').text(blockedCount);
+
+    // Active Blocked Section
+    const blockedDevices = devices.filter(function(d) { return d.blocked; });
+    if (blockedDevices.length > 0) {
+        $('#activeBlockedSection').show();
+        $('#activeBlockedCount').text(blockedDevices.length);
+        let bHtml = '<table class="table table-striped table-hover"><thead><tr>'
+                  + '<th>{{ lang._("Client Device") }}</th>'
+                  + '<th>{{ lang._("Status / Restriction") }}</th>'
+                  + '<th>{{ lang._("Duration / Expiry") }}</th>'
+                  + '<th>{{ lang._("Reason / Notes") }}</th>'
+                  + '<th>{{ lang._("Month Usage") }}</th>'
+                  + '<th style="text-align:right">{{ lang._("Action") }}</th>'
+                  + '</tr></thead><tbody>';
+        for (const b of blockedDevices) {
+            const targetId = b.key || b.address;
+            bHtml += '<tr data-device="' + esc(targetId) + '">'
+                  +  '<td><a href="#" class="wq-drill" data-drill="device" data-value="' + esc(b.address) + '"><b>' + esc(b.name) + '</b></a>'
+                  +  '<br><small class="wq-muted">' + esc(b.address) + (b.mac ? ' · ' + esc(b.mac) : '') + '</small></td>'
+                  +  '<td><span class="wq-pill" style="background:rgba(239,68,68,0.18);color:#ef4444;font-weight:600"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Internet Blocked") }}') + '</span></td>'
+                  +  '<td>' + formatRemainingTime(b.until) + '</td>'
+                  +  '<td>' + esc(b.reason || '—') + '</td>'
+                  +  '<td><b>' + gb(b.used) + '</b></td>'
+                  +  '<td style="text-align:right">'
+                  +  '<button class="btn btn-xs btn-success btn-client-unblock" data-device="' + esc(targetId) + '" data-name="' + esc(b.name) + '"><i class="fa fa-unlock"></i> ' + esc('{{ lang._("Unblock") }}') + '</button>'
+                  +  '</td></tr>';
+        }
+        bHtml += '</tbody></table>';
+        $('#activeBlockedTable').html(bHtml);
+    } else {
+        $('#activeBlockedSection').hide();
+        $('#activeBlockedTable').empty();
+    }
+
+    // All Network Clients Table
+    let html = '<table class="table table-striped table-hover" id="tableAllClients"><thead><tr>'
+             + '<th>{{ lang._("Client Device") }}</th>'
+             + '<th>{{ lang._("Hardware / IP") }}</th>'
+             + '<th>{{ lang._("Month WAN Usage") }}</th>'
+             + '<th>{{ lang._("Status") }}</th>'
+             + '<th style="text-align:right">{{ lang._("Action") }}</th>'
+             + '</tr></thead><tbody>';
+
+    for (const row of devices) {
+        const search = (row.name + ' ' + row.address + ' ' + (row.mac || '') + ' ' + (row.hostname || '')).toLowerCase();
+        const targetId = row.key || row.address;
+
+        let statusBadge = '';
+        let actionBtn = '';
+
+        if (row.blocked) {
+            statusBadge = '<span class="wq-pill" style="background:rgba(239,68,68,0.18);color:#ef4444;font-weight:600"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Blocked") }}') + '</span>';
+            actionBtn = '<button class="btn btn-xs btn-success btn-client-unblock" data-device="' + esc(targetId) + '" data-name="' + esc(row.name) + '"><i class="fa fa-unlock"></i> ' + esc('{{ lang._("Unblock") }}') + '</button>';
+        } else if (row.excluded) {
+            statusBadge = '<span class="wq-pill" title="' + esc('{{ lang._("Protected infrastructure or excluded device") }}') + '"><i class="fa fa-shield"></i> ' + esc('{{ lang._("Protected") }}') + '</span>';
+            actionBtn = '<span class="wq-muted"><small>' + esc('{{ lang._("Protected") }}') + '</small></span>';
+        } else {
+            statusBadge = '<span class="wq-pill wq-pill-ok"><i class="fa fa-check"></i> ' + esc('{{ lang._("Allowed") }}') + '</span>';
+            actionBtn = '<button class="btn btn-xs btn-danger btn-client-prompt-block" data-device="' + esc(targetId) + '" data-name="' + esc(row.name) + '" data-address="' + esc(row.address) + '" data-mac="' + esc(row.mac || '') + '"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Block…") }}') + '</button>';
+        }
+
+        const usageDisplay = row.percent !== null && row.percent !== undefined
+            ? '<b>' + gb(row.used) + '</b> <small class="wq-muted">(' + Number(row.percent).toFixed(0) + '% of quota)</small>'
+            : '<b>' + gb(row.used) + '</b>';
+
+        html += '<tr data-device="' + esc(targetId) + '" data-search="' + esc(search) + '" data-blocked="' + (row.blocked ? '1' : '0') + '">'
+             +  '<td><a href="#" class="wq-drill" data-drill="device" data-value="' + esc(row.address) + '"><b>' + esc(row.name) + '</b></a>'
+             +  (row.hostname && row.hostname !== row.name ? '<br><small class="wq-muted">' + esc(row.hostname) + '</small>' : '')
+             +  '</td>'
+             +  '<td><code>' + esc(row.address) + '</code>' + (row.mac ? '<br><small class="wq-muted">' + esc(row.mac) + '</small>' : '') + '</td>'
+             +  '<td>' + usageDisplay + '</td>'
+             +  '<td>' + statusBadge + '</td>'
+             +  '<td style="text-align:right">' + actionBtn + '</td>'
+             +  '</tr>';
+    }
+
+    html += '</tbody></table>';
+    $('#clientListTable').html(html);
+    filterClientControlRows();
+}
+
+function filterClientControlRows() {
+    const query = String($('#clientListSearch').val() || '').toLowerCase().trim();
+    $('#tableAllClients tbody tr').each(function() {
+        const row = $(this);
+        const search = String(row.data('search') || '');
+        const isBlocked = row.data('blocked') === '1' || row.data('blocked') === 1;
+
+        let typeMatch = true;
+        if (clientControlFilter === 'allowed') typeMatch = !isBlocked;
+        else if (clientControlFilter === 'blocked') typeMatch = isBlocked;
+
+        const textMatch = !query || search.includes(query);
+        row.toggle(typeMatch && textMatch);
+    });
+}
+
 /*
  * Renewal-aware WAN balance.
  *
@@ -2558,6 +2843,7 @@ $(document).ready(function() {
     refreshConsumers();
     refreshIntelligence();
     refreshBalance();
+    refreshClientsTab();
     if (window.location.hash) {
         drillFromHash();
     }
@@ -2706,6 +2992,104 @@ $(document).ready(function() {
         // so it still asks: it discards work if the blocks were deliberate.
         if (window.confirm('{{ lang._("Release every device block? Quotas are not affected.") }}')) {
             unblockEveryDevice();
+        }
+    });
+    $('a[href="#clients"]').on('shown.bs.tab', refreshClientsTab);
+    $('#btnRefreshClientList').on('click', refreshClientsTab);
+    $('#clientListSearch').on('input keyup', filterClientControlRows);
+    $('#btnFilterAll').on('click', function() {
+        clientControlFilter = 'all';
+        filterClientControlRows();
+    });
+    $('#btnFilterAllowed').on('click', function() {
+        clientControlFilter = 'allowed';
+        filterClientControlRows();
+    });
+    $('#btnFilterBlocked').on('click', function() {
+        clientControlFilter = 'blocked';
+        filterClientControlRows();
+    });
+    $('#btnManualBlock').on('click', function() {
+        const target = $('#manualBlockTarget').val().trim();
+        if (!target) {
+            alert('{{ lang._("Please specify an IP address, MAC, or hostname to block.") }}');
+            return;
+        }
+        const duration = $('#manualBlockDuration').val();
+        const reason = $('#manualBlockReason').val().trim();
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/block', {device: target, duration: duration, reason: reason}, function(result) {
+            btn.prop('disabled', false);
+            if (result && result.status === 'ok') {
+                $('#manualBlockTarget').val('');
+                $('#manualBlockReason').val('');
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to block client.") }}');
+            }
+        });
+    });
+    $('#clients').on('click', '.btn-client-prompt-block', function() {
+        const device = $(this).data('device');
+        const name = $(this).data('name');
+        const addr = $(this).data('address');
+        const mac = $(this).data('mac');
+
+        $('#modalBlockTargetDevice').val(device);
+        $('#modalBlockClientName').text(name);
+        $('#modalBlockClientDetail').text(addr + (mac ? ' · ' + mac : ''));
+        $('#modalBlockDuration').val('0');
+        $('#modalBlockReason').val('');
+        $('#modalBlockClient').modal('show');
+    });
+    $('#btnModalConfirmBlock').on('click', function() {
+        const target = $('#modalBlockTargetDevice').val();
+        if (!target) return;
+        const duration = $('#modalBlockDuration').val();
+        const reason = $('#modalBlockReason').val().trim();
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/block', {device: target, duration: duration, reason: reason}, function(result) {
+            btn.prop('disabled', false);
+            $('#modalBlockClient').modal('hide');
+            if (result && result.status === 'ok') {
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to block client.") }}');
+            }
+        });
+    });
+    $('#clients').on('click', '.btn-client-unblock', function() {
+        const target = $(this).data('device');
+        const name = $(this).data('name') || target;
+        if (!target) return;
+        if (!window.confirm('{{ lang._("Unblock client ") }}' + name + '{{ lang._(" from the internet?") }}')) {
+            return;
+        }
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/unblock', {device: target}, function(result) {
+            btn.prop('disabled', false);
+            if (result && result.status === 'ok') {
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to unblock client.") }}');
+            }
+        });
+    });
+    $('#btnReleaseAllClients').on('click', function() {
+        if (window.confirm('{{ lang._("Release every device block? All devices will regain internet access.") }}')) {
+            const btn = $(this);
+            btn.prop('disabled', true);
+            ajaxCall('/api/wanquota/device_policy/unblockAll', {}, function(result) {
+                btn.prop('disabled', false);
+                if (result && result.status === 'ok') {
+                    refreshClientsTab();
+                } else {
+                    alert(result && result.error ? result.error : '{{ lang._("Failed to release blocks.") }}');
+                }
+            });
         }
     });
     $('#saveBalance').on('click', saveBalance);

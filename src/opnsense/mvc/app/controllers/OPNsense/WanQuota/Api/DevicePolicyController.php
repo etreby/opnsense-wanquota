@@ -95,6 +95,7 @@ class DevicePolicyController extends ApiControllerBase
         }
 
         $rows = [];
+        $matchedBlocks = [];
         foreach (($known['devices'] ?? []) as $device) {
             $identifiers = [$device['address'], $device['mac'], $device['hostname'], $device['name']];
             $quota = null;
@@ -112,6 +113,9 @@ class DevicePolicyController extends ApiControllerBase
                     $block = $blockBy[$key];
                     $matchedOn = (string)$candidate;
                 }
+            }
+            if ($block !== null && !empty($block['device'])) {
+                $matchedBlocks[strtolower((string)$block['device'])] = true;
             }
             $address = strtolower((string)$device['address']);
             $mac = strtolower((string)$device['mac']);
@@ -145,6 +149,35 @@ class DevicePolicyController extends ApiControllerBase
                 'reason' => (string)($block['reason'] ?? ''),
                 'block_refused' => $blockRefused[strtolower($matchedOn)]
                     ?? ($blockRefused[$address] ?? null),
+            ];
+        }
+
+        /* Include any manual blocks that did not match a known LAN device inventory row */
+        foreach ($blocks as $block) {
+            $bKey = strtolower(trim((string)($block['device'] ?? '')));
+            if ($bKey === '' || isset($matchedBlocks[$bKey])) {
+                continue;
+            }
+            $target = (string)$block['device'];
+            $rows[] = [
+                'address' => $target,
+                'name' => $target,
+                'mac' => '',
+                'hostname' => '',
+                'name_source' => 'manual',
+                'key' => $target,
+                'key_is_mac' => false,
+                'shared_mac' => false,
+                'budget_gb' => '',
+                'excluded' => false,
+                'used' => 0.0,
+                'percent' => null,
+                'over_budget' => false,
+                'blocked' => true,
+                'blocked_now' => isset($blockedNow[strtolower($target)]),
+                'until' => (int)($block['until'] ?? 0),
+                'reason' => (string)($block['reason'] ?? ''),
+                'block_refused' => $blockRefused[$bKey] ?? null,
             ];
         }
 
@@ -355,5 +388,149 @@ class DevicePolicyController extends ApiControllerBase
         \OPNsense\Core\Config::getInstance()->save('Release every WAN quota device block');
         $flushed = json_decode((new Backend())->configdRun('wanquota blockflush'), true);
         return ['status' => 'ok', 'flushed' => $flushed];
+    }
+
+    public function unblock_allAction(): array
+    {
+        return $this->unblockAllAction();
+    }
+
+    /**
+     * Block a single device with duration and optional reason.
+     */
+    public function blockAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $device = trim((string)$this->request->getPost('device'));
+        if ($device === '') {
+            return ['status' => 'failed', 'error' => 'No device specified'];
+        }
+        $rawDuration = trim((string)$this->request->getPost('duration', 0));
+        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)$this->request->getPost('reason', '')), 0, 200);
+
+        $until = 0;
+        if (is_numeric($rawDuration)) {
+            $num = (float)$rawDuration;
+            if ($num > 0) {
+                // If small number, interpret as hours, else as unix timestamp
+                $until = $num < 100000000 ? time() + (int)($num * 3600) : (int)$num;
+            }
+        } elseif (preg_match('/^(\d+)\s*(h|hr|hours?|d|days?|m|min|minutes?)$/i', $rawDuration, $matches)) {
+            $val = (int)$matches[1];
+            $unit = strtolower($matches[2][0]);
+            if ($unit === 'm') {
+                $until = time() + ($val * 60);
+            } elseif ($unit === 'h') {
+                $until = time() + ($val * 3600);
+            } elseif ($unit === 'd') {
+                $until = time() + ($val * 86400);
+            }
+        }
+
+        if ($until > 0 && $until <= time()) {
+            return ['status' => 'failed', 'error' => 'The block deadline must be in the future'];
+        }
+
+        $model = new WanQuota();
+        $blocks = json_decode((string)$model->general->device_blocks_json, true);
+        $blocks = is_array($blocks) ? $blocks : [];
+
+        $lower = strtolower($device);
+        $found = false;
+        foreach ($blocks as &$item) {
+            if (strtolower(trim((string)($item['device'] ?? ''))) === $lower) {
+                $item['until'] = $until;
+                $item['reason'] = $reason;
+                $item['created'] = time();
+                $found = true;
+                break;
+            }
+        }
+        unset($item);
+
+        if (!$found) {
+            $blocks[] = [
+                'device' => $device,
+                'until' => $until,
+                'reason' => $reason,
+                'created' => time(),
+            ];
+        }
+
+        $model->general->device_blocks_json = json_encode(array_values($blocks));
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save(sprintf('Block device %s from the internet (os-wanquota)', $device));
+
+        $backend = new Backend();
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+
+        return [
+            'status' => 'ok',
+            'device' => $device,
+            'until' => $until,
+            'reason' => $reason,
+            'block_result' => $blockResult,
+        ];
+    }
+
+    /**
+     * Unblock a single device.
+     */
+    public function unblockAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $device = trim((string)$this->request->getPost('device'));
+        if ($device === '') {
+            return ['status' => 'failed', 'error' => 'No device specified'];
+        }
+        $lower = strtolower($device);
+
+        $model = new WanQuota();
+        $blocks = json_decode((string)$model->general->device_blocks_json, true);
+        $blocks = is_array($blocks) ? $blocks : [];
+
+        $filtered = [];
+        $removed = false;
+        foreach ($blocks as $item) {
+            if (strtolower(trim((string)($item['device'] ?? ''))) === $lower) {
+                $removed = true;
+                continue;
+            }
+            $filtered[] = $item;
+        }
+
+        $model->general->device_blocks_json = json_encode(array_values($filtered));
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save(sprintf('Unblock device %s (os-wanquota)', $device));
+
+        $backend = new Backend();
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+
+        return [
+            'status' => 'ok',
+            'device' => $device,
+            'removed' => $removed,
+            'block_result' => $blockResult,
+        ];
     }
 }
