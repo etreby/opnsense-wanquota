@@ -94,11 +94,11 @@ class ReportController extends ApiControllerBase
 
     public function consumersDateAction(): array
     {
-        $rawDate = (string)$this->request->get('date', '');
+        $rawDate = (string)($this->request->getPost('date') ?: $this->request->getQuery('date') ?: ($_REQUEST['date'] ?? ''));
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawDate)) {
             return ['status' => 'failed', 'error' => 'A valid date (YYYY-MM-DD) is required'];
         }
-        return $this->runReport('consumers date ' . escapeshellarg($rawDate));
+        return $this->runReport('consumers date ' . $rawDate);
     }
 
     public function consumers_dateAction(): array
@@ -137,7 +137,8 @@ class ReportController extends ApiControllerBase
      */
     public function explainAction(): array
     {
-        $domain = preg_replace('/[^a-zA-Z0-9._-]/', '', (string)$this->request->get('domain'));
+        $rawDomain = (string)($this->request->getPost('domain') ?: $this->request->getQuery('domain') ?: ($_REQUEST['domain'] ?? ''));
+        $domain = preg_replace('/[^a-zA-Z0-9._-]/', '', $rawDomain);
         if ($domain === '') {
             return ['status' => 'failed', 'error' => 'A domain is required'];
         }

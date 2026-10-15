@@ -1,10 +1,116 @@
 <script src="{{ cache_safe('/ui/js/chart.umd.min.js') }}"></script>
 <style>
-.wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}.wq-shell th.wq-sortable{cursor:pointer;user-select:none;white-space:nowrap}.wq-shell th.wq-sortable:hover{text-decoration:underline}.wq-shell th.wq-sorted{color:var(--wq-blue)}.wq-shell th .wq-arrow{opacity:.75;font-size:10px;margin-left:3px}.wq-tfilter{display:flex;align-items:center;gap:9px;margin:0 0 8px}.wq-tfilter input{max-width:230px}.wq-tcount{font-size:12px;opacity:.68}.wq-tnorows td{opacity:.7;font-style:italic}
-.wq-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.wq-card-head h3{flex:1 1 auto}.wq-kebab{border:none;background:none;padding:1px 6px;line-height:1;font-size:17px;color:inherit;opacity:.45;cursor:pointer;border-radius:4px;flex:0 0 auto}.wq-kebab:hover,.wq-kebab:focus,.wq-kebab[aria-expanded=true]{opacity:1;background:rgba(128,128,128,.16)}.wq-quota-edit{margin-top:13px;padding-top:12px;border-top:1px solid rgba(128,128,128,.2)}.wq-quota-edit label{display:block;font-size:11px;font-weight:600;opacity:.75;margin:0 0 3px}.wq-quota-field{margin-bottom:9px}.wq-quota-edit input{width:100%}.wq-quota-preview{font-size:12px;margin:0 0 10px;font-variant-numeric:tabular-nums}.wq-quota-warn{display:block;color:var(--wq-amber);margin-top:4px}.wq-total-card{grid-column:1/-1;border-left:4px solid var(--wq-blue)}.wq-total-split{display:flex;flex-wrap:wrap;gap:24px;margin-top:11px}.wq-total-part{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}.wq-total-part b{display:block;font-size:17px;opacity:1;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+.wq-shell{--wq-blue:#3b82f6;--wq-indigo:#6366f1;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#0f172a;font-feature-settings:"cv02","cv03","cv04","cv11"}
+.wq-hero{padding:26px 28px;border-radius:16px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 55%,#1e3a8a 100%);color:#fff;margin-bottom:20px;box-shadow:0 14px 32px -4px rgba(15,23,42,.22);position:relative;overflow:hidden}
+.wq-hero::before{content:'';position:absolute;top:-50%;right:-20%;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.25),transparent 70%);pointer-events:none}
+.wq-hero h2{margin:0 0 6px;font-weight:700;letter-spacing:-.3px;font-size:24px}
+.wq-hero p{margin:0;opacity:.82;font-size:13.5px}
+.wq-version{margin-top:10px;font-size:11px;opacity:.7;letter-spacing:.4px;display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);padding:2px 10px;border-radius:20px}
+.wq-hero-tools{float:right;display:flex;gap:8px}
+.wq-hero-tools .btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);border-radius:8px;backdrop-filter:blur(6px);transition:all .18s ease}
+.wq-hero-tools .btn:hover{background:rgba(255,255,255,.24);color:#fff;border-color:rgba(255,255,255,.45);transform:translateY(-1px)}
+.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:16px 0}
+.wq-card{background:var(--background-color,#fff);border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:18px;box-shadow:0 4px 14px -2px rgba(15,23,42,.06);transition:box-shadow .2s ease,border-color .2s ease}
+.wq-card:hover{border-color:rgba(59,130,246,.32);box-shadow:0 8px 24px -4px rgba(15,23,42,.09)}
+.wq-card h3{font-size:15px;font-weight:600;margin:0 0 12px;color:inherit;letter-spacing:-.2px}
+.wq-metric{font-size:28px;font-weight:700;line-height:1.15;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.wq-muted{opacity:.7;font-size:12px}
+.wq-progress{height:9px;background:rgba(148,163,184,.18);border-radius:10px;overflow:hidden;margin:12px 0}
+.wq-progress span{display:block;height:100%;border-radius:10px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}
+.wq-chart{position:relative;height:290px}
+.wq-chart-sm{position:relative;height:180px}
+.wq-section{margin-top:24px}
+.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.wq-section-title h3{margin:0;font-weight:600}
+.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}
+.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.wq-table-wrap{overflow-x:auto}
+.wq-card .table{margin-bottom:0}
+.wq-card .table th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;opacity:.75;border-bottom:1px solid rgba(148,163,184,.25)}
+.wq-card .table td{vertical-align:middle}
+.wq-risk-on_track{color:var(--wq-green)}
+.wq-risk-watch{color:var(--wq-amber)}
+.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}
+.wq-action-box{padding:12px 14px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:8px;display:flex;align-items:center;flex-wrap:wrap;gap:10px}
+.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}
+.wq-wallboard .wq-chart{height:38vh}
+.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}
+.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none;transition:color .15s ease}
+.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid;color:var(--wq-blue)}
+.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 18px;margin-bottom:16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:10px}
+.wq-drill-metric{text-align:right}
+.wq-share{height:8px;background:rgba(148,163,184,.2);border-radius:8px;overflow:hidden;min-width:64px}
+.wq-share span{display:block;height:100%;border-radius:8px}
+.wq-unattributed td{opacity:.7}
+.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}
+.wq-limit{display:flex;flex-direction:column;gap:8px}
+.wq-limit-head{display:flex;align-items:center;gap:9px}
+.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}
+.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.wq-limit-row select,.wq-limit-row input{max-width:132px}
+.wq-pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;background:rgba(148,163,184,.18);font-weight:500}
+.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}
+.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}
+.wq-limit-off{opacity:.55}
+.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}
+.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 14px;border-radius:20px;background:rgba(148,163,184,.14);font-size:12px;cursor:pointer;white-space:nowrap;transition:all .18s ease}
+.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(148,163,184,.3);font-weight:700;font-size:11px}
+.wq-steps li.active{background:var(--wq-blue);color:#fff}
+.wq-steps li.active span{background:#ffffff35}
+.wq-steps li.done span{background:var(--wq-green);color:#fff}
+.wq-subtabs{margin-bottom:18px}
+.wq-subtabs>li>a{border-radius:24px;padding:8px 20px;font-size:13px;font-weight:500}
+.wq-why{padding:16px 18px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:10px}
+.wq-why h3{margin:0 0 4px;font-size:17px}
+.wq-why ol{margin:10px 0 0 18px;padding:0}
+.wq-why li{margin:3px 0}
+.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.wq-shares{margin-top:10px;font-size:12px}
+.wq-share-row{display:flex;align-items:center;gap:8px;padding:3px 0}
+.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wq-share-pct{font-weight:700;flex:0 0 auto}
+.wq-share-others .wq-share-name{opacity:.7;font-style:italic}
+.wq-live{margin:4px 0 0}
+.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}
+.wq-live-card{flex:1 1 220px;padding:12px 16px;border:1px solid rgba(148,163,184,.22);border-radius:12px;background:var(--background-color,#fff);box-shadow:0 2px 8px rgba(15,23,42,.04)}
+.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}
+.wq-live-pair{display:flex;gap:16px;font-variant-numeric:tabular-nums}
+.wq-live-down{color:var(--wq-blue);font-weight:700}
+.wq-live-up{color:var(--wq-green);font-weight:700}
+.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:10px 14px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:8px}
+.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(148,163,184,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}
+.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.25);transition:transform .18s ease}
+.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}
+.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}
+.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}
+.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}
+.wq-shell td>input[type=checkbox]{display:block}
+.wq-shell th.wq-sortable{cursor:pointer;user-select:none;white-space:nowrap}
+.wq-shell th.wq-sortable:hover{text-decoration:underline}
+.wq-shell th.wq-sorted{color:var(--wq-blue)}
+.wq-shell th .wq-arrow{opacity:.75;font-size:10px;margin-left:3px}
+.wq-tfilter{display:flex;align-items:center;gap:9px;margin:0 0 8px}
+.wq-tfilter input{max-width:230px}
+.wq-tcount{font-size:12px;opacity:.68}
+.wq-tnorows td{opacity:.7;font-style:italic}
+.wq-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.wq-card-head h3{flex:1 1 auto}
+.wq-kebab{border:none;background:none;padding:2px 7px;line-height:1;font-size:17px;color:inherit;opacity:.5;cursor:pointer;border-radius:6px;flex:0 0 auto;transition:all .15s ease}
+.wq-kebab:hover,.wq-kebab:focus,.wq-kebab[aria-expanded=true]{opacity:1;background:rgba(148,163,184,.2)}
+.wq-quota-edit{margin-top:14px;padding-top:14px;border-top:1px solid rgba(148,163,184,.2)}
+.wq-quota-edit label{display:block;font-size:11px;font-weight:600;opacity:.75;margin:0 0 3px}
+.wq-quota-field{margin-bottom:9px}
+.wq-quota-edit input{width:100%}
+.wq-quota-preview{font-size:12px;margin:0 0 10px;font-variant-numeric:tabular-nums}
+.wq-quota-warn{display:block;color:var(--wq-amber);margin-top:4px}
+.wq-total-card{grid-column:1/-1;border-left:4px solid var(--wq-blue)}
+.wq-total-split{display:flex;flex-wrap:wrap;gap:24px;margin-top:11px}
+.wq-total-part{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}
+.wq-total-part b{display:block;font-size:18px;opacity:1;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
 .wq-service-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:16px 0}
-.wq-service-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.06);display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
-.wq-service-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(23,32,51,.1);border-color:rgba(59,130,246,.4)}
+.wq-service-card{background:var(--background-color,#fff);border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:18px;box-shadow:0 4px 16px rgba(15,23,42,.06);display:flex;flex-direction:column;justify-content:space-between;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.wq-service-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(15,23,42,.11);border-color:rgba(59,130,246,.45)}
 .wq-service-card.wq-service-blocked{border-left:4px solid var(--wq-red);background:linear-gradient(to right,rgba(239,68,68,.05),var(--background-color,#fff))}
 .wq-service-card.wq-service-playstation{border-top:3px solid #003791}
 .wq-service-card.wq-service-xbox{border-top:3px solid #107c10}
@@ -14,12 +120,12 @@
 .wq-service-card.wq-service-tiktok{border-top:3px solid #25f4ee}
 .wq-service-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
 .wq-service-info{display:flex;align-items:center;gap:12px;flex:1 1 auto}
-.wq-service-icon{width:44px;height:44px;border-radius:10px;background:rgba(59,130,246,.12);color:var(--wq-blue);display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.wq-service-icon{width:46px;height:46px;border-radius:12px;background:rgba(59,130,246,.12);color:var(--wq-blue);display:inline-flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
 .wq-service-card.wq-service-blocked .wq-service-icon{background:rgba(239,68,68,.15);color:var(--wq-red)}
 .wq-service-title{font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.2}
 .wq-service-cat{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.3px}
 .wq-service-meta{font-size:12px;margin:8px 0;opacity:.85}
-.wq-service-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:12px;border-top:1px solid rgba(128,128,128,.14)}
+.wq-service-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:14px;border-top:1px solid rgba(148,163,184,.18)}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -2731,11 +2837,11 @@ function providerDrill(name, container) {
 function renderDateDetail(date, container) {
     const el = $(container || '#dailyDetail');
     el.html(drillBackBar('date') + '<div class="alert alert-info"><i class="fa fa-spinner fa-spin"></i> '
-        + esc('{{ lang._("Loading traffic details for") }}') + ' ' + esc(date) + '...</div>');
+        + esc('{{ lang._("Loading traffic details for") }}') + ' <b>' + esc(date) + '</b>...</div>');
 
-    ajaxCall('/api/wanquota/report/consumers_date?date=' + encodeURIComponent(date), {}, function(data) {
+    ajaxCall('/api/wanquota/report/consumers_date', {date: date}, function(data) {
         if (!data || data.status === 'failed') {
-            el.html(drillBackBar('date') + '<div class="alert alert-danger">'
+            el.html(drillBackBar('date') + '<div class="alert alert-danger"><i class="fa fa-exclamation-triangle"></i> '
                 + esc(data?.error || '{{ lang._("Failed to load consumers for date") }}') + '</div>');
             return;
         }
@@ -2743,53 +2849,67 @@ function renderDateDetail(date, container) {
         const totalExternal = data.domain_attribution?.total_external_bytes || 0;
         const totalAttributed = data.domain_attribution?.attributed_bytes || 0;
         const coveragePct = data.domain_attribution?.coverage_percent || 0;
-        const hosts = data.hosts || [];
+        let hosts = data.hosts || [];
         const domains = data.domains || [];
         const deviceDomains = data.device_domains || [];
         const providers = data.providers || [];
 
+        // Fallback: If ntopng host RRDs are empty for this historical date, reconstruct devices from NetFlow external attribution
+        if (!hosts.length && data.device_attribution && data.device_attribution.length) {
+            hosts = data.device_attribution.map(d => ({
+                ip: d.device,
+                name: d.name || d.device,
+                download: d.attributed || 0,
+                upload: 0,
+                total: d.external || d.total || 0,
+                mac: d.mac || ''
+            }));
+        }
+
         const hostTotal = hosts.reduce((sum, h) => sum + (h.total || 0), 0);
         const hostDown = hosts.reduce((sum, h) => sum + (h.download || 0), 0);
         const hostUp = hosts.reduce((sum, h) => sum + (h.upload || 0), 0);
+        const effectiveTotal = hostTotal || totalExternal || providers.reduce((sum, p) => sum + (p.total || 0), 0);
 
         let html = drillBackBar('date');
         html += drillHeader(date, '{{ lang._("Daily Bandwidth Breakdown") }}',
-            gb(hostTotal || totalExternal),
-            (hostDown ? gb(hostDown) + ' down · ' + gb(hostUp) + ' up' : 'flow volume: ' + gb(totalExternal)));
+            gb(effectiveTotal),
+            (hostDown ? gb(hostDown) + ' down · ' + gb(hostUp) + ' up' : 'flow volume: ' + gb(totalExternal || effectiveTotal)));
 
         html += '<div class="row" style="margin-bottom:18px">'
              +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
-             +  '<div class="wq-muted">{{ lang._("Total Daily Traffic") }}</div>'
-             +  '<div class="wq-metric text-primary">' + gb(hostTotal || totalExternal) + '</div>'
-             +  '<div class="wq-muted">' + (hostTotal ? gb(hostDown) + ' {{ lang._("down") }} · ' + gb(hostUp) + ' {{ lang._("up") }}' : 'External flows') + '</div>'
+             +  '<div class="wq-muted"><i class="fa fa-calendar-check-o text-primary"></i> {{ lang._("Total Daily Traffic") }}</div>'
+             +  '<div class="wq-metric text-primary">' + gb(effectiveTotal) + '</div>'
+             +  '<div class="wq-muted">' + (hostTotal ? gb(hostDown) + ' {{ lang._("down") }} · ' + gb(hostUp) + ' {{ lang._("up") }}' : 'External NetFlow volume') + '</div>'
              +  '</div></div>'
              +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
-             +  '<div class="wq-muted">{{ lang._("Active Client Devices") }}</div>'
+             +  '<div class="wq-muted"><i class="fa fa-laptop text-info"></i> {{ lang._("Active Client Devices") }}</div>'
              +  '<div class="wq-metric">' + hosts.length + '</div>'
              +  '<div class="wq-muted">{{ lang._("LAN devices active on this date") }}</div>'
              +  '</div></div>'
              +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
-             +  '<div class="wq-muted">{{ lang._("Attributed Domains") }}</div>'
-             +  '<div class="wq-metric">' + domains.length + '</div>'
+             +  '<div class="wq-muted"><i class="fa fa-globe text-success"></i> {{ lang._("Attributed Domains") }}</div>'
+             +  '<div class="wq-metric text-success">' + domains.length + '</div>'
              +  '<div class="wq-muted">' + gb(totalAttributed) + ' {{ lang._("attributed") }}</div>'
              +  '</div></div>'
              +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
-             +  '<div class="wq-muted">{{ lang._("DNS Attribution Coverage") }}</div>'
+             +  '<div class="wq-muted"><i class="fa fa-shield text-warning"></i> {{ lang._("DNS Attribution Coverage") }}</div>'
              +  '<div class="wq-metric ' + (coveragePct >= 70 ? 'text-success' : 'text-warning') + '">' + coveragePct.toFixed(1) + '%</div>'
              +  '<div class="wq-muted">' + gb(totalExternal) + ' {{ lang._("external flows") }}</div>'
              +  '</div></div>'
              +  '</div>';
 
         if (providers.length) {
-            html += '<div class="wq-card" style="margin-bottom:18px"><h3><i class="fa fa-exchange text-info"></i> {{ lang._("WAN Providers on this Date") }}</h3>'
-                 +  '<table class="table table-condensed table-striped"><thead><tr>'
-                 +  '<th>{{ lang._("WAN Provider") }}</th><th>{{ lang._("Interface") }}</th>'
-                 +  '<th>{{ lang._("Attributed Traffic") }}</th><th>{{ lang._("Top Active Devices") }}</th>'
+            html += '<div class="wq-card" style="margin-bottom:18px">'
+                 +  '<div class="wq-card-head"><h3><i class="fa fa-exchange text-info"></i> {{ lang._("WAN Gateways Active on this Date") }}</h3></div>'
+                 +  '<table class="table table-hover table-condensed table-striped"><thead><tr>'
+                 +  '<th>{{ lang._("WAN Provider") }}</th><th>{{ lang._("Interface Mapping") }}</th>'
+                 +  '<th>{{ lang._("Attributed Traffic") }}</th><th>{{ lang._("Top LAN Consumers on Gateway") }}</th>'
                  +  '</tr></thead><tbody>';
             for (const p of providers) {
-                const devSummary = (p.devices || []).slice(0, 4).map(d =>
-                    `<a href="#" class="wq-drill" data-drill="device" data-value="${esc(d.ip)}">${esc(d.name || d.ip)}</a> (${gb(d.total)})`
-                ).join(', ') || '—';
+                const devSummary = (p.devices || []).slice(0, 5).map(d =>
+                    `<a href="#" class="wq-drill" data-drill="device" data-value="${esc(d.ip)}"><b>${esc(d.name || d.ip)}</b></a> <span class="badge" style="background:#3b82f618;color:#3b82f6;font-size:10px">${gb(d.total)}</span>`
+                ).join(' &nbsp;·&nbsp; ') || '—';
                 html += `<tr><td><b>${esc(p.name)}</b></td><td><code>${esc(p.logical_interface)}</code> → <code>${esc(p.interface)}</code></td><td><b>${gb(p.total)}</b></td><td>${devSummary}</td></tr>`;
             }
             html += '</tbody></table></div>';
@@ -2797,20 +2917,21 @@ function renderDateDetail(date, container) {
 
         html += '<div class="row"><div class="col-md-6">'
              +  '<div class="wq-card" style="margin-bottom:18px">'
-             +  '<h3><i class="fa fa-laptop text-primary"></i> {{ lang._("Top Devices on this Date") }}</h3>';
+             +  '<div class="wq-card-head"><h3><i class="fa fa-laptop text-primary"></i> {{ lang._("Top Client Devices on this Date") }}</h3>'
+             +  '<span class="badge">' + hosts.length + ' {{ lang._("devices") }}</span></div>';
         if (!hosts.length) {
-            html += '<div class="alert alert-info">{{ lang._("No client traffic recorded by ntopng for this date.") }}</div>';
+            html += '<div class="alert alert-info">{{ lang._("No client traffic recorded for this date.") }}</div>';
         } else {
             const topHost = hosts[0]?.total || 1;
-            html += '<table class="table table-condensed table-striped"><thead><tr>'
-                 +  '<th>#</th><th>{{ lang._("Device") }}</th>'
-                 +  '<th style="width:28%">{{ lang._("Share") }}</th>'
+            html += '<table class="table table-hover table-condensed table-striped"><thead><tr>'
+                 +  '<th style="width:36px">#</th><th>{{ lang._("Device") }}</th>'
+                 +  '<th style="width:26%">{{ lang._("Share") }}</th>'
                  +  '<th>{{ lang._("Down / Up") }}</th><th>{{ lang._("Total") }}</th>'
                  +  '</tr></thead><tbody>';
             hosts.forEach((h, idx) => {
                 const share = (h.total || 0) / (hostTotal || topHost);
                 html += `<tr>`
-                     +  `<td>${idx + 1}</td>`
+                     +  `<td><small class="wq-muted">${idx + 1}</small></td>`
                      +  `<td><a href="#" class="wq-drill" data-drill="device" data-value="${esc(h.ip)}" title="{{ lang._("Inspect live sessions for this device") }}"><b>${esc(h.name || h.ip)}</b></a><br><small class="wq-muted">${esc(h.ip)}</small></td>`
                      +  `<td>${shareBar(share, '#3b82f6')}<small class="wq-muted">${(share * 100).toFixed(1)}%</small></td>`
                      +  `<td><small>${gb(h.download)} ↓<br>${gb(h.upload)} ↑</small></td>`
@@ -2823,23 +2944,24 @@ function renderDateDetail(date, container) {
 
         html += '<div class="col-md-6">'
              +  '<div class="wq-card" style="margin-bottom:18px">'
-             +  '<h3><i class="fa fa-globe text-info"></i> {{ lang._("Top Attributed Sites / Domains") }}</h3>';
+             +  '<div class="wq-card-head"><h3><i class="fa fa-globe text-info"></i> {{ lang._("Top Attributed Sites / Domains") }}</h3>'
+             +  '<span class="badge">' + domains.length + ' {{ lang._("domains") }}</span></div>';
         if (!domains.length) {
             html += '<div class="alert alert-info">{{ lang._("No domain traffic was attributed from DNS flows on this date.") }}</div>';
         } else {
             const topDom = domains[0]?.total || 1;
-            html += '<table class="table table-condensed table-striped"><thead><tr>'
-                 +  '<th>#</th><th>{{ lang._("Domain") }}</th>'
-                 +  '<th style="width:28%">{{ lang._("Share") }}</th>'
+            html += '<table class="table table-hover table-condensed table-striped"><thead><tr>'
+                 +  '<th style="width:36px">#</th><th>{{ lang._("Domain / Destination") }}</th>'
+                 +  '<th style="width:26%">{{ lang._("Share") }}</th>'
                  +  '<th>{{ lang._("IPs") }}</th><th>{{ lang._("Total") }}</th>'
                  +  '</tr></thead><tbody>';
             domains.forEach((d, idx) => {
                 const share = (d.total || 0) / topDom;
                 html += `<tr>`
-                     +  `<td>${idx + 1}</td>`
+                     +  `<td><small class="wq-muted">${idx + 1}</small></td>`
                      +  `<td><a href="#" class="wq-drill" data-drill="domain" data-value="${esc(d.domain)}" title="{{ lang._("Show devices using this site") }}"><b>${esc(d.domain)}</b></a></td>`
                      +  `<td>${shareBar(share, '#8b5cf6')}<small class="wq-muted">${(share * 100).toFixed(1)}%</small></td>`
-                     +  `<td>${d.ip_count || 1}</td>`
+                     +  `<td><span class="badge">${d.ip_count || 1}</span></td>`
                      +  `<td><b>${gb(d.total)}</b></td>`
                      +  `</tr>`;
             });
@@ -2849,27 +2971,39 @@ function renderDateDetail(date, container) {
 
         if (deviceDomains.length) {
             html += '<div class="wq-card" style="margin-bottom:18px">'
-                 +  '<div class="wq-section-title"><h3 style="margin:0"><i class="fa fa-table text-primary"></i> {{ lang._("Device-to-Site Activity on this Date") }}</h3>'
-                 +  '<small class="wq-muted">' + deviceDomains.length + ' {{ lang._("attributed flows recorded") }}</small></div>'
-                 +  '<table class="table table-condensed table-striped"><thead><tr>'
-                 +  '<th>{{ lang._("Device") }}</th><th>{{ lang._("Domain / Service") }}</th>'
+                 +  '<div class="wq-section-title"><h3 style="margin:0"><i class="fa fa-table text-primary"></i> {{ lang._("Device-to-Site Activity Matrix on this Date") }}</h3>'
+                 +  '<small class="wq-muted">' + deviceDomains.length + ' {{ lang._("attributed client-to-service flows recorded") }}</small></div>'
+                 +  '<div class="wq-toolbar" style="margin-bottom:12px">'
+                 +  '<input type="text" id="dateMatrixFilter" class="form-control input-sm" style="max-width:280px" placeholder="{{ lang._("Filter device or domain...") }}">'
+                 +  '</div>'
+                 +  '<table class="table table-hover table-condensed table-striped" id="dateMatrixTable"><thead><tr>'
+                 +  '<th>{{ lang._("Client Device") }}</th><th>{{ lang._("Domain / Service Destination") }}</th>'
                  +  '<th>{{ lang._("Attributed Total") }}</th>'
                  +  '</tr></thead><tbody>';
-            for (const row of deviceDomains.slice(0, 50)) {
-                html += `<tr>`
+            for (const row of deviceDomains.slice(0, 100)) {
+                html += `<tr data-filter="${esc((row.name + ' ' + row.device + ' ' + row.domain).toLowerCase())}">`
                      +  `<td><a href="#" class="wq-drill" data-drill="device" data-value="${esc(row.device)}"><b>${esc(row.name)}</b></a> <small class="wq-muted">(${esc(row.device)})</small></td>`
                      +  `<td><a href="#" class="wq-drill" data-drill="domain" data-value="${esc(row.domain)}">${esc(row.domain)}</a></td>`
                      +  `<td><b>${gb(row.total)}</b></td>`
                      +  `</tr>`;
             }
             html += '</tbody></table>';
-            if (deviceDomains.length > 50) {
-                html += '<small class="wq-muted">{{ lang._("Showing top 50 flows for this date.") }}</small>';
+            if (deviceDomains.length > 100) {
+                html += '<small class="wq-muted">{{ lang._("Showing top 100 flows for this date.") }}</small>';
             }
             html += '</div>';
         }
 
         el.html(html);
+
+        // Bind in-page filter for the matrix table
+        $('#dateMatrixFilter').on('keyup', function() {
+            const q = $(this).val().toLowerCase().trim();
+            $('#dateMatrixTable tbody tr').each(function() {
+                const match = !q || ($(this).data('filter') || '').indexOf(q) !== -1;
+                $(this).toggle(match);
+            });
+        });
     });
 }
 /*

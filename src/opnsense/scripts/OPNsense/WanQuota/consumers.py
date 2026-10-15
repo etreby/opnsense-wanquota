@@ -615,8 +615,9 @@ def main():
         period = next((value for value in ("today", "week", "thirty", "month") if value in sys.argv), None)
         if period is None:
             for arg in sys.argv[1:]:
-                if re.match(r"^\d{4}-\d{2}-\d{2}$", arg):
-                    period = arg
+                clean_arg = arg.strip("'\"")
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", clean_arg):
+                    period = clean_arg
                     break
         if period is None:
             period = settings_and_names()[0]["default_period"]
