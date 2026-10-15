@@ -126,22 +126,117 @@
 .wq-service-cat{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.3px}
 .wq-service-meta{font-size:12px;margin:8px 0;opacity:.85}
 .wq-service-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:14px;border-top:1px solid rgba(148,163,184,.18)}
-@media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
+/* --- Apple-Grade Visual Design & Micro-Interactions --- */
+.wq-quota-apple-card{display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.wq-ring-layout{display:flex;align-items:center;gap:18px;margin:10px 0 6px;flex-wrap:wrap}
+.wq-ring-container{position:relative;width:104px;height:104px;flex:0 0 104px;display:flex;align-items:center;justify-content:center}
+.wq-ring-svg{width:104px;height:104px;transform:rotate(-90deg)}
+.wq-ring-bg{fill:none;stroke:rgba(148,163,184,.18);stroke-width:9}
+.wq-ring-meter{fill:none;stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset 1s cubic-bezier(.16,1,.3,1),stroke .4s ease}
+.wq-ring-content{position:absolute;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.wq-ring-pct{font-size:19px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.1}
+.wq-ring-label{font-size:9.5px;font-weight:700;opacity:.65;letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+.wq-ring-stats{flex:1 1 120px;display:flex;flex-direction:column;gap:4px}
+.wq-metric-sm{font-size:20px;font-weight:700;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
+.wq-status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.wq-status-badge-safe{background:rgba(16,185,129,.14);color:#059669}
+.wq-status-badge-warning{background:rgba(245,158,11,.14);color:#d97706}
+.wq-status-badge-danger{background:rgba(239,68,68,.14);color:#dc2626}
+.wq-pillar-nav{display:flex;gap:8px;background:rgba(148,163,184,.14);padding:6px;border-radius:14px;margin-bottom:14px;flex-wrap:wrap;backdrop-filter:blur(10px)}
+.wq-pillar-btn{flex:1 1 auto;border:none;background:transparent;color:inherit;font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:10px;cursor:pointer;transition:all .2s cubic-bezier(.16,1,.3,1);display:inline-flex;align-items:center;justify-content:center;gap:8px;opacity:.78}
+.wq-pillar-btn:hover{opacity:1;background:rgba(255,255,255,.4)}
+.wq-pillar-btn.active{opacity:1;background:var(--background-color,#fff);color:var(--wq-blue);box-shadow:0 4px 14px -2px rgba(15,23,42,.1)}
+.wq-pillar-btn i{font-size:14px}
+.wq-subtab-hidden{display:none!important}
+.wq-omni-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:var(--background-color,#fff);border:1px solid rgba(148,163,184,.22);border-radius:14px;padding:10px 16px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,.03)}
+.wq-omni-dates{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.wq-omni-label{font-size:12px;font-weight:600;opacity:.75;text-transform:uppercase;letter-spacing:.4px}
+.wq-range-pills .btn{border-radius:20px;font-size:12px;font-weight:500;padding:4px 12px;transition:all .16s ease}
+.wq-range-pills .btn.active{background:var(--wq-blue);color:#fff;border-color:var(--wq-blue)}
+.wq-omni-search{position:relative;display:flex;align-items:center;min-width:260px;flex:0 1 340px}
+.wq-omni-search input{border-radius:20px;padding-left:32px;padding-right:30px;font-size:12.5px;border:1px solid rgba(148,163,184,.3);transition:all .2s ease}
+.wq-omni-search input:focus{border-color:var(--wq-blue);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+.wq-search-icon{position:absolute;left:11px;opacity:.5;font-size:12px;pointer-events:none}
+.wq-kbd{position:absolute;right:10px;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;background:rgba(148,163,184,.2);border:1px solid rgba(148,163,184,.25);color:inherit;opacity:.7;pointer-events:none}
+.wq-pulse-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--wq-green);margin-right:6px;vertical-align:middle;box-shadow:0 0 0 0 rgba(16,185,129,.7);animation:wq-pulse-wave 2s infinite}
+@keyframes wq-pulse-wave{0%{transform:scale(.95);box-shadow:0 0 0 0 rgba(16,185,129,.7)}70%{transform:scale(1);box-shadow:0 0 0 7px rgba(16,185,129,0)}100%{transform:scale(.95);box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+.wq-hero-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.wq-hero-btn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:6px 16px;color:#fff;font-size:12px;font-weight:600;letter-spacing:.2px;backdrop-filter:blur(8px);transition:all .2s cubic-bezier(.16,1,.3,1);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.wq-hero-btn:hover{background:rgba(255,255,255,.26);border-color:rgba(255,255,255,.45);transform:translateY(-1px);color:#fff}
+.wq-hero-btn.active{background:#ef4444;border-color:#ef4444}
+.wq-badge-alert{background:#ef4444;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;margin-left:5px}
+@media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}.wq-pillar-btn{font-size:12px;padding:7px 12px}}
 </style>
 <div class="wq-shell">
-<div class="wq-hero"><div class="wq-hero-tools"><button id="unitToggle" class="btn btn-sm" type="button">GB</button><button id="contrastToggle" class="btn btn-sm" type="button"><i class="fa fa-adjust"></i></button><button id="wallboardToggle" class="btn btn-sm" type="button"><i class="fa fa-television"></i></button></div><h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2><p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p><div class="wq-version" id="pluginVersion"></div></div>
+<div class="wq-hero">
+    <div class="wq-hero-tools">
+        <button id="unitToggle" class="btn btn-sm" type="button">GB</button>
+        <button id="contrastToggle" class="btn btn-sm" type="button"><i class="fa fa-adjust"></i></button>
+        <button id="wallboardToggle" class="btn btn-sm" type="button"><i class="fa fa-television"></i></button>
+    </div>
+    <h2><i class="fa fa-tachometer"></i> {{ lang._('WAN Intelligence') }}</h2>
+    <p>{{ lang._('Quota health, traffic trends, consumers and domain attribution in one place.') }}</p>
+    <div class="wq-version" id="pluginVersion"></div>
+    <div class="wq-hero-actions">
+        <button type="button" class="wq-hero-btn" id="heroCurfewPlayStation" title="{{ lang._('Quick 2-hour curfew for PlayStation gaming') }}">
+            <i class="fa fa-gamepad"></i> <span>{{ lang._('PlayStation Curfew') }}</span>
+        </button>
+        <button type="button" class="wq-hero-btn" id="heroDataSaver" title="{{ lang._('Optimize bandwidth & cap background streams') }}">
+            <i class="fa fa-leaf"></i> <span>{{ lang._('Data Saver Mode') }}</span>
+        </button>
+    </div>
+</div>
+
+<div class="wq-pillar-nav" id="wqPillarNav">
+    <button type="button" class="wq-pillar-btn active" data-pillar="analytics">
+        <i class="fa fa-tachometer"></i> {{ lang._('Overview & Analytics') }}
+    </button>
+    <button type="button" class="wq-pillar-btn" data-pillar="access">
+        <i class="fa fa-shield"></i> {{ lang._('Access & Controls') }}
+        <span class="badge wq-badge-alert" id="wqPillarBlockCount" style="display:none">0</span>
+    </button>
+    <button type="button" class="wq-pillar-btn" data-pillar="live">
+        <i class="fa fa-bolt"></i> {{ lang._('Live Network') }}
+    </button>
+    <button type="button" class="wq-pillar-btn" data-pillar="system">
+        <i class="fa fa-sliders"></i> {{ lang._('System & Health') }}
+    </button>
+</div>
+
+<div class="wq-omni-bar">
+    <div class="wq-omni-dates">
+        <span class="wq-omni-label"><i class="fa fa-calendar"></i> {{ lang._('Time Range') }}:</span>
+        <div class="btn-group wq-range-pills" id="wqUniversalRange">
+            <button type="button" class="btn btn-sm btn-default active" data-range="today">{{ lang._('Today') }}</button>
+            <button type="button" class="btn btn-sm btn-default" data-range="week">{{ lang._('7 Days') }}</button>
+            <button type="button" class="btn btn-sm btn-default" data-range="thirty">{{ lang._('30 Days') }}</button>
+            <button type="button" class="btn btn-sm btn-default" data-range="month">{{ lang._('This Month') }}</button>
+            <button type="button" class="btn btn-sm btn-default" id="wqBtnCustomDate"><i class="fa fa-calendar-check-o"></i> {{ lang._('Custom Date') }}</button>
+        </div>
+        <span id="wqCustomDateWrap" style="display:none;margin-left:8px">
+            <input type="date" id="wqUniversalDate" class="form-control input-sm" style="display:inline-block;width:150px">
+            <button type="button" id="wqApplyDate" class="btn btn-sm btn-primary">{{ lang._('Inspect') }}</button>
+        </span>
+    </div>
+    <div class="wq-omni-search">
+        <i class="fa fa-search wq-search-icon"></i>
+        <input type="text" id="wqGlobalSearch" class="form-control input-sm" placeholder="{{ lang._('Instant filter devices, sites, IPs... (Press /)') }}" autocomplete="off">
+        <kbd class="wq-kbd">/</kbd>
+    </div>
+</div>
+
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
-    <li class="active"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
-    <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
-    <li><a data-toggle="tab" href="#clients"><i class="fa fa-ban text-danger"></i> {{ lang._('Client & Service Blocks') }}</a></li>
-    <li><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
-    <li><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
-    <li><a data-toggle="tab" href="#apps">{{ lang._('Apps') }}</a></li>
-    <li><a data-toggle="tab" href="#limits">{{ lang._('Limits') }}</a></li>
-    <li><a data-toggle="tab" href="#sessions">{{ lang._('Live sessions') }}</a></li>
-    <li><a data-toggle="tab" href="#intelligence">{{ lang._('Intelligence') }}</a></li>
-    <li><a data-toggle="tab" href="#health">{{ lang._('Data health') }}</a></li>
-    <li><a data-toggle="tab" href="#settings">{{ lang._('Settings') }}</a></li>
+    <li class="active" data-pillar="analytics"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
+    <li data-pillar="analytics"><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
+    <li data-pillar="access"><a data-toggle="tab" href="#clients"><i class="fa fa-ban text-danger"></i> {{ lang._('Client & Service Blocks') }}</a></li>
+    <li data-pillar="analytics"><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
+    <li data-pillar="analytics"><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
+    <li data-pillar="analytics"><a data-toggle="tab" href="#apps">{{ lang._('Apps') }}</a></li>
+    <li data-pillar="access"><a data-toggle="tab" href="#limits">{{ lang._('Limits') }}</a></li>
+    <li data-pillar="live"><a data-toggle="tab" href="#sessions">{{ lang._('Live sessions') }}</a></li>
+    <li data-pillar="system"><a data-toggle="tab" href="#intelligence">{{ lang._('Intelligence') }}</a></li>
+    <li data-pillar="system"><a data-toggle="tab" href="#health">{{ lang._('Data health') }}</a></li>
+    <li data-pillar="system"><a data-toggle="tab" href="#settings">{{ lang._('Settings') }}</a></li>
 </ul>
 
 <div class="tab-content content-box tab-content">
@@ -689,7 +784,7 @@ function renderLiveThroughput(data) {
             continue;
         }
         html += '<div class="wq-live-card">'
-             +  '<div class="wq-live-name">' + esc(wan.name)
+             +  '<div class="wq-live-name"><span class="wq-pulse-dot"></span>' + esc(wan.name)
              +  ' <small class="wq-muted">' + esc(wan.interface) + '</small></div>'
              +  '<div class="wq-live-pair">'
              +  '<span class="wq-live-down" title="' + esc('Download') + '">&#9660; '
@@ -814,42 +909,88 @@ function quotaTotalCard(providers) {
     const remaining = total('remaining'), quota = total('quota'), used = total('used');
     const pct = quota ? Math.min(100, used / quota * 100) : 0;
     const color = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : '#3b82f6';
-    // Cycles that begin on different days cannot be added into one percentage
-    // without inventing a period none of them covers. What is left right now is
-    // true whenever each cycle started, so that is the headline.
+    const circ = 2 * Math.PI * 46;
+    const dashOffset = (circ * (1 - (pct / 100))).toFixed(2);
     const aligned = new Set(providers.map(p => p.start)).size === 1;
     const note = aligned
         ? '{{ lang._("All cycles cover the same period.") }}'
         : '{{ lang._("These cycles start on different days, so this is what is left right now rather than one shared period.") }}';
-    return `<div class="wq-card wq-total-card">
-        <div class="wq-muted">{{ lang._("All providers") }} · ${providers.length} {{ lang._("WANs") }}</div>
-        <h3>{{ lang._("Total remaining") }}</h3>
-        <div class="wq-metric">${gb(remaining)}</div>
-        <div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div>
-        <div class="wq-total-split">
-            <div class="wq-total-part">{{ lang._("Used") }}<b>${gb(used)}</b></div>
-            <div class="wq-total-part">{{ lang._("Combined allowance") }}<b>${gb(quota)}</b></div>
-            <div class="wq-total-part">{{ lang._("Of allowance") }}<b>${pct.toFixed(1)}%</b></div>
+    const badgeClass = pct >= 90 ? 'wq-status-badge-danger' : (pct >= 75 ? 'wq-status-badge-warning' : 'wq-status-badge-safe');
+    const badgeText = pct >= 90 ? 'Critical' : (pct >= 75 ? 'Watch' : 'On Track');
+
+    return `<div class="wq-card wq-total-card wq-quota-apple-card">
+        <div class="wq-card-head">
+            <div>
+                <div class="wq-muted">{{ lang._("All providers") }} · ${providers.length} {{ lang._("WANs active") }}</div>
+                <h3 style="margin:2px 0 0">{{ lang._("Combined Network Quota") }}</h3>
+            </div>
+            <span class="wq-status-badge ${badgeClass}"><i class="fa fa-circle"></i> ${badgeText} · ${pct.toFixed(1)}%</span>
         </div>
-        <div class="wq-muted" style="margin-top:9px">${note}</div>
+        <div class="wq-ring-layout">
+            <div class="wq-ring-container">
+                <svg class="wq-ring-svg" viewBox="0 0 110 110">
+                    <circle class="wq-ring-bg" cx="55" cy="55" r="46"></circle>
+                    <circle class="wq-ring-meter" cx="55" cy="55" r="46" style="stroke-dasharray:${circ.toFixed(2)};stroke-dashoffset:${dashOffset};stroke:${color}"></circle>
+                </svg>
+                <div class="wq-ring-content">
+                    <div class="wq-ring-pct">${pct.toFixed(0)}%</div>
+                    <div class="wq-ring-label">USED</div>
+                </div>
+            </div>
+            <div class="wq-ring-stats">
+                <div class="wq-metric-sm"><b>${gb(remaining)}</b> <span class="wq-muted" style="font-size:13px;font-weight:normal">remaining</span></div>
+                <div class="wq-total-split" style="margin-top:6px">
+                    <div class="wq-total-part">{{ lang._("Used") }}<b>${gb(used)}</b></div>
+                    <div class="wq-total-part">{{ lang._("Combined Allowance") }}<b>${gb(quota)}</b></div>
+                    <div class="wq-total-part">{{ lang._("Free") }}<b>${(100 - pct).toFixed(1)}%</b></div>
+                </div>
+                <div class="wq-muted" style="margin-top:8px">${note}</div>
+            </div>
+        </div>
+        <div class="wq-progress" style="margin-top:12px"><span style="width:${pct}%;background:${color}"></span></div>
     </div>`;
 }
 function quotaCards(data) {
     const providers = data.providers || [];
     return quotaTotalCard(providers) + providers.map((p, i) => {
         const pct = Math.min(100, Number(p.percent || 0));
-        const color = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : wqColors[i % wqColors.length];
-        return `<div class="wq-card">
-            <div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div>
+        const color = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : (i === 0 ? '#3b82f6' : '#10b981');
+        const circ = 2 * Math.PI * 46;
+        const dashOffset = (circ * (1 - (pct / 100))).toFixed(2);
+        const badgeClass = pct >= 90 ? 'wq-status-badge-danger' : (pct >= 75 ? 'wq-status-badge-warning' : 'wq-status-badge-safe');
+        const badgeText = pct >= 90 ? 'Critical' : (pct >= 75 ? 'Watch' : 'On Track');
+
+        return `<div class="wq-card wq-quota-apple-card">
             <div class="wq-card-head">
-                <h3><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3>
-                <button type="button" class="wq-kebab" data-slot="${esc(p.slot)}" aria-expanded="false"
-                        title="{{ lang._("Adjust allowance and remaining") }}">&#8942;</button>
+                <div>
+                    <div class="wq-muted">${esc(p.logical_interface)} → ${esc(p.interface)}</div>
+                    <h3 style="margin:2px 0 0"><a href="#" class="wq-drill" data-drill="provider" data-value='${esc(p.name)}' title="Show which devices use this WAN most">${esc(p.name)}</a></h3>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <span class="wq-status-badge ${badgeClass}"><i class="fa fa-circle"></i> ${badgeText}</span>
+                    <button type="button" class="wq-kebab" data-slot="${esc(p.slot)}" aria-expanded="false"
+                            title="{{ lang._("Adjust allowance and remaining") }}">&#8942;</button>
+                </div>
             </div>
-            <div class="wq-metric">${pct.toFixed(1)}%</div>
-            <div class="wq-progress"><span style="width:${pct}%;background:${color}"></span></div>
-            <div><b>${gb(p.remaining)}</b> remaining</div>
-            <div class="wq-muted">${esc(p.days_left)} days left · ${gb(p.daily_budget)}/day budget</div>
+            <div class="wq-ring-layout">
+                <div class="wq-ring-container">
+                    <svg class="wq-ring-svg" viewBox="0 0 110 110">
+                        <circle class="wq-ring-bg" cx="55" cy="55" r="46"></circle>
+                        <circle class="wq-ring-meter" cx="55" cy="55" r="46" style="stroke-dasharray:${circ.toFixed(2)};stroke-dashoffset:${dashOffset};stroke:${color}"></circle>
+                    </svg>
+                    <div class="wq-ring-content">
+                        <div class="wq-ring-pct">${pct.toFixed(0)}%</div>
+                        <div class="wq-ring-label">USED</div>
+                    </div>
+                </div>
+                <div class="wq-ring-stats">
+                    <div class="wq-metric-sm"><b>${gb(p.remaining)}</b> <span class="wq-muted" style="font-size:12px;font-weight:normal">left</span></div>
+                    <div class="wq-total-part" style="margin-top:2px">{{ lang._("Allowance") }}: <b>${gb(p.quota)}</b></div>
+                    <div class="wq-total-part">{{ lang._("Daily budget") }}: <b>${gb(p.daily_budget)}/day</b></div>
+                    <div class="wq-muted" style="margin-top:4px"><i class="fa fa-clock-o"></i> ${esc(p.days_left)} days left</div>
+                </div>
+            </div>
+            <div class="wq-progress" style="margin-top:10px"><span style="width:${pct}%;background:${color}"></span></div>
             ${quotaEditor(p)}
         </div>`;
     }).join('');
@@ -2299,6 +2440,23 @@ function renderServicesTab(services, blocks) {
     $('#metricAllowedServices').text(allowedCount);
     $('#metricBlockedServiceIPs').text(blockedIps);
 
+    // Update Hero PlayStation Curfew button state
+    const psBlocked = services.find(function(s) { return s.blocked && String(s.key).toLowerCase() === 'playstation'; });
+    if (psBlocked) {
+        $('#heroCurfewPlayStation').addClass('active').html('<i class="fa fa-pause-circle"></i> <span>PlayStation Blocked (' + formatRemainingTime(psBlocked.until) + ')</span>');
+    } else {
+        $('#heroCurfewPlayStation').removeClass('active').html('<i class="fa fa-gamepad"></i> <span>PlayStation Curfew</span>');
+    }
+
+    // Update Pillar block badge count
+    const clientBlockedCount = clientControlData && clientControlData.devices ? clientControlData.devices.filter(function(d) { return d.blocked; }).length : 0;
+    const totalBlockedCount = blockedCount + clientBlockedCount;
+    if (totalBlockedCount > 0) {
+        $('#wqPillarBlockCount').text(totalBlockedCount).show();
+    } else {
+        $('#wqPillarBlockCount').hide();
+    }
+
     // Active Blocked Services Section
     const activeBlocks = services.filter(function(s) { return s.blocked; });
     if (activeBlocks.length > 0) {
@@ -3406,9 +3564,50 @@ $(document).ready(function() {
     refreshIntelligence();
     refreshBalance();
     refreshClientsTab();
+
+    const PILLAR_MAP = {
+        'summary': 'analytics',
+        'consumers': 'analytics',
+        'daily': 'analytics',
+        'monthly': 'analytics',
+        'apps': 'analytics',
+        'clients': 'access',
+        'limits': 'access',
+        'sessions': 'live',
+        'intelligence': 'system',
+        'health': 'system',
+        'settings': 'system'
+    };
+
+    function setPillar(pillar, targetHash) {
+        $('.wq-pillar-btn').removeClass('active');
+        $('.wq-pillar-btn[data-pillar="' + pillar + '"]').addClass('active');
+
+        $('#maintabs li').each(function() {
+            const p = $(this).data('pillar') || PILLAR_MAP[($(this).find('a').attr('href') || '').replace('#', '')];
+            $(this).toggleClass('wq-subtab-hidden', p !== pillar);
+        });
+
+        if (targetHash) {
+            $('a[href="' + targetHash + '"]').tab('show');
+        } else {
+            const currentActiveInPillar = $('#maintabs li.active:not(.wq-subtab-hidden) a');
+            if (!currentActiveInPillar.length) {
+                const firstVisible = $('#maintabs li:not(.wq-subtab-hidden) a').first();
+                if (firstVisible.length) firstVisible.tab('show');
+            }
+        }
+    }
+
+    $('#wqPillarNav').on('click', '.wq-pillar-btn', function() {
+        const pillar = $(this).data('pillar');
+        setPillar(pillar);
+    });
+
     if (window.location.hash) {
         drillFromHash();
     }
+
     $('#maintabs a').on('shown.bs.tab', function(event) {
         if (activeDrill && '#' + (activeDrill.pane
                 || DRILL_VIEWS[activeDrill.kind].pane) !== event.target.hash) {
@@ -3417,6 +3616,100 @@ $(document).ready(function() {
         history.replaceState(null, '', event.target.hash);
         const pane = $(event.target.hash);
         pane.find('canvas').each(function() { if (wqCharts[this.id]) wqCharts[this.id].resize(); });
+
+        const hash = (event.target.hash || '').replace('#', '');
+        const pillar = PILLAR_MAP[hash];
+        if (pillar && !$('.wq-pillar-btn[data-pillar="' + pillar + '"]').hasClass('active')) {
+            $('.wq-pillar-btn').removeClass('active');
+            $('.wq-pillar-btn[data-pillar="' + pillar + '"]').addClass('active');
+            $('#maintabs li').each(function() {
+                const p = $(this).data('pillar') || PILLAR_MAP[($(this).find('a').attr('href') || '').replace('#', '')];
+                $(this).toggleClass('wq-subtab-hidden', p !== pillar);
+            });
+        }
+    });
+
+    // Initialize pillar from current hash or default to analytics
+    const initialHash = (window.location.hash || '#summary').split('/')[0].replace('#', '');
+    const initialPillar = PILLAR_MAP[initialHash] || 'analytics';
+    setPillar(initialPillar, '#' + initialHash);
+
+    // Universal Date Range Controls
+    $('#wqUniversalRange').on('click', 'button[data-range]', function() {
+        $('#wqUniversalRange button').removeClass('active');
+        $(this).addClass('active');
+        $('#wqCustomDateWrap').hide();
+        const range = $(this).data('range');
+        if ($('#consumerPeriod').val() !== range) {
+            $('#consumerPeriod').val(range).trigger('change');
+        }
+    });
+
+    $('#wqBtnCustomDate').on('click', function() {
+        $('#wqUniversalRange button').removeClass('active');
+        $(this).addClass('active');
+        $('#wqCustomDateWrap').show();
+        if (!$('#wqUniversalDate').val()) {
+            const d = new Date();
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            $('#wqUniversalDate').val(yyyy + '-' + mm + '-' + dd);
+        }
+        $('#wqUniversalDate').trigger('focus');
+    });
+
+    $('#wqApplyDate').on('click', function() {
+        const val = $('#wqUniversalDate').val();
+        if (!val) return;
+        setPillar('analytics', '#daily');
+        drillTo('date', val);
+    });
+
+    // Omni-Search: Instant table filtering across all active tables
+    $('#wqGlobalSearch').on('input', function() {
+        const q = String($(this).val() || '').toLowerCase().trim();
+        const activePane = $('.tab-content > .tab-pane.active');
+        activePane.find('table tbody tr').each(function() {
+            const tr = $(this);
+            if (tr.hasClass('wq-tfilter-row') || tr.hasClass('wq-tnorows')) return;
+            const text = tr.text().toLowerCase();
+            tr.toggle(!q || text.includes(q));
+        });
+    });
+
+    $(document).on('keydown', function(e) {
+        if (e.key === '/' && !$(e.target).is('input, textarea, select')) {
+            e.preventDefault();
+            $('#wqGlobalSearch').trigger('focus').select();
+        } else if (e.key === 'Escape' && $(e.target).is('#wqGlobalSearch')) {
+            $('#wqGlobalSearch').val('').trigger('input').blur();
+        }
+    });
+
+    // Hero Quick Curfew Action for PlayStation
+    $('#heroCurfewPlayStation').on('click', function() {
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/get', {}, function(data) {
+            const blocks = data.service_blocks || [];
+            const isBlocked = blocks.some(function(b) { return String(b.service).toLowerCase() === 'playstation'; });
+            if (isBlocked) {
+                ajaxCall('/api/wanquota/device_policy/unblock_service', {service: 'playstation'}, function() {
+                    btn.prop('disabled', false).removeClass('active').html('<i class="fa fa-gamepad"></i> <span>PlayStation Curfew</span>');
+                    refreshClientsTab();
+                });
+            } else {
+                ajaxCall('/api/wanquota/device_policy/block_service', {service: 'playstation', duration: '2h', reason: 'One-touch gaming curfew'}, function() {
+                    btn.prop('disabled', false).addClass('active').html('<i class="fa fa-pause-circle"></i> <span>PlayStation Blocked (2h)</span>');
+                    refreshClientsTab();
+                });
+            }
+        });
+    });
+
+    $('#heroDataSaver').on('click', function() {
+        setPillar('access', '#limits');
     });
     $('#refreshConsumers,#consumerPeriod').on('click change', refreshConsumers);
     // Delegated: the consumer tables and drill panels are re-rendered on every
