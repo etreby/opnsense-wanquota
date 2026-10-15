@@ -223,6 +223,17 @@ class ConsumerReportTests(unittest.TestCase):
         mapping = CONSUMERS.domain_map()
         self.assertEqual(mapping.get("198.51.100.5"), "cdn.example")
 
+    def test_report_for_specific_date(self):
+        CONSUMERS.host_rrds = lambda network: [("192.168.1.10", "/fake/truenas")]
+        CONSUMERS.rrd_totals = lambda path, start, end=None: (100, 900)
+        self.set_flows([])
+        result = CONSUMERS.report("2026-10-14")
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["period"], "2026-10-14")
+        self.assertEqual(len(result["hosts"]), 1)
+        self.assertEqual(result["hosts"][0]["total"], 1000)
+
+
 
 class SummaryTests(unittest.TestCase):
     """report.summary() against a patched vnstat boundary."""

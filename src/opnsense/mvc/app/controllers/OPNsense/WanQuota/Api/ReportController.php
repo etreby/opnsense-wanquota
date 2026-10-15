@@ -92,6 +92,20 @@ class ReportController extends ApiControllerBase
         return $this->runReport('consumers month');
     }
 
+    public function consumersDateAction(): array
+    {
+        $rawDate = (string)$this->request->get('date', '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $rawDate)) {
+            return ['status' => 'failed', 'error' => 'A valid date (YYYY-MM-DD) is required'];
+        }
+        return $this->runReport('consumers date ' . escapeshellarg($rawDate));
+    }
+
+    public function consumers_dateAction(): array
+    {
+        return $this->consumersDateAction();
+    }
+
     public function intelligenceTodayAction(): array
     {
         return $this->runReport('intelligence today');

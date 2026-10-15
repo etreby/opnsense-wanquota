@@ -18,6 +18,7 @@ class ConsumerHelpersTests(unittest.TestCase):
         self.assertEqual(CONSUMERS.period_start("week"), today - dt.timedelta(days=6))
         self.assertEqual(CONSUMERS.period_start("thirty"), today - dt.timedelta(days=29))
         self.assertEqual(CONSUMERS.period_start("month"), today.replace(day=1))
+        self.assertEqual(CONSUMERS.period_start("2026-10-14"), dt.date(2026, 10, 14))
 
     def test_domain_normalization(self):
         self.assertEqual(CONSUMERS.normalize_domain("Example.COM."), "example.com")

@@ -212,7 +212,9 @@ def period_start(period):
         return today - dt.timedelta(days=29)
     if period == "month":
         return today.replace(day=1)
-    raise ValueError("unsupported reporting period")
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", str(period)):
+        return dt.date.fromisoformat(str(period))
+    raise ValueError(f"unsupported reporting period: {period}")
 
 
 def is_local(value, network):
@@ -230,13 +232,19 @@ def flow_database():
     return (preferred or sorted(candidates))[0]
 
 
-def flow_rows(start):
+def flow_rows(start, end=None):
     flow_db = flow_database()
     if flow_db is None:
         raise RuntimeError("Insight daily flow database is unavailable")
     connection = sqlite3.connect(f"file:{flow_db}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
+        if end:
+            return connection.execute(
+                "SELECT mtime,if,direction,src_addr,dst_addr,octets,protocol,service_port "
+                "FROM timeserie WHERE date(mtime) >= date(?) AND date(mtime) <= date(?)",
+                (start.isoformat(), end.isoformat()),
+            ).fetchall()
         return connection.execute(
             "SELECT mtime,if,direction,src_addr,dst_addr,octets,protocol,service_port "
             "FROM timeserie WHERE date(mtime) >= date(?)",
@@ -274,9 +282,9 @@ def host_rrds(network):
                 yield address, os.path.join(directory, "bytes.rrd")
 
 
-def rrd_totals(path, start):
+def rrd_totals(path, start, end=None):
     start_epoch = int(dt.datetime.combine(start, dt.time.min).astimezone().timestamp())
-    end_epoch = int(dt.datetime.now().timestamp())
+    end_epoch = int(dt.datetime.combine(end, dt.time.max).astimezone().timestamp()) if end else int(dt.datetime.now().timestamp())
     output = subprocess.check_output(
         ["/usr/local/bin/rrdtool", "fetch", path, "AVERAGE", "--start", str(start_epoch), "--end", str(end_epoch)],
         text=True,
@@ -456,14 +464,22 @@ def report(period):
     names = {address: entry["name"] for address, entry in ident.items()}
     for address, name in static_names.items():
         names.setdefault(address, name)
+    is_date = bool(re.match(r"^\d{4}-\d{2}-\d{2}$", str(period)))
     start = period_start(period)
+    end = start if is_date else None
     hosts = []
     external_flows = []
     provider_flows = []
     for address, path in host_rrds(settings["network"]):
         if address == settings["router"]:
             continue
-        upload, download = rrd_totals(path, start)
+        if end is not None:
+            try:
+                upload, download = rrd_totals(path, start, end)
+            except TypeError:
+                upload, download = rrd_totals(path, start)
+        else:
+            upload, download = rrd_totals(path, start)
         total = upload + download
         if total > 0:
             entry = ident.get(address, {})
@@ -478,7 +494,14 @@ def report(period):
     flow_error = None
     if settings["domain_enabled"]:
         try:
-            rows = flow_rows(start)
+            if end is not None:
+                try:
+                    rows = flow_rows(start, end)
+                except TypeError:
+                    rows = flow_rows(start)
+            else:
+                rows = flow_rows(start)
+
         except (OSError, RuntimeError, sqlite3.Error) as error:
             rows = []
             flow_error = str(error)
@@ -556,8 +579,10 @@ def report(period):
     return {
         "status": "ok",
         "period": period,
+        "is_date": is_date,
+        "date": start.isoformat() if is_date else None,
         "start": start.isoformat(),
-        "end": dt.date.today().isoformat(),
+        "end": (start if is_date else dt.date.today()).isoformat(),
         "generated_at": dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "hosts": host_rows,
         "domains": domain_rows[: settings["top_limit"]],
@@ -588,6 +613,11 @@ def main():
         result = collect_dns()
     else:
         period = next((value for value in ("today", "week", "thirty", "month") if value in sys.argv), None)
+        if period is None:
+            for arg in sys.argv[1:]:
+                if re.match(r"^\d{4}-\d{2}-\d{2}$", arg):
+                    period = arg
+                    break
         if period is None:
             period = settings_and_names()[0]["default_period"]
         result = report(period)

@@ -139,7 +139,13 @@
             <div id="clientListTable"></div>
         </div>
     </div></div>
-    <div id="daily" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div><div id="dailyReport" class="wq-section wq-table-wrap"></div></div></div>
+    <div id="daily" class="tab-pane fade"><div style="padding:16px">
+        <div class="wq-detail" id="dailyDetail" style="display:none"></div>
+        <div class="wq-overview" id="dailyOverview">
+            <div class="wq-card"><h3>{{ lang._('Daily traffic trend') }}</h3><div class="wq-chart"><canvas id="dailyChart"></canvas></div></div>
+            <div id="dailyReport" class="wq-section wq-table-wrap"></div>
+        </div>
+    </div></div>
     <div id="monthly" class="tab-pane fade"><div style="padding:16px"><div class="wq-card"><h3>{{ lang._('Monthly traffic trend') }}</h3><div class="wq-chart"><canvas id="monthlyChart"></canvas></div></div><div id="monthlyReport" class="wq-section wq-table-wrap"></div></div></div>
     <div id="apps" class="tab-pane fade"><div style="padding:16px">
         <div class="wq-detail" id="appsDetail" style="display:none"></div>
@@ -614,7 +620,13 @@ function historyTable(data) {
     let html = '';
     for (const provider of data.providers) {
         html += '<h3>' + esc(provider.name) + '</h3><table class="table table-condensed table-striped"><thead><tr><th>{{ lang._('Date') }}</th><th>{{ lang._('Download') }}</th><th>{{ lang._('Upload') }}</th><th>{{ lang._('Total') }}</th></tr></thead><tbody>';
-        for (const row of provider.rows) html += `<tr><td>${row.date}</td><td>${gb(row.rx)}</td><td>${gb(row.tx)}</td><td>${gb(row.total)}</td></tr>`;
+        for (const row of provider.rows) {
+            const isDate = /^\d{4}-\d{2}-\d{2}$/.test(String(row.date));
+            const dateCell = isDate
+                ? `<a href="#" class="wq-drill" data-drill="date" data-value="${esc(row.date)}" title="{{ lang._('Click to inspect consumers and sites on this date') }}"><b><i class="fa fa-calendar-check-o text-primary"></i> ${esc(row.date)}</b></a>`
+                : esc(row.date);
+            html += `<tr><td>${dateCell}</td><td>${gb(row.rx)}</td><td>${gb(row.tx)}</td><td><b>${gb(row.total)}</b></td></tr>`;
+        }
         html += '</tbody></table>';
     }
     return html;
@@ -2449,6 +2461,150 @@ function providerDrill(name, container) {
          +  '</p>';
     $(container || '#consumersDetail').html(html);
 }
+function renderDateDetail(date, container) {
+    const el = $(container || '#dailyDetail');
+    el.html(drillBackBar('date') + '<div class="alert alert-info"><i class="fa fa-spinner fa-spin"></i> '
+        + esc('{{ lang._("Loading traffic details for") }}') + ' ' + esc(date) + '...</div>');
+
+    ajaxCall('/api/wanquota/report/consumers_date?date=' + encodeURIComponent(date), {}, function(data) {
+        if (!data || data.status === 'failed') {
+            el.html(drillBackBar('date') + '<div class="alert alert-danger">'
+                + esc(data?.error || '{{ lang._("Failed to load consumers for date") }}') + '</div>');
+            return;
+        }
+
+        const totalExternal = data.domain_attribution?.total_external_bytes || 0;
+        const totalAttributed = data.domain_attribution?.attributed_bytes || 0;
+        const coveragePct = data.domain_attribution?.coverage_percent || 0;
+        const hosts = data.hosts || [];
+        const domains = data.domains || [];
+        const deviceDomains = data.device_domains || [];
+        const providers = data.providers || [];
+
+        const hostTotal = hosts.reduce((sum, h) => sum + (h.total || 0), 0);
+        const hostDown = hosts.reduce((sum, h) => sum + (h.download || 0), 0);
+        const hostUp = hosts.reduce((sum, h) => sum + (h.upload || 0), 0);
+
+        let html = drillBackBar('date');
+        html += drillHeader(date, '{{ lang._("Daily Bandwidth Breakdown") }}',
+            gb(hostTotal || totalExternal),
+            (hostDown ? gb(hostDown) + ' down · ' + gb(hostUp) + ' up' : 'flow volume: ' + gb(totalExternal)));
+
+        html += '<div class="row" style="margin-bottom:18px">'
+             +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
+             +  '<div class="wq-muted">{{ lang._("Total Daily Traffic") }}</div>'
+             +  '<div class="wq-metric text-primary">' + gb(hostTotal || totalExternal) + '</div>'
+             +  '<div class="wq-muted">' + (hostTotal ? gb(hostDown) + ' {{ lang._("down") }} · ' + gb(hostUp) + ' {{ lang._("up") }}' : 'External flows') + '</div>'
+             +  '</div></div>'
+             +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
+             +  '<div class="wq-muted">{{ lang._("Active Client Devices") }}</div>'
+             +  '<div class="wq-metric">' + hosts.length + '</div>'
+             +  '<div class="wq-muted">{{ lang._("LAN devices active on this date") }}</div>'
+             +  '</div></div>'
+             +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
+             +  '<div class="wq-muted">{{ lang._("Attributed Domains") }}</div>'
+             +  '<div class="wq-metric">' + domains.length + '</div>'
+             +  '<div class="wq-muted">' + gb(totalAttributed) + ' {{ lang._("attributed") }}</div>'
+             +  '</div></div>'
+             +  '<div class="col-md-3 col-sm-6"><div class="wq-card" style="margin-bottom:10px">'
+             +  '<div class="wq-muted">{{ lang._("DNS Attribution Coverage") }}</div>'
+             +  '<div class="wq-metric ' + (coveragePct >= 70 ? 'text-success' : 'text-warning') + '">' + coveragePct.toFixed(1) + '%</div>'
+             +  '<div class="wq-muted">' + gb(totalExternal) + ' {{ lang._("external flows") }}</div>'
+             +  '</div></div>'
+             +  '</div>';
+
+        if (providers.length) {
+            html += '<div class="wq-card" style="margin-bottom:18px"><h3><i class="fa fa-exchange text-info"></i> {{ lang._("WAN Providers on this Date") }}</h3>'
+                 +  '<table class="table table-condensed table-striped"><thead><tr>'
+                 +  '<th>{{ lang._("WAN Provider") }}</th><th>{{ lang._("Interface") }}</th>'
+                 +  '<th>{{ lang._("Attributed Traffic") }}</th><th>{{ lang._("Top Active Devices") }}</th>'
+                 +  '</tr></thead><tbody>';
+            for (const p of providers) {
+                const devSummary = (p.devices || []).slice(0, 4).map(d =>
+                    `<a href="#" class="wq-drill" data-drill="device" data-value="${esc(d.ip)}">${esc(d.name || d.ip)}</a> (${gb(d.total)})`
+                ).join(', ') || '—';
+                html += `<tr><td><b>${esc(p.name)}</b></td><td><code>${esc(p.logical_interface)}</code> → <code>${esc(p.interface)}</code></td><td><b>${gb(p.total)}</b></td><td>${devSummary}</td></tr>`;
+            }
+            html += '</tbody></table></div>';
+        }
+
+        html += '<div class="row"><div class="col-md-6">'
+             +  '<div class="wq-card" style="margin-bottom:18px">'
+             +  '<h3><i class="fa fa-laptop text-primary"></i> {{ lang._("Top Devices on this Date") }}</h3>';
+        if (!hosts.length) {
+            html += '<div class="alert alert-info">{{ lang._("No client traffic recorded by ntopng for this date.") }}</div>';
+        } else {
+            const topHost = hosts[0]?.total || 1;
+            html += '<table class="table table-condensed table-striped"><thead><tr>'
+                 +  '<th>#</th><th>{{ lang._("Device") }}</th>'
+                 +  '<th style="width:28%">{{ lang._("Share") }}</th>'
+                 +  '<th>{{ lang._("Down / Up") }}</th><th>{{ lang._("Total") }}</th>'
+                 +  '</tr></thead><tbody>';
+            hosts.forEach((h, idx) => {
+                const share = (h.total || 0) / (hostTotal || topHost);
+                html += `<tr>`
+                     +  `<td>${idx + 1}</td>`
+                     +  `<td><a href="#" class="wq-drill" data-drill="device" data-value="${esc(h.ip)}" title="{{ lang._("Inspect live sessions for this device") }}"><b>${esc(h.name || h.ip)}</b></a><br><small class="wq-muted">${esc(h.ip)}</small></td>`
+                     +  `<td>${shareBar(share, '#3b82f6')}<small class="wq-muted">${(share * 100).toFixed(1)}%</small></td>`
+                     +  `<td><small>${gb(h.download)} ↓<br>${gb(h.upload)} ↑</small></td>`
+                     +  `<td><b>${gb(h.total)}</b></td>`
+                     +  `</tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        html += '</div></div>';
+
+        html += '<div class="col-md-6">'
+             +  '<div class="wq-card" style="margin-bottom:18px">'
+             +  '<h3><i class="fa fa-globe text-info"></i> {{ lang._("Top Attributed Sites / Domains") }}</h3>';
+        if (!domains.length) {
+            html += '<div class="alert alert-info">{{ lang._("No domain traffic was attributed from DNS flows on this date.") }}</div>';
+        } else {
+            const topDom = domains[0]?.total || 1;
+            html += '<table class="table table-condensed table-striped"><thead><tr>'
+                 +  '<th>#</th><th>{{ lang._("Domain") }}</th>'
+                 +  '<th style="width:28%">{{ lang._("Share") }}</th>'
+                 +  '<th>{{ lang._("IPs") }}</th><th>{{ lang._("Total") }}</th>'
+                 +  '</tr></thead><tbody>';
+            domains.forEach((d, idx) => {
+                const share = (d.total || 0) / topDom;
+                html += `<tr>`
+                     +  `<td>${idx + 1}</td>`
+                     +  `<td><a href="#" class="wq-drill" data-drill="domain" data-value="${esc(d.domain)}" title="{{ lang._("Show devices using this site") }}"><b>${esc(d.domain)}</b></a></td>`
+                     +  `<td>${shareBar(share, '#8b5cf6')}<small class="wq-muted">${(share * 100).toFixed(1)}%</small></td>`
+                     +  `<td>${d.ip_count || 1}</td>`
+                     +  `<td><b>${gb(d.total)}</b></td>`
+                     +  `</tr>`;
+            });
+            html += '</tbody></table>';
+        }
+        html += '</div></div></div>';
+
+        if (deviceDomains.length) {
+            html += '<div class="wq-card" style="margin-bottom:18px">'
+                 +  '<div class="wq-section-title"><h3 style="margin:0"><i class="fa fa-table text-primary"></i> {{ lang._("Device-to-Site Activity on this Date") }}</h3>'
+                 +  '<small class="wq-muted">' + deviceDomains.length + ' {{ lang._("attributed flows recorded") }}</small></div>'
+                 +  '<table class="table table-condensed table-striped"><thead><tr>'
+                 +  '<th>{{ lang._("Device") }}</th><th>{{ lang._("Domain / Service") }}</th>'
+                 +  '<th>{{ lang._("Attributed Total") }}</th>'
+                 +  '</tr></thead><tbody>';
+            for (const row of deviceDomains.slice(0, 50)) {
+                html += `<tr>`
+                     +  `<td><a href="#" class="wq-drill" data-drill="device" data-value="${esc(row.device)}"><b>${esc(row.name)}</b></a> <small class="wq-muted">(${esc(row.device)})</small></td>`
+                     +  `<td><a href="#" class="wq-drill" data-drill="domain" data-value="${esc(row.domain)}">${esc(row.domain)}</a></td>`
+                     +  `<td><b>${gb(row.total)}</b></td>`
+                     +  `</tr>`;
+            }
+            html += '</tbody></table>';
+            if (deviceDomains.length > 50) {
+                html += '<small class="wq-muted">{{ lang._("Showing top 50 flows for this date.") }}</small>';
+            }
+            html += '</div>';
+        }
+
+        el.html(html);
+    });
+}
 /*
  * One drill-down mechanism for the whole page.
  *
@@ -2462,6 +2618,7 @@ function providerDrill(name, container) {
  * out and the browser's takes the reader off the page entirely.
  */
 const DRILL_VIEWS = {
+    date: {pane: 'daily', title: '{{ lang._("Daily Breakdown") }}'},
     device: {pane: 'sessions', title: '{{ lang._("Device — live sessions") }}'},
     host: {pane: 'consumers', title: '{{ lang._("Device") }}'},
     domain: {pane: 'consumers', title: '{{ lang._("Site") }}'},
@@ -2471,10 +2628,10 @@ const DRILL_VIEWS = {
 };
 const PANE_DETAIL = {sessions: '#sessionDetail', consumers: '#consumersDetail',
                      apps: '#appsDetail', intelligence: '#intelligenceDetail',
-                     summary: '#summaryDetail'};
+                     summary: '#summaryDetail', daily: '#dailyDetail'};
 const PANE_OVERVIEW = {sessions: '#sessionOverview', consumers: '#consumersOverview',
                        apps: '#appsOverview', intelligence: '#intelligenceOverview',
-                       summary: '#summaryOverview'};
+                       summary: '#summaryOverview', daily: '#dailyOverview'};
 let activeDrill = null;
 /* Set while the hash is being written, so reacting to our own change does not loop. */
 let drillHashLock = false;
@@ -2545,7 +2702,9 @@ function openConsumerDrill(kind, value) {
     });
 }
 function openDrillByKind(kind, value) {
-    if (kind === 'host' || kind === 'domain') {
+    if (kind === 'date') {
+        openDrill('date', value, renderDateDetail, 'daily');
+    } else if (kind === 'host' || kind === 'domain') {
         openConsumerDrill(kind, value);
     } else if (kind === 'device') {
         openDrill('device', value, renderDeviceDetail);
@@ -2572,6 +2731,7 @@ function drillFromHash() {
     }
 }
 function drillTo(kind, value) {
+    if (kind === 'date') { openDrill('date', value, renderDateDetail, 'daily'); return; }
     if (kind === 'provider') { openProvider(value); return; }
     if (kind === 'provider-close') { closeDrill(); return; }
     /*
@@ -2862,6 +3022,25 @@ $(document).ready(function() {
     $('#consumers').on('click', 'a.wq-drill', function(event) {
         event.preventDefault();
         drillTo($(this).data('drill'), $(this).data('value'));
+    });
+    $('#daily').on('click', 'a.wq-drill', function(event) {
+        event.preventDefault();
+        const kind = $(this).data('drill'), value = $(this).data('value');
+        if (kind === 'date') {
+            drillTo(kind, value);
+            return;
+        }
+        if (kind === 'device') {
+            $('a[href="#sessions"]').tab('show');
+            openDrillByKind('device', value);
+            return;
+        }
+        if (kind === 'domain') {
+            $('a[href="#consumers"]').tab('show');
+            openDrillByKind('domain', value);
+            return;
+        }
+        drillTo(kind, value);
     });
     showWizardStep(0);
     // Bound on the container, which survives every re-render of the cards inside it.
