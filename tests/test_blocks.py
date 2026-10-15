@@ -239,6 +239,11 @@ class ServiceBlockTests(unittest.TestCase):
             "label": "Xbox",
             "suffixes": ("xboxlive.com", "xbox.com"),
         },
+        "youtube": {
+            "label": "YouTube",
+            "suffixes": ("googlevideo.com", "youtube.com"),
+            "co_delivery": ("gvt1.com",),
+        },
     }
 
     def test_playstation_service_is_blocked(self):
@@ -286,10 +291,54 @@ class ServiceBlockTests(unittest.TestCase):
         replace_call = [c for c in calls if "replace" in c][0]
         self.assertEqual(replace_call[2], BLOCKS.SERVICE_TABLE)
         self.assertIn("198.51.100.10", replace_call)
-        # 198.51.100.10 was newly added, so its states were killed
+        # 198.51.100.10 was newly added, so its states were killed using wildcard source for destination killing
         kill_call = [c for c in calls if "-k" in c]
         self.assertEqual(len(kill_call), 1)
-        self.assertIn("198.51.100.10", kill_call[0])
+        self.assertEqual(kill_call[0], [BLOCKS.PFCTL, "-k", "0.0.0.0/0", "-k", "198.51.100.10"])
+
+    def test_service_destination_state_killing_ipv6(self):
+        calls = []
+
+        def runner(args):
+            calls.append(args)
+            return TableTests.Result(0, "")
+
+        ok, error, detail, killed = BLOCKS.apply_table(
+            ["2001:db8::10"], table=BLOCKS.SERVICE_TABLE, runner=runner)
+        self.assertTrue(ok)
+        kill_call = [c for c in calls if "-k" in c]
+        self.assertEqual(len(kill_call), 1)
+        self.assertEqual(kill_call[0], [BLOCKS.PFCTL, "-k", "::/0", "-k", "2001:db8::10"])
+
+    def test_service_shared_addresses_with_unrelated_services_are_excluded(self):
+        """An address that also serves unrelated services (e.g. Google Search) is excluded."""
+        # 198.51.100.1 is shared between youtube and google.com (search)
+        # 198.51.100.2 is exclusive to googlevideo.com
+        mappings = [
+            ("youtube.com", "198.51.100.1"),
+            ("google.com", "198.51.100.1"),
+            ("rr1.sn.googlevideo.com", "198.51.100.2"),
+        ]
+        chosen, skipped, expired, addrs = BLOCKS.service_members(
+            [{"service": "youtube"}],
+            catalog=self.CATALOG, mappings=mappings, now=NOW)
+        self.assertEqual(len(chosen), 1)
+        # Exclusive address is kept
+        self.assertIn("198.51.100.2", addrs)
+        # Shared address with google.com is strictly excluded to prevent collateral browsing damage
+        self.assertNotIn("198.51.100.1", addrs)
+
+    def test_service_co_delivery_domains_are_permitted_and_not_treated_as_strangers(self):
+        """A co-delivery domain (e.g. gvt1.com for YouTube) is permitted and not excluded as a stranger."""
+        mappings = [
+            ("rr.googlevideo.com", "198.51.100.2"),
+            ("rr.gvt1.com", "198.51.100.2"),
+        ]
+        chosen, skipped, expired, addrs = BLOCKS.service_members(
+            [{"service": "youtube"}],
+            catalog=self.CATALOG, mappings=mappings, now=NOW)
+        self.assertEqual(len(chosen), 1)
+        self.assertIn("198.51.100.2", addrs)
 
 
 if __name__ == "__main__":

@@ -191,6 +191,25 @@ def members(blocks, known, policies, groups, router, now=None,
     return chosen, skipped, expired
 
 
+def foreign_strangers(suffixes, mappings, co_delivery=()):
+    """address -> stranger names on it that do not belong to this service or its co-delivery domains."""
+    wanted = [s.strip().lower().rstrip(".") for s in suffixes if s and s.strip()]
+    friendly = {d.strip().lower().rstrip(".") for d in (co_delivery or ()) if d and d.strip()}
+
+    def belongs(name):
+        return any(name == suffix or name.endswith("." + suffix) for suffix in wanted)
+
+    def rides_along(name):
+        return any(name == domain or name.endswith("." + domain) for domain in friendly)
+
+    per_address = {}
+    for domain, address in mappings or ():
+        name = (domain or "").strip().lower().rstrip(".")
+        if not belongs(name) and not rides_along(name):
+            per_address.setdefault(address, set()).add(shaper.registrable(name))
+    return per_address
+
+
 def service_members(blocks, catalog=None, mappings=None, now=None, resolver=None):
     """Services to block and their destination IP addresses.
 
@@ -229,31 +248,58 @@ def service_members(blocks, catalog=None, mappings=None, now=None, resolver=None
         info = cat[service_key]
         label = info.get("label", service_key)
         suffixes = list(info.get("suffixes") or ())
+        co_delivery = list(info.get("co_delivery") or ())
+
+        maps = mappings
+        if maps is None and os.path.exists(consumers.DOMAIN_DB):
+            try:
+                maps = shaper.load_mappings()
+            except Exception:
+                maps = []
 
         svc_addrs = set()
-        try:
-            rows = service_addresses.addresses_for(service_key, now=now)
-            for r in rows:
-                if r.get("address"):
-                    svc_addrs.add(r["address"])
-        except Exception:
-            pass
+        shared_addrs = set()
+        known_strangers = {}
 
-        if mappings is not None or os.path.exists(consumers.DOMAIN_DB):
+        if maps is not None:
+            # Use shaper.service_addresses to identify exclusive addresses vs shared with strangers
             try:
-                maps = mappings if mappings is not None else shaper.load_mappings()
-                obs = service_addresses.observed_for(suffixes, maps)
-                for h_addrs in obs.values():
-                    svc_addrs.update(h_addrs)
+                exclusive, shared, incidental = shaper.service_addresses(
+                    suffixes, maps, co_delivery=co_delivery)
+                svc_addrs.update(exclusive)
+                shared_addrs.update(shared.keys())
+                known_strangers = foreign_strangers(suffixes, maps, co_delivery=co_delivery)
             except Exception:
                 pass
 
+        # Fold in stored addresses from SQLite address book, scrubbing against shared strangers
+        try:
+            rows = service_addresses.addresses_for(service_key, now=now)
+            for r in rows:
+                candidate = r.get("address")
+                if not candidate:
+                    continue
+                if candidate in shared_addrs or candidate in known_strangers:
+                    shared_addrs.add(candidate)
+                    continue
+                svc_addrs.add(candidate)
+        except Exception:
+            pass
+
+        # Fold in resolved addresses from hostnames, scrubbing against shared strangers
         try:
             resolved = service_addresses.resolve_hostnames(suffixes, resolver)
             for h_addrs in resolved.values():
-                svc_addrs.update(h_addrs)
+                for candidate in h_addrs:
+                    if candidate in shared_addrs or candidate in known_strangers:
+                        shared_addrs.add(candidate)
+                        continue
+                    svc_addrs.add(candidate)
         except Exception:
             pass
+
+        # Exclude any addresses shared with unrelated services
+        svc_addrs -= shared_addrs
 
         valid_addrs = set()
         for a in svc_addrs:
@@ -275,6 +321,31 @@ def service_members(blocks, catalog=None, mappings=None, now=None, resolver=None
     return chosen, skipped, expired, sorted(all_addrs)
 
 
+def kill_destination_states(addresses, runner=None):
+    """Drop connections newly blocked destination IPs already have open.
+
+    In FreeBSD pfctl:
+      pfctl -k <source> -k <destination>
+    If only one host is specified (-k host), pfctl matches on source address.
+    Because service blocks drop traffic *to* a destination, calling -k <destination>
+    kills nothing (the internal client is the source, not the service).
+    Passing a wildcard source (-k 0.0.0.0/0 for IPv4, -k ::/0 for IPv6) ensures
+    outbound client states to that destination are terminated immediately.
+    """
+    run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
+    killed = []
+    for address in sorted(addresses):
+        try:
+            ip = ipaddress.ip_address(address)
+            wildcard = "::/0" if ip.version == 6 else "0.0.0.0/0"
+            result = run([PFCTL, "-k", wildcard, "-k", address])
+            killed.append({"destination": address,
+                           "ok": getattr(result, "returncode", 1) == 0})
+        except Exception as error:
+            killed.append({"destination": address, "ok": False, "error": str(error)})
+    return killed
+
+
 def apply_table(addresses, table=TABLE, runner=None):
     """Replace the table contents atomically.
 
@@ -293,7 +364,11 @@ def apply_table(addresses, table=TABLE, runner=None):
         # The whole difference between a block that works and one that only looks like
         # it works. pf checks its state table before its rules, so a device or service
         # holding an established connection keeps using it.
-        killed = budget.kill_states(set(wanted) - before, runner=run)
+        newly_added = set(wanted) - before
+        if table == SERVICE_TABLE:
+            killed = kill_destination_states(newly_added, runner=run)
+        else:
+            killed = budget.kill_states(newly_added, runner=run)
     return ok, ("" if ok else message), message, killed
 
 
