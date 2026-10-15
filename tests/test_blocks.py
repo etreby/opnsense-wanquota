@@ -229,5 +229,68 @@ class StateKillTests(unittest.TestCase):
         self.assertEqual([c for c in calls if "-k" in c], [])
 
 
+class ServiceBlockTests(unittest.TestCase):
+    CATALOG = {
+        "playstation": {
+            "label": "PlayStation",
+            "suffixes": ("playstation.net", "playstation.com", "gaikai.com"),
+        },
+        "xbox": {
+            "label": "Xbox",
+            "suffixes": ("xboxlive.com", "xbox.com"),
+        },
+    }
+
+    def test_playstation_service_is_blocked(self):
+        resolver = lambda name: ["198.51.100.10"] if "playstation" in name else []
+        chosen, skipped, expired, addrs = BLOCKS.service_members(
+            [{"service": "playstation", "reason": "Parental control"}],
+            catalog=self.CATALOG, mappings=[], now=NOW, resolver=resolver)
+        self.assertEqual(len(chosen), 1)
+        self.assertEqual(chosen[0]["service"], "playstation")
+        self.assertEqual(chosen[0]["label"], "PlayStation")
+        self.assertEqual(chosen[0]["reason"], "Parental control")
+        self.assertEqual(skipped, [])
+        self.assertEqual(expired, [])
+        self.assertIn("198.51.100.10", addrs)
+
+    def test_unknown_service_is_skipped(self):
+        chosen, skipped, expired, addrs = BLOCKS.service_members(
+            [{"service": "unknown_app"}],
+            catalog=self.CATALOG, mappings=[], now=NOW)
+        self.assertEqual(chosen, [])
+        self.assertEqual(len(skipped), 1)
+        self.assertIn("unknown service", skipped[0]["reason"])
+
+    def test_expired_service_is_reported_for_pruning(self):
+        chosen, skipped, expired, addrs = BLOCKS.service_members(
+            [{"service": "playstation", "until": NOW - 100}],
+            catalog=self.CATALOG, mappings=[], now=NOW)
+        self.assertEqual(chosen, [])
+        self.assertEqual(skipped, [])
+        self.assertEqual(len(expired), 1)
+        self.assertEqual(expired[0]["service"], "playstation")
+
+    def test_service_table_replace_and_state_killing(self):
+        calls = []
+
+        def runner(args):
+            calls.append(args)
+            if "show" in args:
+                return TableTests.Result(0, "", stdout="198.51.100.5\n")
+            return TableTests.Result(0, "")
+
+        ok, error, detail, killed = BLOCKS.apply_table(
+            ["198.51.100.5", "198.51.100.10"], table=BLOCKS.SERVICE_TABLE, runner=runner)
+        self.assertTrue(ok)
+        replace_call = [c for c in calls if "replace" in c][0]
+        self.assertEqual(replace_call[2], BLOCKS.SERVICE_TABLE)
+        self.assertIn("198.51.100.10", replace_call)
+        # 198.51.100.10 was newly added, so its states were killed
+        kill_call = [c for c in calls if "-k" in c]
+        self.assertEqual(len(kill_call), 1)
+        self.assertIn("198.51.100.10", kill_call[0])
+
+
 if __name__ == "__main__":
     unittest.main()

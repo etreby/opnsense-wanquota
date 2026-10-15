@@ -46,6 +46,11 @@ quota reporting and top-consumer visibility.
   that blocks a device over its quota. Disabled and dry-run by default.
 - Blocking a named device from the internet outright, immediately or until a
   deadline, while its LAN traffic and the firewall's own DNS and NTP keep working.
+- Service & gaming blocks: 1-click blocking for PlayStation Network, Xbox Live, Steam,
+  Epic Games, YouTube, Netflix, TikTok, Twitch, and custom platforms, with timed deadlines
+  (1h, 2h, 6h, 12h, 24h, 7d, permanent) and instant active connection termination.
+- Interactive daily traffic drill-down: click any date in the Daily Trends table to open an
+  executive view of active client devices, attributed domains, gateway volume, and device-to-site activity matrix.
 - Renewal-aware WAN balancing: whichever provider has the most remaining allowance
   per day left before its billing cycle renews receives the largest share of new
   connections, so allowance is spent rather than lost. The firewall's guardrails
@@ -101,6 +106,145 @@ quota reporting and top-consumer visibility.
 The figures shown are real measurements from a running installation, not
 placeholders. They are rendered from the mockups in `docs/mockups/`, which is why
 they stay in step with the interface as tabs are added.
+
+## Installation & Quick Start
+
+### Prerequisites
+Before installing `os-wanquota`, ensure the following packages and services are configured on your OPNsense firewall:
+- **`os-vnstat`** (installed via **System → Firmware → Plugins**) - provides persistent physical WAN kernel byte accounting.
+- **`os-ntopng`** (optional, recommended) - provides per-host RRD traffic metrics for LAN consumer rankings.
+- **Unbound DNS** - enabled as the local recursive resolver with query logging for domain attribution.
+- **Insight / NetFlow** - enabled on the internal LAN interface for flow volume correlation.
+
+---
+
+### Method 1: Install Pre-Built Binary Package (Fastest)
+
+If you have downloaded the release package (`os-wanquota-0.23_1.pkg`):
+
+1. **Transfer the package to your OPNsense firewall**:
+   ```bash
+   scp os-wanquota-0.23_1.pkg root@<opnsense-ip>:/tmp/
+   ```
+
+2. **Log into OPNsense via SSH or console and install**:
+   ```bash
+   ssh root@<opnsense-ip>
+   pkg add -f /tmp/os-wanquota-0.23_1.pkg
+   ```
+
+3. **Initialize the plugin runtime & firewall rules**:
+   ```bash
+   # Run the early boot setup script to register pf tables and rules
+   php /usr/local/opnsense/scripts/OPNsense/WanQuota/setup.php
+   
+   # Trigger the initial background sync
+   configctl wanquota blockrun
+   ```
+
+4. **Access the Web Interface**:
+   In your browser, navigate to:
+   **Reporting → WAN Quotas**
+
+---
+
+### Method 2: Build and Install from Source
+
+If you are developing or compiling directly from this repository:
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/etreby/os-wanquota.git
+   cd os-wanquota
+   ```
+
+2. **Run test suite to verify integrity**:
+   ```bash
+   sh tests/run.sh
+   ```
+
+3. **Build the FreeBSD package**:
+   ```bash
+   make package
+   ```
+   The built package will be located at `work/pkg/os-wanquota-0.23_1.pkg`.
+
+4. **Install on the firewall**:
+   ```bash
+   pkg add -f work/pkg/os-wanquota-0.23_1.pkg
+   php /usr/local/opnsense/scripts/OPNsense/WanQuota/setup.php
+   ```
+
+---
+
+### Verifying the Installation
+
+Run the built-in diagnostic and health commands:
+
+```bash
+# Verify plugin service action in configd
+configctl wanquota status
+
+# Check that the pf access control tables are active
+pfctl -s Tables | grep wanquota
+# Output should show:
+# wanquota_blocked
+# wanquota_blocked_services
+# wanquota_over_budget
+
+# Test background quota collection
+configctl wanquota collect
+```
+
+---
+
+## Client & Service Access Control
+
+The **Client & Service Blocks** tab (`Reporting → WAN Quotas → Client & Service Blocks`) provides executive-grade, 1-click access control for home and office networks.
+
+### 1. Service & Gaming Blocking (PlayStation, Xbox, Streaming)
+Block bandwidth-heavy platforms or gaming consoles instantly from accessing online services without affecting the rest of the household.
+
+- **Featured Platform Support**:
+  - **PlayStation Network (PSN)**: Blocks PS5/PS4 matchmaking, PlayStation Store, cloud gaming, updates, and voice chat (`playstation.com`, `playstation.net`, `sonyentertainmentnetwork.com`, `gaikai.com`, etc.).
+  - **Xbox Live**: Matchmaking, game downloads, and telemetry (`xboxlive.com`, `xbox.com`, `gamepass.com`).
+  - **PC Gaming**: Steam (`steampowered.com`, `steamcontent.com`) and Epic Games Store (`epicgames.com`).
+  - **Streaming & Social**: YouTube, Netflix, TikTok, Twitch, and more.
+- **Flexible Timed Durations**:
+  - `1 Hour` (e.g. dinner time or study session)
+  - `2 Hours`, `6 Hours`, `12 Hours`, `24 Hours`
+  - `7 Days`
+  - `Permanent` (until manually released)
+- **Immediate State Severing**:
+  When a service is blocked, the engine immediately terminates all active connection states matching the service's destination IPs (`pfctl -k <ip>`), severing ongoing games or streams in real time.
+- **Top-of-LAN Protection**:
+  A dedicated firewall rule (`block in log on lan inet46 from any to <wanquota_blocked_services>`) drops traffic immediately on ingress before it reaches WAN NAT or routing, guaranteeing zero quota waste on your upstream providers.
+
+### 2. Client Device Internet Blocking
+Block specific computers, phones, consoles, or IoT devices from accessing the public internet while preserving all local network services.
+
+- **Local Bypass Preservation**:
+  Blocked devices can still access local file shares (TrueNAS, Samba), media servers (Plex, Jellyfin), smart home automation (Home Assistant), and the firewall's local DNS and NTP.
+- **Identification by IP, MAC, or Hostname**:
+  Automatically discovers connected devices via DHCP leases and static mappings, displaying their monthly WAN usage and online status.
+- **1-Click Quick Block & Release**:
+  Block directly from the device list or use the Quick Manual Block card. All blocks feature live countdown badges and an instant **Unblock** action.
+
+---
+
+## Interactive Daily Traffic Drill-Down
+
+The **Daily trends** tab (`Reporting → WAN Quotas → Daily`) allows administrators and network owners to audit historical spikes and investigate unexpected bandwidth consumption:
+
+1. **Click any date**: Clicking any row in the Daily trend table (e.g., `2026-10-14`) opens the deep drill-down view.
+2. **Key Metric Cards**: View Total Daily Volume, Download vs. Upload, Attributed Domains, Active Client Devices, and DNS Attribution Coverage for that specific day.
+3. **Gateway Split**: Inspect provider-by-provider consumption (ETISALAT vs. MOBINIL) on that date.
+4. **Top Client Devices**: Ranked list of every internal device active on that date, showing exact bytes moved and percentage share.
+5. **Top Attributed Domains**: High-traffic destination sites for that day with observed IPs.
+6. **Device-to-Site Matrix**: See exactly which device talked to which external service or domain.
+7. **History Navigation**: Back button and deep-linking support (`#daily/date/YYYY-MM-DD`) allow seamless navigation.
+
+---
 
 ## Configuration
 

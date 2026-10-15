@@ -42,6 +42,8 @@ class DevicePolicyController extends ApiControllerBase
         $policies = is_array($policies) ? $policies : [];
         $blocks = json_decode((string)$model->general->device_blocks_json, true);
         $blocks = is_array($blocks) ? $blocks : [];
+        $serviceBlocks = json_decode((string)$model->general->service_blocks_json, true);
+        $serviceBlocks = is_array($serviceBlocks) ? $serviceBlocks : [];
 
         /* Index every stored entry by every identifier it may carry, lowercased. */
         $quotaBy = [];
@@ -56,6 +58,18 @@ class DevicePolicyController extends ApiControllerBase
         foreach ($blocks as $block) {
             if (!empty($block['device'])) {
                 $blockBy[strtolower((string)$block['device'])] = $block;
+            }
+        }
+        $svcBlockBy = [];
+        foreach ($serviceBlocks as $sb) {
+            if (!empty($sb['service'])) {
+                $svcBlockBy[strtolower((string)$sb['service'])] = $sb;
+            }
+        }
+        $blockedServicesNow = [];
+        foreach (($blockPlan['services'] ?? []) as $svc) {
+            if (!empty($svc['service'])) {
+                $blockedServicesNow[strtolower((string)$svc['service'])] = $svc;
             }
         }
         $usedBy = [];
@@ -181,16 +195,56 @@ class DevicePolicyController extends ApiControllerBase
             ];
         }
 
+        $servicesCatalog = [
+            ['key' => 'playstation', 'label' => 'PlayStation', 'category' => 'Gaming', 'icon' => 'fa-gamepad'],
+            ['key' => 'xbox', 'label' => 'Xbox', 'category' => 'Gaming', 'icon' => 'fa-gamepad'],
+            ['key' => 'steam_downloads', 'label' => 'Steam Downloads', 'category' => 'Gaming', 'icon' => 'fa-steam'],
+            ['key' => 'epic_games', 'label' => 'Epic Games', 'category' => 'Gaming', 'icon' => 'fa-bolt'],
+            ['key' => 'youtube', 'label' => 'YouTube', 'category' => 'Streaming', 'icon' => 'fa-youtube-play'],
+            ['key' => 'netflix', 'label' => 'Netflix', 'category' => 'Streaming', 'icon' => 'fa-film'],
+            ['key' => 'tiktok', 'label' => 'TikTok', 'category' => 'Social', 'icon' => 'fa-music'],
+            ['key' => 'twitch', 'label' => 'Twitch', 'category' => 'Streaming', 'icon' => 'fa-twitch'],
+            ['key' => 'disney', 'label' => 'Disney+', 'category' => 'Streaming', 'icon' => 'fa-television'],
+            ['key' => 'prime_video', 'label' => 'Prime Video', 'category' => 'Streaming', 'icon' => 'fa-play-circle'],
+            ['key' => 'spotify', 'label' => 'Spotify', 'category' => 'Streaming', 'icon' => 'fa-spotify'],
+            ['key' => 'meta_cdn', 'label' => 'Meta CDN (FB & IG)', 'category' => 'Social', 'icon' => 'fa-facebook'],
+            ['key' => 'windows_update', 'label' => 'Windows Update', 'category' => 'System', 'icon' => 'fa-windows'],
+            ['key' => 'apple_update', 'label' => 'Apple Update', 'category' => 'System', 'icon' => 'fa-apple'],
+            ['key' => 'linux_update', 'label' => 'Linux Update', 'category' => 'System', 'icon' => 'fa-linux'],
+        ];
+
+        $serviceRows = [];
+        foreach ($servicesCatalog as $svc) {
+            $k = $svc['key'];
+            $isBlocked = isset($svcBlockBy[$k]);
+            $blk = $svcBlockBy[$k] ?? null;
+            $activeInfo = $blockedServicesNow[$k] ?? null;
+            $serviceRows[] = [
+                'key' => $k,
+                'label' => $svc['label'],
+                'category' => $svc['category'],
+                'icon' => $svc['icon'],
+                'blocked' => $isBlocked,
+                'blocked_now' => $activeInfo !== null,
+                'until' => (int)($blk['until'] ?? 0),
+                'reason' => (string)($blk['reason'] ?? ''),
+                'address_count' => (int)($activeInfo['address_count'] ?? 0),
+            ];
+        }
+
         return [
             'status' => 'ok',
             'enforcement_enabled' => (string)$model->general->device_enforcement_enabled === '1',
             'enforcement_dry_run' => (string)$model->general->device_enforcement_dry_run === '1',
             'budget_table' => $budgetPlan['table'] ?? 'wanquota_over_budget',
             'block_table' => $blockPlan['table'] ?? 'wanquota_blocked',
+            'service_table' => $blockPlan['service_table'] ?? 'wanquota_blocked_services',
             'budget_note' => $budgetPlan['note'] ?? null,
             'block_note' => $blockPlan['note'] ?? null,
             'period' => 'month',
             'devices' => $rows,
+            'services' => $serviceRows,
+            'service_blocks' => $serviceBlocks,
         ];
     }
 
@@ -532,5 +586,183 @@ class DevicePolicyController extends ApiControllerBase
             'removed' => $removed,
             'block_result' => $blockResult,
         ];
+    }
+
+    /**
+     * Block a service (e.g. PlayStation, Xbox, YouTube) with duration and optional reason.
+     */
+    public function blockServiceAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $service = trim((string)$this->request->getPost('service'));
+        if ($service === '') {
+            return ['status' => 'failed', 'error' => 'No service specified'];
+        }
+        $rawDuration = trim((string)$this->request->getPost('duration', 0));
+        $reason = substr(preg_replace('/[^\PC\s]/u', '', (string)$this->request->getPost('reason', '')), 0, 200);
+
+        $until = 0;
+        if (is_numeric($rawDuration)) {
+            $num = (float)$rawDuration;
+            if ($num > 0) {
+                $until = $num < 100000000 ? time() + (int)($num * 3600) : (int)$num;
+            }
+        } elseif (preg_match('/^(\d+)\s*(h|hr|hours?|d|days?|m|min|minutes?)$/i', $rawDuration, $matches)) {
+            $val = (int)$matches[1];
+            $unit = strtolower($matches[2][0]);
+            if ($unit === 'm') {
+                $until = time() + ($val * 60);
+            } elseif ($unit === 'h') {
+                $until = time() + ($val * 3600);
+            } elseif ($unit === 'd') {
+                $until = time() + ($val * 86400);
+            }
+        }
+
+        if ($until > 0 && $until <= time()) {
+            return ['status' => 'failed', 'error' => 'The block deadline must be in the future'];
+        }
+
+        $model = new WanQuota();
+        $blocks = json_decode((string)$model->general->service_blocks_json, true);
+        $blocks = is_array($blocks) ? $blocks : [];
+
+        $lower = strtolower($service);
+        $found = false;
+        foreach ($blocks as &$item) {
+            if (strtolower(trim((string)($item['service'] ?? ''))) === $lower) {
+                $item['until'] = $until;
+                $item['reason'] = $reason;
+                $item['created'] = time();
+                $found = true;
+                break;
+            }
+        }
+        unset($item);
+
+        if (!$found) {
+            $blocks[] = [
+                'service' => $lower,
+                'until' => $until,
+                'reason' => $reason,
+                'created' => time(),
+            ];
+        }
+
+        $model->general->service_blocks_json = json_encode(array_values($blocks));
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save(sprintf('Block service %s (os-wanquota)', $service));
+
+        $backend = new Backend();
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+
+        return [
+            'status' => 'ok',
+            'service' => $service,
+            'until' => $until,
+            'reason' => $reason,
+            'block_result' => $blockResult,
+        ];
+    }
+
+    public function block_serviceAction(): array
+    {
+        return $this->blockServiceAction();
+    }
+
+    /**
+     * Unblock a single service.
+     */
+    public function unblockServiceAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $service = trim((string)$this->request->getPost('service'));
+        if ($service === '') {
+            return ['status' => 'failed', 'error' => 'No service specified'];
+        }
+        $lower = strtolower($service);
+
+        $model = new WanQuota();
+        $blocks = json_decode((string)$model->general->service_blocks_json, true);
+        $blocks = is_array($blocks) ? $blocks : [];
+
+        $filtered = [];
+        $removed = false;
+        foreach ($blocks as $item) {
+            if (strtolower(trim((string)($item['service'] ?? ''))) === $lower) {
+                $removed = true;
+                continue;
+            }
+            $filtered[] = $item;
+        }
+
+        $model->general->service_blocks_json = json_encode(array_values($filtered));
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save(sprintf('Unblock service %s (os-wanquota)', $service));
+
+        $backend = new Backend();
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+
+        return [
+            'status' => 'ok',
+            'service' => $service,
+            'removed' => $removed,
+            'block_result' => $blockResult,
+        ];
+    }
+
+    public function unblock_serviceAction(): array
+    {
+        return $this->unblockServiceAction();
+    }
+
+    /**
+     * Release all service blocks at once.
+     */
+    public function unblockAllServicesAction(): array
+    {
+        if (!$this->request->isPost()) {
+            return ['status' => 'failed', 'error' => 'POST required'];
+        }
+        $model = new WanQuota();
+        $model->general->service_blocks_json = '[]';
+        $messages = $model->performValidation();
+        if (count($messages) > 0) {
+            $problems = [];
+            foreach ($messages as $message) {
+                $problems[] = (string)$message;
+            }
+            return ['status' => 'failed', 'errors' => $problems];
+        }
+        $model->serializeToConfig();
+        \OPNsense\Core\Config::getInstance()->save('Release every WAN quota service block');
+        $backend = new Backend();
+        $blockResult = json_decode($backend->configdRun('wanquota blockrun'), true);
+        return ['status' => 'ok', 'block_result' => $blockResult];
+    }
+
+    public function unblock_all_servicesAction(): array
+    {
+        return $this->unblockAllServicesAction();
     }
 }

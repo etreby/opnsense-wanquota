@@ -472,7 +472,7 @@ fields = set(re.findall(r"<([a-z0-9_]+) type=", general))
 # repeating them in the wizard is how a dry-run switch came to exist twice with two
 # copies that could disagree.
 elsewhere = {"shaper_enabled", "shaper_dry_run", "service_limits_json", "device_limits_json",
-             "device_blocks_json", "device_policies_json",
+             "device_blocks_json", "service_blocks_json", "device_policies_json",
              "balance_enabled", "balance_dry_run", "balance_group", "balance_max_weight",
              "balance_mode"}
 view = (root / "src/opnsense/mvc/app/views/OPNsense/WanQuota/general.volt").read_text()

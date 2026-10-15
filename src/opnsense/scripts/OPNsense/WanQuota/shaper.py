@@ -205,7 +205,8 @@ STREAMING_SERVICES = {
     },
     "playstation": {
         "label": "PlayStation",
-        "suffixes": ("playstation.net", "playstation.com", "sonyentertainmentnetwork.com"),
+        "suffixes": ("playstation.net", "playstation.com", "sonyentertainmentnetwork.com",
+                     "playstationnetwork.com", "playstation.org", "gaikai.com"),
     },
 }
 

@@ -2,6 +2,24 @@
 <style>
 .wq-shell{--wq-blue:#3b82f6;--wq-cyan:#06b6d4;--wq-green:#10b981;--wq-amber:#f59e0b;--wq-red:#ef4444;--wq-ink:#172033}.wq-hero{padding:24px;border-radius:14px;background:linear-gradient(135deg,#172033,#253656 60%,#1677a8);color:#fff;margin-bottom:18px;box-shadow:0 12px 30px rgba(23,32,51,.18)}.wq-hero h2{margin:0 0 5px;font-weight:700}.wq-hero p{margin:0;opacity:.8}.wq-version{margin-top:8px;font-size:11px;opacity:.65;letter-spacing:.3px}.wq-hero-tools{float:right;display:flex;gap:6px}.wq-hero-tools .btn{background:#ffffff18;color:#fff;border-color:#ffffff4d}.wq-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:16px 0}.wq-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.07)}.wq-card h3{font-size:15px;margin:0 0 12px;color:inherit}.wq-metric{font-size:26px;font-weight:700;line-height:1.1}.wq-muted{opacity:.68;font-size:12px}.wq-progress{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;margin:12px 0}.wq-progress span{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--wq-blue),var(--wq-cyan))}.wq-chart{position:relative;height:290px}.wq-chart-sm{position:relative;height:180px}.wq-section{margin-top:22px}.wq-section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.wq-section-title h3{margin:0}.wq-health-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px}.wq-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.wq-table-wrap{overflow-x:auto}.wq-card .table{margin-bottom:0}.wq-risk-on_track{color:var(--wq-green)}.wq-risk-watch{color:var(--wq-amber)}.wq-risk-high,.wq-risk-exceeded{color:var(--wq-red)}.wq-action-box{padding:10px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-wallboard .navbar,.wq-wallboard #maintabs,.wq-wallboard .wq-exact{display:none!important}.wq-wallboard .wq-chart{height:38vh}.wq-contrast .wq-card{border:2px solid currentColor;box-shadow:none}.wq-drill{cursor:pointer;border-bottom:1px dotted currentColor;text-decoration:none}.wq-drill:hover,.wq-drill:focus{text-decoration:none;border-bottom-style:solid}.wq-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 14px;margin-bottom:12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-drill-metric{text-align:right}.wq-share{height:8px;background:rgba(128,128,128,.18);border-radius:8px;overflow:hidden;min-width:60px}.wq-share span{display:block;height:100%;border-radius:8px}.wq-unattributed td{opacity:.7}.wq-switch{display:inline-flex;align-items:center;gap:7px;margin:0;font-weight:400;cursor:pointer}.wq-action-box{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.wq-limit{display:flex;flex-direction:column;gap:8px}.wq-limit-head{display:flex;align-items:center;gap:9px}.wq-limit-head h3{margin:0;flex:1 1 auto;font-size:15px}.wq-limit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wq-limit-row select,.wq-limit-row input{max-width:132px}.wq-pill{display:inline-block;padding:1px 8px;border-radius:11px;font-size:11px;background:rgba(128,128,128,.18)}.wq-pill-ok{background:rgba(16,185,129,.18);color:var(--wq-green)}.wq-pill-warn{background:rgba(245,158,11,.18);color:var(--wq-amber)}.wq-limit-off{opacity:.55}.wq-steps{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:0 0 16px}.wq-steps li{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:20px;background:rgba(128,128,128,.12);font-size:12px;cursor:pointer;white-space:nowrap}.wq-steps li span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(128,128,128,.3);font-weight:700;font-size:11px}.wq-steps li.active{background:var(--wq-blue);color:#fff}.wq-steps li.active span{background:#ffffff35}.wq-steps li.done span{background:var(--wq-green);color:#fff}.wq-subtabs{margin-bottom:16px}.wq-subtabs>li>a{border-radius:20px;padding:7px 18px;font-size:13px}.wq-why{padding:14px 16px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-why h3{margin:0 0 4px;font-size:17px}.wq-why ol{margin:10px 0 0 18px;padding:0}.wq-why li{margin:3px 0}.wq-why-tags{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.wq-shares{margin-top:10px;font-size:12px}.wq-share-row{display:flex;align-items:center;gap:8px;padding:2px 0}.wq-share-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}.wq-share-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wq-share-pct{font-weight:700;flex:0 0 auto}.wq-share-others .wq-share-name{opacity:.7;font-style:italic}.wq-live{margin:4px 0 0}.wq-live-row{display:flex;gap:12px;flex-wrap:wrap}.wq-live-card{flex:1 1 220px;padding:10px 14px;border:1px solid rgba(128,128,128,.2);border-radius:10px;background:var(--background-color,#fff)}.wq-live-name{font-weight:700;font-size:13px;margin-bottom:4px}.wq-live-pair{display:flex;gap:14px;font-variant-numeric:tabular-nums}.wq-live-down{color:var(--wq-blue);font-weight:700}.wq-live-up{color:var(--wq-green);font-weight:700}.wq-catalogue-split{grid-column:1/-1;margin:6px 0 0;padding:8px 12px;border-left:4px solid var(--wq-blue);background:rgba(59,130,246,.08);border-radius:6px}.wq-shell input[type=checkbox]{appearance:none;-webkit-appearance:none;position:relative;width:42px;height:24px;margin:0;border-radius:24px;background:rgba(128,128,128,.35);border:none;cursor:pointer;transition:background .18s ease;vertical-align:middle;flex:0 0 auto}.wq-shell input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .18s ease}.wq-shell input[type=checkbox]:checked{background:var(--wq-green)}.wq-shell input[type=checkbox]:checked::after{transform:translateX(18px)}.wq-shell input[type=checkbox]:disabled{opacity:.45;cursor:not-allowed}.wq-shell input[type=checkbox]:focus-visible{outline:2px solid var(--wq-blue);outline-offset:2px}.wq-shell td>input[type=checkbox]{display:block}.wq-shell th.wq-sortable{cursor:pointer;user-select:none;white-space:nowrap}.wq-shell th.wq-sortable:hover{text-decoration:underline}.wq-shell th.wq-sorted{color:var(--wq-blue)}.wq-shell th .wq-arrow{opacity:.75;font-size:10px;margin-left:3px}.wq-tfilter{display:flex;align-items:center;gap:9px;margin:0 0 8px}.wq-tfilter input{max-width:230px}.wq-tcount{font-size:12px;opacity:.68}.wq-tnorows td{opacity:.7;font-style:italic}
 .wq-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.wq-card-head h3{flex:1 1 auto}.wq-kebab{border:none;background:none;padding:1px 6px;line-height:1;font-size:17px;color:inherit;opacity:.45;cursor:pointer;border-radius:4px;flex:0 0 auto}.wq-kebab:hover,.wq-kebab:focus,.wq-kebab[aria-expanded=true]{opacity:1;background:rgba(128,128,128,.16)}.wq-quota-edit{margin-top:13px;padding-top:12px;border-top:1px solid rgba(128,128,128,.2)}.wq-quota-edit label{display:block;font-size:11px;font-weight:600;opacity:.75;margin:0 0 3px}.wq-quota-field{margin-bottom:9px}.wq-quota-edit input{width:100%}.wq-quota-preview{font-size:12px;margin:0 0 10px;font-variant-numeric:tabular-nums}.wq-quota-warn{display:block;color:var(--wq-amber);margin-top:4px}.wq-total-card{grid-column:1/-1;border-left:4px solid var(--wq-blue)}.wq-total-split{display:flex;flex-wrap:wrap;gap:24px;margin-top:11px}.wq-total-part{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.4px}.wq-total-part b{display:block;font-size:17px;opacity:1;text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+.wq-service-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin:16px 0}
+.wq-service-card{background:var(--background-color,#fff);border:1px solid rgba(128,128,128,.2);border-radius:12px;padding:16px;box-shadow:0 4px 16px rgba(23,32,51,.06);display:flex;flex-direction:column;justify-content:space-between;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.wq-service-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(23,32,51,.1);border-color:rgba(59,130,246,.4)}
+.wq-service-card.wq-service-blocked{border-left:4px solid var(--wq-red);background:linear-gradient(to right,rgba(239,68,68,.05),var(--background-color,#fff))}
+.wq-service-card.wq-service-playstation{border-top:3px solid #003791}
+.wq-service-card.wq-service-xbox{border-top:3px solid #107c10}
+.wq-service-card.wq-service-steam{border-top:3px solid #171a21}
+.wq-service-card.wq-service-youtube{border-top:3px solid #ff0000}
+.wq-service-card.wq-service-netflix{border-top:3px solid #e50914}
+.wq-service-card.wq-service-tiktok{border-top:3px solid #25f4ee}
+.wq-service-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.wq-service-info{display:flex;align-items:center;gap:12px;flex:1 1 auto}
+.wq-service-icon{width:44px;height:44px;border-radius:10px;background:rgba(59,130,246,.12);color:var(--wq-blue);display:inline-flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.wq-service-card.wq-service-blocked .wq-service-icon{background:rgba(239,68,68,.15);color:var(--wq-red)}
+.wq-service-title{font-size:16px;font-weight:700;margin:0 0 2px;line-height:1.2}
+.wq-service-cat{font-size:11px;opacity:.7;text-transform:uppercase;letter-spacing:.3px}
+.wq-service-meta{font-size:12px;margin:8px 0;opacity:.85}
+.wq-service-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:12px;border-top:1px solid rgba(128,128,128,.14)}
 @media(max-width:767px){.wq-hero{padding:18px}.wq-chart{height:240px}.wq-metric{font-size:22px}.wq-hero-tools{float:none;margin-bottom:12px}.wq-drill-metric{text-align:left}}
 </style>
 <div class="wq-shell">
@@ -9,7 +27,7 @@
 <ul class="nav nav-tabs" data-tabs="tabs" id="maintabs">
     <li class="active"><a data-toggle="tab" href="#summary">{{ lang._('Summary') }}</a></li>
     <li><a data-toggle="tab" href="#consumers">{{ lang._('Consumers') }}</a></li>
-    <li><a data-toggle="tab" href="#clients"><i class="fa fa-ban text-danger"></i> {{ lang._('Client Control') }}</a></li>
+    <li><a data-toggle="tab" href="#clients"><i class="fa fa-ban text-danger"></i> {{ lang._('Client & Service Blocks') }}</a></li>
     <li><a data-toggle="tab" href="#daily">{{ lang._('Daily history') }}</a></li>
     <li><a data-toggle="tab" href="#monthly">{{ lang._('Monthly history') }}</a></li>
     <li><a data-toggle="tab" href="#apps">{{ lang._('Apps') }}</a></li>
@@ -57,86 +75,184 @@
     </div>
     <div id="clients" class="tab-pane fade"><div style="padding:16px">
         <div id="clientControlAlert"></div>
-        <div class="wq-grid" id="clientMetricCards">
-            <div class="wq-card">
-                <h3><i class="fa fa-laptop text-primary"></i> {{ lang._('Total Discovered Clients') }}</h3>
-                <div class="wq-metric" id="metricTotalClients">0</div>
-                <div class="wq-muted">{{ lang._('Active DHCP leases and static reservations') }}</div>
-            </div>
-            <div class="wq-card">
-                <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Blocked from Internet') }}</h3>
-                <div class="wq-metric text-danger" id="metricBlockedClients">0</div>
-                <div class="wq-muted">{{ lang._('In firewall table wanquota_blocked') }}</div>
-            </div>
-            <div class="wq-card">
-                <h3><i class="fa fa-check-circle text-success"></i> {{ lang._('Active / Allowed') }}</h3>
-                <div class="wq-metric text-success" id="metricAllowedClients">0</div>
-                <div class="wq-muted">{{ lang._('Unrestricted WAN access') }}</div>
-            </div>
-            <div class="wq-card">
-                <h3><i class="fa fa-pie-chart text-info"></i> {{ lang._('Blocked Devices Usage') }}</h3>
-                <div class="wq-metric" id="metricBlockedUsage">0 GB</div>
-                <div class="wq-muted">{{ lang._('Monthly WAN quota consumed') }}</div>
-            </div>
-        </div>
-
-        <div class="wq-card" style="margin-bottom:16px">
-            <div class="wq-card-head">
-                <h3><i class="fa fa-shield"></i> {{ lang._('Block Client from Internet') }}</h3>
-                <button id="btnReleaseAllClients" class="btn btn-default btn-sm" type="button"><i class="fa fa-unlock"></i> {{ lang._('Release All Blocks') }}</button>
-            </div>
-            <p class="wq-muted" style="margin:4px 0 12px 0">
-                {{ lang._('Block any device by IP address, MAC, or hostname from reaching the public internet on both WANs. Local LAN communication (Plex, NAS, Home Assistant, and firewall DNS/NTP) is completely preserved.') }}
-            </p>
-            <div class="form-inline wq-toolbar">
-                <div class="form-group">
-                    <input id="manualBlockTarget" class="form-control" style="min-width:240px" placeholder="{{ lang._('IP (e.g. 192.168.1.139), MAC, or name') }}">
-                </div>
-                <div class="form-group">
-                    <select id="manualBlockDuration" class="form-control">
-                        <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
-                        <option value="1">{{ lang._('1 hour') }}</option>
-                        <option value="2">{{ lang._('2 hours') }}</option>
-                        <option value="6">{{ lang._('6 hours') }}</option>
-                        <option value="12">{{ lang._('12 hours') }}</option>
-                        <option value="24">{{ lang._('24 hours (1 day)') }}</option>
-                        <option value="168">{{ lang._('7 days (1 week)') }}</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <input id="manualBlockReason" class="form-control" style="min-width:220px" placeholder="{{ lang._('Optional reason / note') }}">
-                </div>
-                <button id="btnManualBlock" class="btn btn-danger" type="button"><i class="fa fa-ban"></i> {{ lang._('Block Target') }}</button>
-            </div>
-        </div>
-
-        <div id="activeBlockedSection" class="wq-section wq-table-wrap" style="display:none;margin-bottom:24px">
-            <div class="wq-section-title">
-                <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Currently Blocked Clients') }} (<span id="activeBlockedCount">0</span>)</h3>
-            </div>
-            <div id="activeBlockedTable"></div>
-        </div>
-
-        <div class="wq-section wq-table-wrap">
-            <div class="wq-section-title">
-                <h3><i class="fa fa-sitemap"></i> {{ lang._('Network Clients & WAN Access') }}</h3>
-                <div class="form-inline">
-                    <div class="btn-group" data-toggle="buttons" style="margin-right:8px">
-                        <label class="btn btn-default btn-sm active" id="btnFilterAll">
-                            <input type="radio" name="clientFilterRadio" checked> {{ lang._('All') }} (<span id="countFilterAll">0</span>)
-                        </label>
-                        <label class="btn btn-default btn-sm" id="btnFilterAllowed">
-                            <input type="radio" name="clientFilterRadio"> {{ lang._('Allowed') }} (<span id="countFilterAllowed">0</span>)
-                        </label>
-                        <label class="btn btn-default btn-sm" id="btnFilterBlocked">
-                            <input type="radio" name="clientFilterRadio"> {{ lang._('Blocked') }} (<span id="countFilterBlocked">0</span>)
-                        </label>
+        <ul class="nav nav-pills wq-subtabs" style="margin-bottom:20px">
+            <li class="active"><a href="#clientsDevicesSubtab" data-toggle="tab"><i class="fa fa-laptop"></i> {{ lang._('Client Devices') }}</a></li>
+            <li><a href="#clientsServicesSubtab" data-toggle="tab"><i class="fa fa-gamepad"></i> {{ lang._('Services & Gaming (PlayStation, etc.)') }}</a></li>
+        </ul>
+        <div class="tab-content">
+            <div id="clientsDevicesSubtab" class="tab-pane fade in active">
+                <div class="wq-grid" id="clientMetricCards">
+                    <div class="wq-card">
+                        <h3><i class="fa fa-laptop text-primary"></i> {{ lang._('Total Discovered Clients') }}</h3>
+                        <div class="wq-metric" id="metricTotalClients">0</div>
+                        <div class="wq-muted">{{ lang._('Active DHCP leases and static reservations') }}</div>
                     </div>
-                    <input id="clientListSearch" class="form-control input-sm" style="min-width:210px" placeholder="{{ lang._('Search clients…') }}">
-                    <button id="btnRefreshClientList" class="btn btn-primary btn-sm" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Blocked from Internet') }}</h3>
+                        <div class="wq-metric text-danger" id="metricBlockedClients">0</div>
+                        <div class="wq-muted">{{ lang._('In firewall table wanquota_blocked') }}</div>
+                    </div>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-check-circle text-success"></i> {{ lang._('Active / Allowed') }}</h3>
+                        <div class="wq-metric text-success" id="metricAllowedClients">0</div>
+                        <div class="wq-muted">{{ lang._('Unrestricted WAN access') }}</div>
+                    </div>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-pie-chart text-info"></i> {{ lang._('Blocked Devices Usage') }}</h3>
+                        <div class="wq-metric" id="metricBlockedUsage">0 GB</div>
+                        <div class="wq-muted">{{ lang._('Monthly WAN quota consumed') }}</div>
+                    </div>
+                </div>
+
+                <div class="wq-card" style="margin-bottom:16px">
+                    <div class="wq-card-head">
+                        <h3><i class="fa fa-shield"></i> {{ lang._('Block Client from Internet') }}</h3>
+                        <button id="btnReleaseAllClients" class="btn btn-default btn-sm" type="button"><i class="fa fa-unlock"></i> {{ lang._('Release All Blocks') }}</button>
+                    </div>
+                    <p class="wq-muted" style="margin:4px 0 12px 0">
+                        {{ lang._('Block any device by IP address, MAC, or hostname from reaching the public internet on both WANs. Local LAN communication (Plex, NAS, Home Assistant, and firewall DNS/NTP) is completely preserved.') }}
+                    </p>
+                    <div class="form-inline wq-toolbar">
+                        <div class="form-group">
+                            <input id="manualBlockTarget" class="form-control" style="min-width:240px" placeholder="{{ lang._('IP (e.g. 192.168.1.50), MAC, or name') }}">
+                        </div>
+                        <div class="form-group">
+                            <select id="manualBlockDuration" class="form-control">
+                                <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
+                                <option value="1">{{ lang._('1 hour') }}</option>
+                                <option value="2">{{ lang._('2 hours') }}</option>
+                                <option value="6">{{ lang._('6 hours') }}</option>
+                                <option value="12">{{ lang._('12 hours') }}</option>
+                                <option value="24">{{ lang._('24 hours (1 day)') }}</option>
+                                <option value="168">{{ lang._('7 days (1 week)') }}</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input id="manualBlockReason" class="form-control" style="min-width:220px" placeholder="{{ lang._('Optional reason / note') }}">
+                        </div>
+                        <button id="btnManualBlock" class="btn btn-danger" type="button"><i class="fa fa-ban"></i> {{ lang._('Block Target') }}</button>
+                    </div>
+                </div>
+
+                <div id="activeBlockedSection" class="wq-section wq-table-wrap" style="display:none;margin-bottom:24px">
+                    <div class="wq-section-title">
+                        <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Currently Blocked Clients') }} (<span id="activeBlockedCount">0</span>)</h3>
+                    </div>
+                    <div id="activeBlockedTable"></div>
+                </div>
+
+                <div class="wq-section wq-table-wrap">
+                    <div class="wq-section-title">
+                        <h3><i class="fa fa-sitemap"></i> {{ lang._('Network Clients & WAN Access') }}</h3>
+                        <div class="form-inline">
+                            <div class="btn-group" data-toggle="buttons" style="margin-right:8px">
+                                <label class="btn btn-default btn-sm active" id="btnFilterAll">
+                                    <input type="radio" name="clientFilterRadio" checked> {{ lang._('All') }} (<span id="countFilterAll">0</span>)
+                                </label>
+                                <label class="btn btn-default btn-sm" id="btnFilterAllowed">
+                                    <input type="radio" name="clientFilterRadio"> {{ lang._('Allowed') }} (<span id="countFilterAllowed">0</span>)
+                                </label>
+                                <label class="btn btn-default btn-sm" id="btnFilterBlocked">
+                                    <input type="radio" name="clientFilterRadio"> {{ lang._('Blocked') }} (<span id="countFilterBlocked">0</span>)
+                                </label>
+                            </div>
+                            <input id="clientListSearch" class="form-control input-sm" style="min-width:210px" placeholder="{{ lang._('Search clients…') }}">
+                            <button id="btnRefreshClientList" class="btn btn-primary btn-sm" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
+                        </div>
+                    </div>
+                    <div id="clientListTable"></div>
                 </div>
             </div>
-            <div id="clientListTable"></div>
+
+            <div id="clientsServicesSubtab" class="tab-pane fade">
+                <div class="wq-grid" id="serviceMetricCards">
+                    <div class="wq-card">
+                        <h3><i class="fa fa-cubes text-primary"></i> {{ lang._('Supported Platforms') }}</h3>
+                        <div class="wq-metric" id="metricTotalServices">15</div>
+                        <div class="wq-muted">{{ lang._('Gaming networks, video streaming, app stores') }}</div>
+                    </div>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Blocked Services') }}</h3>
+                        <div class="wq-metric text-danger" id="metricBlockedServices">0</div>
+                        <div class="wq-muted">{{ lang._('In firewall table wanquota_blocked_services') }}</div>
+                    </div>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-check-circle text-success"></i> {{ lang._('Active / Allowed') }}</h3>
+                        <div class="wq-metric text-success" id="metricAllowedServices">15</div>
+                        <div class="wq-muted">{{ lang._('Unrestricted service traffic') }}</div>
+                    </div>
+                    <div class="wq-card">
+                        <h3><i class="fa fa-globe text-info"></i> {{ lang._('Blocked Destination IPs') }}</h3>
+                        <div class="wq-metric text-info" id="metricBlockedServiceIPs">0</div>
+                        <div class="wq-muted">{{ lang._('Dropped on LAN before routing') }}</div>
+                    </div>
+                </div>
+
+                <div class="wq-card" style="margin-bottom:16px">
+                    <div class="wq-card-head">
+                        <h3><i class="fa fa-gamepad"></i> {{ lang._('Quick Service Block') }}</h3>
+                        <button id="btnReleaseAllServices" class="btn btn-default btn-sm" type="button"><i class="fa fa-unlock"></i> {{ lang._('Release All Service Blocks') }}</button>
+                    </div>
+                    <p class="wq-muted" style="margin:4px 0 12px 0">
+                        {{ lang._('Block PlayStation, Xbox, Steam, Epic Games, YouTube, Netflix, or updates across all devices. Traffic to platform IP addresses is dropped before NAT and active states are severed.') }}
+                    </p>
+                    <div class="form-inline wq-toolbar">
+                        <div class="form-group">
+                            <select id="manualBlockServiceTarget" class="form-control" style="min-width:240px">
+                                <option value="playstation" selected>PlayStation (PSN, Store & Games)</option>
+                                <option value="xbox">Xbox (Xbox Live & Games)</option>
+                                <option value="steam_downloads">Steam Downloads</option>
+                                <option value="epic_games">Epic Games & Fortnite</option>
+                                <option value="youtube">YouTube (Videos & Media)</option>
+                                <option value="netflix">Netflix</option>
+                                <option value="tiktok">TikTok</option>
+                                <option value="twitch">Twitch</option>
+                                <option value="disney">Disney+</option>
+                                <option value="prime_video">Prime Video</option>
+                                <option value="spotify">Spotify</option>
+                                <option value="meta_cdn">Meta CDN (FB & IG Media)</option>
+                                <option value="windows_update">Windows Update</option>
+                                <option value="apple_update">Apple Software Update</option>
+                                <option value="linux_update">Linux Updates</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <select id="manualBlockServiceDuration" class="form-control">
+                                <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
+                                <option value="1">{{ lang._('1 hour') }}</option>
+                                <option value="2">{{ lang._('2 hours') }}</option>
+                                <option value="6">{{ lang._('6 hours') }}</option>
+                                <option value="12">{{ lang._('12 hours') }}</option>
+                                <option value="24">{{ lang._('24 hours (1 day)') }}</option>
+                                <option value="168">{{ lang._('7 days (1 week)') }}</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <input id="manualBlockServiceReason" class="form-control" style="min-width:220px" placeholder="{{ lang._('Optional reason / note') }}">
+                        </div>
+                        <button id="btnManualBlockService" class="btn btn-danger" type="button"><i class="fa fa-ban"></i> {{ lang._('Block Service') }}</button>
+                    </div>
+                </div>
+
+                <div id="activeBlockedServicesSection" class="wq-section wq-table-wrap" style="display:none;margin-bottom:24px">
+                    <div class="wq-section-title">
+                        <h3><i class="fa fa-ban text-danger"></i> {{ lang._('Currently Blocked Services') }} (<span id="activeBlockedServicesCount">0</span>)</h3>
+                    </div>
+                    <div id="activeBlockedServicesTable"></div>
+                </div>
+
+                <div class="wq-section">
+                    <div class="wq-section-title">
+                        <h3><i class="fa fa-th-large"></i> {{ lang._('Gaming & Service Catalog') }}</h3>
+                        <div class="form-inline">
+                            <input id="serviceSearch" class="form-control input-sm" style="min-width:220px" placeholder="{{ lang._('Filter services…') }}">
+                            <button id="btnRefreshServicesList" class="btn btn-primary btn-sm" type="button"><i class="fa fa-refresh"></i> {{ lang._('Refresh') }}</button>
+                        </div>
+                    </div>
+                    <p class="wq-muted">{{ lang._('Click "Block…" on PlayStation or any other service to immediately drop its traffic and terminate open streams.') }}</p>
+                    <div class="wq-service-grid" id="servicesCardsGrid"></div>
+                </div>
+            </div>
         </div>
     </div></div>
     <div id="daily" class="tab-pane fade"><div style="padding:16px">
@@ -372,6 +488,48 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">{{ lang._('Cancel') }}</button>
                 <button type="button" class="btn btn-danger" id="btnModalConfirmBlock"><i class="fa fa-ban"></i> {{ lang._('Block Client Now') }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalBlockService" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                <h4 class="modal-title"><i class="fa fa-ban text-danger"></i> {{ lang._('Block Service from Internet') }}</h4>
+            </div>
+            <div class="modal-body">
+                <p>{{ lang._('You are about to block this platform from accessing the internet across all WAN connections:') }}</p>
+                <div class="well well-sm">
+                    <b id="modalBlockServiceName" style="font-size:16px"></b><br>
+                    <small id="modalBlockServiceDetail" class="wq-muted"></small>
+                </div>
+                <div class="form-group">
+                    <label for="modalBlockServiceDuration">{{ lang._('Block Duration') }}</label>
+                    <select id="modalBlockServiceDuration" class="form-control">
+                        <option value="0" selected>{{ lang._('Permanent (until unblocked)') }}</option>
+                        <option value="1">{{ lang._('1 hour') }}</option>
+                        <option value="2">{{ lang._('2 hours') }}</option>
+                        <option value="6">{{ lang._('6 hours') }}</option>
+                        <option value="12">{{ lang._('12 hours') }}</option>
+                        <option value="24">{{ lang._('24 hours (1 day)') }}</option>
+                        <option value="168">{{ lang._('7 days (1 week)') }}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="modalBlockServiceReason">{{ lang._('Reason / Notes (optional)') }}</label>
+                    <input type="text" id="modalBlockServiceReason" class="form-control" maxlength="200" placeholder="{{ lang._('e.g. Bedtime limit, exam week, bandwidth conservation') }}">
+                </div>
+                <input type="hidden" id="modalBlockTargetService" value="">
+                <div class="alert alert-warning" style="margin-bottom:0">
+                    <i class="fa fa-info-circle"></i> {{ lang._('Drops all packets to service destination IPs in pf table wanquota_blocked_services on both ETISALAT and MOBINIL. Existing connections are immediately terminated.') }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">{{ lang._('Cancel') }}</button>
+                <button type="button" class="btn btn-danger" id="btnModalConfirmBlockService"><i class="fa fa-ban"></i> {{ lang._('Block Service Now') }}</button>
             </div>
         </div>
     </div>
@@ -1996,6 +2154,7 @@ function renderClientsTab(data) {
     html += '</tbody></table>';
     $('#clientListTable').html(html);
     filterClientControlRows();
+    renderServicesTab(data.services || [], data.service_blocks || []);
 }
 
 function filterClientControlRows() {
@@ -2011,6 +2170,114 @@ function filterClientControlRows() {
 
         const textMatch = !query || search.includes(query);
         row.toggle(typeMatch && textMatch);
+    });
+}
+
+function renderServicesTab(services, blocks) {
+    services = services || [];
+    blocks = blocks || [];
+
+    let blockedCount = 0;
+    let blockedIps = 0;
+    for (const s of services) {
+        if (s.blocked) {
+            blockedCount++;
+            blockedIps += (s.address_count || 0);
+        }
+    }
+    const totalCount = services.length;
+    const allowedCount = totalCount - blockedCount;
+
+    $('#metricTotalServices').text(totalCount);
+    $('#metricBlockedServices').text(blockedCount);
+    $('#metricAllowedServices').text(allowedCount);
+    $('#metricBlockedServiceIPs').text(blockedIps);
+
+    // Active Blocked Services Section
+    const activeBlocks = services.filter(function(s) { return s.blocked; });
+    if (activeBlocks.length > 0) {
+        $('#activeBlockedServicesSection').show();
+        $('#activeBlockedServicesCount').text(activeBlocks.length);
+        let bHtml = '<table class="table table-striped table-hover"><thead><tr>'
+                  + '<th>{{ lang._("Service / Platform") }}</th>'
+                  + '<th>{{ lang._("Category") }}</th>'
+                  + '<th>{{ lang._("Status / Restriction") }}</th>'
+                  + '<th>{{ lang._("Duration / Expiry") }}</th>'
+                  + '<th>{{ lang._("Reason / Notes") }}</th>'
+                  + '<th>{{ lang._("Covered IPs") }}</th>'
+                  + '<th style="text-align:right">{{ lang._("Action") }}</th>'
+                  + '</tr></thead><tbody>';
+        for (const s of activeBlocks) {
+            bHtml += '<tr data-service="' + esc(s.key) + '">'
+                  +  '<td><i class="fa ' + esc(s.icon || 'fa-cubes') + '" style="margin-right:8px;color:#ef4444"></i><b>' + esc(s.label) + '</b></td>'
+                  +  '<td><span class="label label-default">' + esc(s.category || 'General') + '</span></td>'
+                  +  '<td><span class="wq-pill" style="background:rgba(239,68,68,0.18);color:#ef4444;font-weight:600"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Blocked") }}') + '</span></td>'
+                  +  '<td>' + formatRemainingTime(s.until) + '</td>'
+                  +  '<td>' + esc(s.reason || '—') + '</td>'
+                  +  '<td><span class="badge" style="background:#3b82f6">' + Number(s.address_count || 0) + ' IPs</span></td>'
+                  +  '<td style="text-align:right">'
+                  +  '<button class="btn btn-xs btn-success btn-service-unblock" data-service="' + esc(s.key) + '" data-name="' + esc(s.label) + '"><i class="fa fa-unlock"></i> ' + esc('{{ lang._("Unblock") }}') + '</button>'
+                  +  '</td></tr>';
+        }
+        bHtml += '</tbody></table>';
+        $('#activeBlockedServicesTable').html(bHtml);
+    } else {
+        $('#activeBlockedServicesSection').hide();
+        $('#activeBlockedServicesTable').empty();
+    }
+
+    // Grid Cards
+    let gHtml = '';
+    for (const s of services) {
+        const isPlayStation = s.key === 'playstation';
+        const cardClass = 'wq-service-card'
+                        + (isPlayStation ? ' wq-service-playstation' : '')
+                        + (s.blocked ? ' wq-service-blocked' : '')
+                        + (s.key === 'xbox' ? ' wq-service-xbox' : '')
+                        + (s.key === 'steam_downloads' ? ' wq-service-steam' : '')
+                        + (s.key === 'youtube' ? ' wq-service-youtube' : '')
+                        + (s.key === 'netflix' ? ' wq-service-netflix' : '')
+                        + (s.key === 'tiktok' ? ' wq-service-tiktok' : '');
+
+        let statusBadge = s.blocked
+            ? '<span class="wq-pill" style="background:rgba(239,68,68,0.18);color:#ef4444;font-weight:600"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Blocked") }}') + '</span>'
+            : '<span class="wq-pill wq-pill-ok"><i class="fa fa-check"></i> ' + esc('{{ lang._("Allowed") }}') + '</span>';
+
+        let actionBtn = s.blocked
+            ? '<button class="btn btn-sm btn-success btn-service-unblock" data-service="' + esc(s.key) + '" data-name="' + esc(s.label) + '"><i class="fa fa-unlock"></i> ' + esc('{{ lang._("Unblock") }}') + '</button>'
+            : '<button class="btn btn-sm btn-danger btn-service-prompt-block" data-service="' + esc(s.key) + '" data-name="' + esc(s.label) + '"><i class="fa fa-ban"></i> ' + esc('{{ lang._("Block…") }}') + '</button>';
+
+        let metaText = s.blocked
+            ? '<div class="wq-service-meta text-danger"><b>' + formatRemainingTime(s.until) + '</b>' + (s.reason ? '<br><small class="wq-muted">' + esc(s.reason) + '</small>' : '') + '</div>'
+            : '<div class="wq-service-meta wq-muted">' + (s.address_count > 0 ? esc(s.address_count + ' {{ lang._("destination IPs covered") }}') : esc('{{ lang._("Traffic automatically classified") }}')) + '</div>';
+
+        gHtml += '<div class="' + cardClass + '" data-service="' + esc(s.key) + '" data-search="' + esc((s.label + ' ' + s.category + ' ' + s.key).toLowerCase()) + '">'
+              +  '  <div class="wq-service-card-top">'
+              +  '    <div class="wq-service-info">'
+              +  '      <div class="wq-service-icon"><i class="fa ' + esc(s.icon || 'fa-cubes') + '"></i></div>'
+              +  '      <div>'
+              +  '        <div class="wq-service-title">' + esc(s.label) + (isPlayStation ? ' <span class="label label-primary" style="font-size:10px;vertical-align:middle">PSN</span>' : '') + '</div>'
+              +  '        <div class="wq-service-cat">' + esc(s.category) + '</div>'
+              +  '      </div>'
+              +  '    </div>'
+              +  '    <div>' + statusBadge + '</div>'
+              +  '  </div>'
+              +     metaText
+              +  '  <div class="wq-service-actions">'
+              +  '    <span class="wq-muted" style="font-size:11px">' + esc(s.key) + '</span>'
+              +  '    ' + actionBtn
+              +  '  </div>'
+              +  '</div>';
+    }
+    $('#servicesCardsGrid').html(gHtml);
+    filterServicesGrid();
+}
+
+function filterServicesGrid() {
+    const query = String($('#serviceSearch').val() || '').toLowerCase().trim();
+    $('#servicesCardsGrid .wq-service-card').each(function() {
+        const search = String($(this).data('search') || '');
+        $(this).toggle(!query || search.includes(query));
     });
 }
 
@@ -3267,6 +3534,89 @@ $(document).ready(function() {
                     refreshClientsTab();
                 } else {
                     alert(result && result.error ? result.error : '{{ lang._("Failed to release blocks.") }}');
+                }
+            });
+        }
+    });
+    $('#serviceSearch').on('input', filterServicesGrid);
+    $('#btnRefreshServicesList').on('click', refreshClientsTab);
+
+    $('#clients').on('click', '.btn-service-prompt-block', function() {
+        const service = $(this).data('service');
+        const name = $(this).data('name') || service;
+        $('#modalBlockTargetService').val(service);
+        $('#modalBlockServiceName').text(name);
+        $('#modalBlockServiceDetail').text('{{ lang._("Platform identifier:") }} ' + service);
+        $('#modalBlockServiceDuration').val('0');
+        $('#modalBlockServiceReason').val('');
+        $('#modalBlockService').modal('show');
+    });
+
+    $('#btnModalConfirmBlockService').on('click', function() {
+        const service = $('#modalBlockTargetService').val();
+        if (!service) return;
+        const duration = $('#modalBlockServiceDuration').val();
+        const reason = $('#modalBlockServiceReason').val().trim();
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/block_service', {service: service, duration: duration, reason: reason}, function(result) {
+            btn.prop('disabled', false);
+            $('#modalBlockService').modal('hide');
+            if (result && result.status === 'ok') {
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to block service.") }}');
+            }
+        });
+    });
+
+    $('#btnManualBlockService').on('click', function() {
+        const service = $('#manualBlockServiceTarget').val();
+        if (!service) return;
+        const duration = $('#manualBlockServiceDuration').val();
+        const reason = $('#manualBlockServiceReason').val().trim();
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/block_service', {service: service, duration: duration, reason: reason}, function(result) {
+            btn.prop('disabled', false);
+            if (result && result.status === 'ok') {
+                $('#manualBlockServiceReason').val('');
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to block service.") }}');
+            }
+        });
+    });
+
+    $('#clients').on('click', '.btn-service-unblock', function() {
+        const service = $(this).data('service');
+        const name = $(this).data('name') || service;
+        if (!service) return;
+        if (!window.confirm('{{ lang._("Unblock platform ") }}' + name + '{{ lang._(" across the network?") }}')) {
+            return;
+        }
+        const btn = $(this);
+        btn.prop('disabled', true);
+        ajaxCall('/api/wanquota/device_policy/unblock_service', {service: service}, function(result) {
+            btn.prop('disabled', false);
+            if (result && result.status === 'ok') {
+                refreshClientsTab();
+            } else {
+                alert(result && result.error ? result.error : '{{ lang._("Failed to unblock service.") }}');
+            }
+        });
+    });
+
+    $('#btnReleaseAllServices').on('click', function() {
+        if (window.confirm('{{ lang._("Release every service block? All gaming and streaming platforms will be unblocked.") }}')) {
+            const btn = $(this);
+            btn.prop('disabled', true);
+            ajaxCall('/api/wanquota/device_policy/unblock_all_services', {}, function(result) {
+                btn.prop('disabled', false);
+                if (result && result.status === 'ok') {
+                    refreshClientsTab();
+                } else {
+                    alert(result && result.error ? result.error : '{{ lang._("Failed to release service blocks.") }}');
                 }
             });
         }

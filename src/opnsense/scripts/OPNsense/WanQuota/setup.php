@@ -66,6 +66,7 @@ $defaults = [
     'guardrail_thresholds' => '50,75,90,100',
     'emergency_reserve_gb' => '5',
     'device_blocks_json' => '[]',
+    'service_blocks_json' => '[]',
     'balance_mode' => 'weights',
     'balance_enabled' => '0',
     'balance_dry_run' => '1',
@@ -157,6 +158,7 @@ $cron->serializeToConfig();
 $tables = [
     'wanquota_over_budget' => 'WAN quota: devices over their per-device budget (maintained by os-wanquota)',
     'wanquota_blocked' => 'WAN quota: devices blocked from the internet (maintained by os-wanquota)',
+    'wanquota_blocked_services' => 'WAN quota: destination IPs of blocked services (maintained by os-wanquota)',
 ];
 try {
     $aliases = new \OPNsense\Firewall\Alias();
@@ -225,8 +227,21 @@ try {
  * recognises.
  */
 $ruleSpecs = [
-    'wanquota_over_budget' => 'Block devices over their WAN quota budget (os-wanquota)',
-    'wanquota_blocked' => 'Block devices from the internet (os-wanquota)',
+    'wanquota_over_budget' => [
+        'descr' => 'Block devices over their WAN quota budget (os-wanquota)',
+        'type' => 'device',
+        'alias' => 'wanquota_over_budget',
+    ],
+    'wanquota_blocked' => [
+        'descr' => 'Block devices from the internet (os-wanquota)',
+        'type' => 'device',
+        'alias' => 'wanquota_blocked',
+    ],
+    'wanquota_blocked_services' => [
+        'descr' => 'Block traffic to blocked services (os-wanquota)',
+        'type' => 'service',
+        'alias' => 'wanquota_blocked_services',
+    ],
 ];
 $createdRules = [];
 try {
@@ -234,7 +249,10 @@ try {
     if (!isset($configObject->filter)) {
         $configObject->addChild('filter');
     }
-    $wanted = array_flip($ruleSpecs);
+    $wanted = [];
+    foreach ($ruleSpecs as $spec) {
+        $wanted[$spec['descr']] = true;
+    }
     /* Collect before removing: a live SimpleXML node list skips entries otherwise. */
     $stale = [];
     foreach ($configObject->filter->rule as $rule) {
@@ -255,29 +273,38 @@ try {
         }
     }
     /*
-     * Reversed, inserting each before the last one placed, so the pair ends up in the
+     * Reversed, inserting each before the last one placed, so the rules end up in the
      * order listed above rather than mirrored.
      */
-    foreach (array_reverse($ruleSpecs, true) as $aliasName => $description) {
+    foreach (array_reverse($ruleSpecs, true) as $key => $spec) {
         $rule = $document->createElement('rule');
-        foreach (['type' => 'block', 'ipprotocol' => 'inet46', 'descr' => $description,
+        foreach (['type' => 'block', 'ipprotocol' => 'inet46', 'descr' => $spec['descr'],
                   'interface' => 'lan', 'log' => '1'] as $field => $value) {
             $rule->appendChild($document->createElement($field, $value));
         }
         $source = $document->createElement('source');
-        $source->appendChild($document->createElement('address', $aliasName));
-        $rule->appendChild($source);
-        $destination = $document->createElement('destination');
-        $destination->appendChild($document->createElement('network', 'lan'));
-        $destination->appendChild($document->createElement('not', '1'));
-        $rule->appendChild($destination);
+        if ($spec['type'] === 'device') {
+            $source->appendChild($document->createElement('address', $spec['alias']));
+            $rule->appendChild($source);
+            $destination = $document->createElement('destination');
+            $destination->appendChild($document->createElement('network', 'lan'));
+            $destination->appendChild($document->createElement('not', '1'));
+            $rule->appendChild($destination);
+        } else {
+            // Service block: drop traffic from any LAN client to the service destination IPs
+            $source->appendChild($document->createElement('any', '1'));
+            $rule->appendChild($source);
+            $destination = $document->createElement('destination');
+            $destination->appendChild($document->createElement('address', $spec['alias']));
+            $rule->appendChild($destination);
+        }
         if ($first === null) {
             $filterDom->appendChild($rule);
         } else {
             $filterDom->insertBefore($rule, $first);
         }
         $first = $rule;
-        $createdRules[] = $description;
+        $createdRules[] = $spec['descr'];
     }
     if (!empty($createdRules)) {
         echo 'Installed firewall rule(s) at the top of the LAN list: '

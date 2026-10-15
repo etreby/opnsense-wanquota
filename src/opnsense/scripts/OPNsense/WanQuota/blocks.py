@@ -51,12 +51,14 @@ import subprocess
 import sys
 import time
 
+import addresses as service_addresses
 import consumers
 import devices as budget
 import intelligence
 import shaper
 
 TABLE = "wanquota_blocked"
+SERVICE_TABLE = "wanquota_blocked_services"
 STATE_DIR = "/var/db/wanquota"
 PLAN_PATH = os.path.join(STATE_DIR, "block-plan.json")
 PFCTL = "/sbin/pfctl"
@@ -72,6 +74,27 @@ def entries(config_path=None):
         root = ET.parse(intelligence.CONFIG_PATH).getroot()
         general = root.find("./OPNsense/WanQuota/general")
         raw = intelligence.value(general, "device_blocks_json", "[]")
+    except (OSError, ValueError):
+        return []
+    finally:
+        intelligence.CONFIG_PATH = saved
+    try:
+        parsed = json.loads(raw or "[]")
+    except json.JSONDecodeError:
+        return []
+    return parsed if isinstance(parsed, list) else []
+
+
+def service_entries(config_path=None):
+    """The configured service blocks, as a list."""
+    saved = intelligence.CONFIG_PATH
+    if config_path:
+        intelligence.CONFIG_PATH = config_path
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.parse(intelligence.CONFIG_PATH).getroot()
+        general = root.find("./OPNsense/WanQuota/general")
+        raw = intelligence.value(general, "service_blocks_json", "[]")
     except (OSError, ValueError):
         return []
     finally:
@@ -168,7 +191,91 @@ def members(blocks, known, policies, groups, router, now=None,
     return chosen, skipped, expired
 
 
-def apply_table(addresses, runner=None):
+def service_members(blocks, catalog=None, mappings=None, now=None, resolver=None):
+    """Services to block and their destination IP addresses.
+
+    Returns (chosen, skipped, expired, all_addresses).
+    """
+    now = int(time.time()) if now is None else int(now)
+    cat = catalog if catalog is not None else shaper.STREAMING_SERVICES
+    chosen = []
+    skipped = []
+    expired = []
+    seen = set()
+    all_addrs = set()
+
+    for block in blocks or []:
+        service_key = str(block.get("service") or "").strip().lower()
+        if not service_key:
+            skipped.append({"service": "(unnamed)", "reason": "no service given"})
+            continue
+        try:
+            until = int(block.get("until") or 0)
+        except (TypeError, ValueError):
+            skipped.append({"service": service_key, "reason": "until must be a Unix timestamp"})
+            continue
+        if until and until <= now:
+            expired.append({"service": service_key, "until": until,
+                            "reason": "the block deadline has passed"})
+            continue
+        if service_key not in cat:
+            skipped.append({"service": service_key, "reason": "unknown service in catalog"})
+            continue
+        if service_key in seen:
+            skipped.append({"service": service_key, "reason": "already listed"})
+            continue
+        seen.add(service_key)
+
+        info = cat[service_key]
+        label = info.get("label", service_key)
+        suffixes = list(info.get("suffixes") or ())
+
+        svc_addrs = set()
+        try:
+            rows = service_addresses.addresses_for(service_key, now=now)
+            for r in rows:
+                if r.get("address"):
+                    svc_addrs.add(r["address"])
+        except Exception:
+            pass
+
+        if mappings is not None or os.path.exists(consumers.DOMAIN_DB):
+            try:
+                maps = mappings if mappings is not None else shaper.load_mappings()
+                obs = service_addresses.observed_for(suffixes, maps)
+                for h_addrs in obs.values():
+                    svc_addrs.update(h_addrs)
+            except Exception:
+                pass
+
+        try:
+            resolved = service_addresses.resolve_hostnames(suffixes, resolver)
+            for h_addrs in resolved.values():
+                svc_addrs.update(h_addrs)
+        except Exception:
+            pass
+
+        valid_addrs = set()
+        for a in svc_addrs:
+            try:
+                ipaddress.ip_address(a)
+                valid_addrs.add(a)
+            except ValueError:
+                pass
+
+        all_addrs.update(valid_addrs)
+        chosen.append({
+            "service": service_key,
+            "label": label,
+            "until": until,
+            "reason": str(block.get("reason") or ""),
+            "address_count": len(valid_addrs),
+        })
+
+    return chosen, skipped, expired, sorted(all_addrs)
+
+
+def apply_table(addresses, table=TABLE, runner=None):
     """Replace the table contents atomically.
 
     Shares devices.py's reading of pfctl: it reports what it did on stderr even on
@@ -177,28 +284,30 @@ def apply_table(addresses, runner=None):
     """
     run = runner or (lambda args: subprocess.run(args, capture_output=True, text=True, timeout=30))
     wanted = list(addresses)
-    before = budget.table_members(TABLE, runner=run)
-    result = run([PFCTL, "-t", TABLE, "-T", "replace"] + wanted)
+    before = budget.table_members(table, runner=run)
+    result = run([PFCTL, "-t", table, "-T", "replace"] + wanted)
     ok = getattr(result, "returncode", 1) == 0
     message = (getattr(result, "stderr", "") or "").strip()
     killed = []
     if ok:
         # The whole difference between a block that works and one that only looks like
-        # it works. pf checks its state table before its rules, so a device holding an
-        # established connection keeps using it — and an IoT device that opens one
-        # long-lived session to its vendor's cloud opens no second one to be refused.
+        # it works. pf checks its state table before its rules, so a device or service
+        # holding an established connection keeps using it.
         killed = budget.kill_states(set(wanted) - before, runner=run)
     return ok, ("" if ok else message), message, killed
 
 
-def flush(runner=None):
-    """Empty the table. This is the rollback.
+def flush(table=None, runner=None):
+    """Empty the table(s). This is the rollback.
 
-    No states are killed: releasing a device should let its traffic resume, and there
-    is nothing to tear down that the rule was stopping.
+    No states are killed: releasing a device or service should let its traffic resume.
     """
-    ok, error, detail, _ = apply_table([], runner=runner)
-    return ok, error, detail
+    if table is not None:
+        ok, error, detail, _ = apply_table([], table=table, runner=runner)
+        return ok, error, detail
+    ok1, err1, det1, _ = apply_table([], table=TABLE, runner=runner)
+    ok2, err2, det2, _ = apply_table([], table=SERVICE_TABLE, runner=runner)
+    return (ok1 and ok2), (err1 or err2), (det1 + " " + det2).strip()
 
 
 def write_plan(document):
@@ -210,9 +319,16 @@ def write_plan(document):
 def read_plan():
     try:
         with open(PLAN_PATH, encoding="utf-8") as handle:
-            return json.load(handle)
+            data = json.load(handle)
+            if "services" not in data:
+                data["services"] = []
+            if "service_table" not in data:
+                data["service_table"] = SERVICE_TABLE
+            return data
     except (OSError, ValueError):
         return {"status": "unknown", "members": [], "skipped": [],
+                "services": [], "service_skipped": [], "table": TABLE,
+                "service_table": SERVICE_TABLE,
                 "note": "No block plan has been written yet."}
 
 
@@ -238,6 +354,22 @@ def prune(expired, config_path=None):
         return {"removed": 0, "error": str(error)}
 
 
+def prune_services(expired, config_path=None):
+    """Drop expired service entries from the configuration itself."""
+    if not expired:
+        return {"removed": 0}
+    keys = [item["service"] for item in expired]
+    script = "/usr/local/opnsense/scripts/OPNsense/WanQuota/blocks.php"
+    if not os.path.isfile(script):
+        return {"removed": 0, "error": "blocks.php is not installed"}
+    try:
+        result = subprocess.run(["/usr/local/bin/php", script, "expire-service"] + keys,
+                                capture_output=True, text=True, timeout=60)
+        return json.loads(result.stdout or "{}")
+    except Exception as error:
+        return {"removed": 0, "error": str(error)}
+
+
 def run(config_path=None):
     cfg = intelligence.options()
     settings, _ = consumers.settings_and_names()
@@ -245,28 +377,40 @@ def run(config_path=None):
     chosen, skipped, expired = members(
         blocks, shaper.device_identities(), intelligence.policy_index(cfg["devices"]),
         cfg["groups"], settings["router"])
-    applied, error, detail, killed = apply_table([item["device"] for item in chosen])
+    applied, error, detail, killed = apply_table([item["device"] for item in chosen], table=TABLE)
+
+    svc_blocks = service_entries(config_path)
+    svc_chosen, svc_skipped, svc_expired, svc_addrs = service_members(svc_blocks)
+    svc_applied, svc_err, svc_det, svc_killed = apply_table(svc_addrs, table=SERVICE_TABLE)
+
     document = {
-        "status": "ok" if applied else "failed",
+        "status": "ok" if (applied and svc_applied) else "failed",
         "table": TABLE,
+        "service_table": SERVICE_TABLE,
         "members": chosen,
         "skipped": skipped,
         "expired": expired,
+        "services": svc_chosen,
+        "service_skipped": svc_skipped,
+        "service_expired": svc_expired,
+        "service_addresses_count": len(svc_addrs),
         "applied": applied,
-        "error": error or None,
-        "pfctl": detail or None,
-        # Which devices had open connections torn down, so a block that had to
-        # interrupt something says so rather than appearing to have been free.
-        "states_killed": killed,
+        "service_applied": svc_applied,
+        "error": error or svc_err or None,
+        "pfctl": (str(detail or "") + " " + str(svc_det or "")).strip() or None,
+        # Which devices and destination IPs had open connections torn down
+        "states_killed": killed + svc_killed,
         "updated": int(time.time()),
         "note": (
             "A block stops internet access and leaves LAN traffic alone. DNS and NTP "
             "served by the firewall keep working, so a blocked device is not left with "
-            "a broken clock as well."
+            "a broken clock as well. Blocked services prevent access to specified destinations."
         ),
     }
     if expired:
         document["pruned"] = prune(expired, config_path)
+    if svc_expired:
+        document["service_pruned"] = prune_services(svc_expired, config_path)
     write_plan(document)
     return document
 

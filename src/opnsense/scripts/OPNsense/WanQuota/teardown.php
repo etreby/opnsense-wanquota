@@ -78,7 +78,8 @@ if (is_executable($blocks)) {
         : "WARNING: could not release manual blocks; check the wanquota_blocked pf table\n";
 } else {
     exec('/sbin/pfctl -t wanquota_blocked -T flush 2>&1', $ignoredBlocks, $blockFallback);
-    echo $blockFallback === 0
+    exec('/sbin/pfctl -t wanquota_blocked_services -T flush 2>&1', $ignoredServices, $serviceFallback);
+    echo ($blockFallback === 0 && $serviceFallback === 0)
         ? "Flushed the manual block table\n"
         : "WARNING: the manual block table may still hold members\n";
 }
@@ -104,6 +105,7 @@ if (is_file($balance)) {
 $descriptions = [
     'Block devices over their WAN quota budget (os-wanquota)',
     'Block devices from the internet (os-wanquota)',
+    'Block traffic to blocked services (os-wanquota)',
 ];
 $configObject = \OPNsense\Core\Config::getInstance()->object();
 $removedRules = 0;
